@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+}
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #020817;
+    --card: #ffffff;
+    --card-foreground: #020817;
+    --primary: #2563eb;
+    --primary-foreground: #f8fafc;
+    --border: #e2e8f0;
+  }
+
+  .dark {
+    --background: #000000;
+    --foreground: #f8fafc;
+    --card: #0a0a0a;
+    --card-foreground: #f8fafc;
+    --primary: #ffffff;
+    --primary-foreground: #000000;
+    --border: #262626;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-white/20 selection:text-white;
+  }
+}
+
+/* Custom Utilities for Premium Monochrome Look */
+@layer components {
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 hover:border-white/20 transition-all duration-300;
+  }
+
+  .stats-card {
+    @apply bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 hover:border-white/20 transition-all duration-300;
+  }
+
+  .stats-gradient-silver {
+    @apply absolute -right-4 -top-4 w-24 h-24 bg-white/10 blur-[40px] rounded-full group-hover:bg-white/20 transition-all duration-500;
+  }
+
+  .stats-gradient-charcoal {
+    @apply absolute -right-4 -top-4 w-24 h-24 bg-slate-500/10 blur-[40px] rounded-full group-hover:bg-slate-500/20 transition-all duration-500;
+  }
+
+  .btn-premium {
+    @apply px-4 py-2 bg-white hover:bg-slate-200 text-black font-black rounded-xl shadow-lg shadow-white/5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:active:scale-100;
+  }
+
+  .table-row-hover {
+    @apply hover:bg-white/[0.05] transition-colors duration-150;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+}
+
+/* Recharts Overrides */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: #1e293b;
+}
+
+.recharts-default-tooltip {
+  @apply !bg-slate-900 !border-slate-800 !rounded-xl !shadow-2xl !backdrop-blur-md !p-3 !text-slate-200 !text-sm;
+}
