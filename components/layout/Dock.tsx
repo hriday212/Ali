@@ -9,7 +9,9 @@ import {
   UsersRound, 
   Wallet, 
   LineChart, 
-  Settings2 
+  Settings2,
+  Trophy,
+  LayoutGrid
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/authStore';
@@ -133,6 +135,7 @@ export default function Dock() {
 
   const allItems = [
     { name: 'Dashboard', icon: Home, href: '/', adminOnly: false },
+    { name: 'Leaderboard', icon: Trophy, href: '/leaderboard', adminOnly: false },
     { name: 'Network', icon: UsersRound, href: '/accounts', adminOnly: false },
     { name: 'Ledger', icon: Wallet, href: '/payments', adminOnly: true },
     { name: 'Forecast', icon: LineChart, href: '/analytics', adminOnly: false },

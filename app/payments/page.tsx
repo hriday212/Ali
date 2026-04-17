@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { addPayout, getTotalPaid, getLatestPayoutForVideo, type PayoutRecord } from '@/lib/payoutsStore';
 import { getAccounts } from '@/lib/accountsStore';
 import { useAuth } from '@/lib/authStore';
+import { API_ROUTES } from '@/lib/apiConfig';
 
 const PlatformIcon = ({ platform }: { platform: string }) => {
   if (platform === 'youtube') return <Youtube className="w-5 h-5 text-red-500" />;
@@ -88,7 +89,7 @@ export default function PaymentsPage() {
 
     for (const acc of accounts) {
       try {
-        const res = await fetch(`http://localhost:4000/api/status?accountId=${acc.id}`);
+        const res = await fetch(`${API_ROUTES.STATUS}?accountId=${acc.id}`);
         if (res.ok) {
           const result = await res.json();
           const videos = result.data?.posts || [];

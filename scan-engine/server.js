@@ -9,7 +9,7 @@ require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 const { DEFAULT_ACCOUNTS } = require('./defaultAccounts');
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
 
@@ -17,12 +17,16 @@ app.use(cors());
 app.use(express.json());
 
 // --- Setup Persistence ---
-const DATA_DIR = path.join(os.homedir(), '.forensic-scan-data');
+const DATA_DIR = process.env.DATA_PATH || path.join(os.homedir(), '.forensic-scan-data');
 const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    } catch (e) {
+      console.error('Could not create data directory:', e.message);
+    }
   }
 }
 

@@ -40,6 +40,7 @@ import {
 } from 'recharts';
 import { getAccountById, type Account } from '@/lib/accountsStore';
 import { getPayouts, getPayoutsForAccount, type PayoutRecord } from '@/lib/payoutsStore';
+import { API_ROUTES } from '@/lib/apiConfig';
 
 // --- Types ---
 interface PostData {
@@ -165,7 +166,7 @@ export default function AccountForensicPage() {
       setPayouts(getPayoutsForAccount(account.id));
 
       try {
-        const res = await fetch(`http://localhost:4000/api/status?accountId=${account.id}`);
+        const res = await fetch(`${API_ROUTES.STATUS}?accountId=${account.id}`);
         if (res.ok) {
           const statusResult = await res.json();
           if (statusResult.active) {
@@ -275,7 +276,7 @@ export default function AccountForensicPage() {
     setScanError(null);
 
     try {
-      const res = await fetch('http://localhost:4000/api/start', {
+      const res = await fetch(API_ROUTES.START, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -303,7 +304,7 @@ export default function AccountForensicPage() {
     setNextScanIn(0);
 
     try {
-      await fetch('http://localhost:4000/api/stop', {
+      await fetch(API_ROUTES.STOP, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId: account.id })
@@ -1009,5 +1010,3 @@ export default function AccountForensicPage() {
     </div>
   );
 }
-/*heelo*/
-bhscdbchjhbjhbhb
