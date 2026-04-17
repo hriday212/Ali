@@ -12,6 +12,7 @@ import {
   Settings2 
 } from 'lucide-react';
 import Image from 'next/image';
+import { useAuth } from '@/lib/authStore';
 import './Dock.css';
 
 interface DockItemProps {
@@ -118,6 +119,7 @@ function DockIcon({ children, className = '', isActive }: { children: React.Reac
 
 export default function Dock() {
   const pathname = usePathname();
+  const { role } = useAuth();
   const mouseX = useMotionValue(Infinity);
   const isHoveredIndicator = useMotionValue(0);
 
@@ -129,13 +131,16 @@ export default function Dock() {
   const dockHeight = 220;
   const baseItemSize = 64;
 
-  const items = [
-    { name: 'Dashboard', icon: Home, href: '/', imgSrc: undefined },
-    { name: 'Network', icon: UsersRound, href: '/accounts', imgSrc: undefined },
-    { name: 'Ledger', icon: Wallet, href: '/payments', imgSrc: undefined },
-    { name: 'Forecast', icon: LineChart, href: '/analytics', imgSrc: undefined },
-    { name: 'System', icon: Settings2, href: '/settings', imgSrc: undefined },
+  const allItems = [
+    { name: 'Dashboard', icon: Home, href: '/', adminOnly: false },
+    { name: 'Network', icon: UsersRound, href: '/accounts', adminOnly: false },
+    { name: 'Ledger', icon: Wallet, href: '/payments', adminOnly: true },
+    { name: 'Forecast', icon: LineChart, href: '/analytics', adminOnly: false },
+    { name: 'System', icon: Settings2, href: '/settings', adminOnly: true },
   ];
+
+  // Clients only see non-admin items
+  const items = allItems.filter(item => !item.adminOnly || role === 'admin');
 
   const maxHeight = useMemo(
     () => Math.max(dockHeight, magnification + 30),
@@ -166,7 +171,6 @@ export default function Dock() {
             <DockItem
               key={index}
               href={item.href}
-              imgSrc={item.imgSrc}
               className={isActive ? 'border-white bg-white/10 shadow-lg shadow-white/5' : 'border-white/5 hover:border-white/20'}
               mouseX={mouseX}
               spring={spring}

@@ -1,72 +1,75 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { LogIn, LogOut, ShieldCheck, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useAuth } from '@/lib/authStore';
 
 export function TopHeader() {
-  const [isSearchHovered, setIsSearchHovered] = useState(false);
+  const { user, role, logout } = useAuth();
 
   return (
     <div className="fixed top-8 left-0 right-0 z-[60] flex justify-center px-6">
       <motion.header
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="w-full max-w-3xl h-18 bg-black/12 backdrop-blur-[2px] border border-white/50 rounded-full flex items-center justify-between px-10 transition-all duration-500 relative overflow-hidden"
+        className="w-full max-w-3xl h-18 bg-black/12 backdrop-blur-[2px] border border-white/50 rounded-full flex items-center justify-between px-8 transition-all duration-500 relative overflow-hidden"
       >
-        {/* The Silk Shimmer (High-End Shine) */}
+        {/* Silk Shimmer */}
         <motion.div
           animate={{ x: ['-100%', '200%'] }}
           transition={{ repeat: Infinity, duration: 3, ease: "linear", repeatDelay: 2 }}
           className="absolute inset-0 w-1/2 h-full skew-x-[45deg] bg-gradient-to-r from-transparent via-white/[0.08] to-transparent pointer-events-none"
         />
-
-        {/* Gloss Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none opacity-50" />
 
-        {/* Left: Pure Minimalist Logo with Pulse Glory */}
-        <div className="flex items-center group cursor-pointer z-10">
-          <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-white group-hover:scale-110 transition-all duration-500 shadow-[0_0_15px_rgba(255,255,255,0.05)] group-hover:shadow-[0_0_25px_rgba(255,255,255,0.15)]">
-              <img src="/logo.jpg" alt="Command Center Logo" className="w-full h-full object-cover rounded-xl" />
+        {/* Left: Full Logo */}
+        <Link href="/" className="relative z-10 flex items-center">
+          <Image
+            src="/clypso-full-logo.png"
+            alt="Clypso"
+            width={120}
+            height={40}
+            className="object-contain h-10 w-auto"
+            priority
+          />
+        </Link>
+
+        {/* Center: Role Badge (if logged in) */}
+        {user && (
+          <div className="absolute left-1/2 -translate-x-1/2 z-10">
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black tracking-[0.15em] uppercase ${
+              role === 'admin'
+                ? 'bg-white/10 border-white/20 text-white'
+                : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+            }`}>
+              {role === 'admin' ? <ShieldCheck className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+              {role}
             </div>
           </div>
-          <div className="w-[1px] h-8 bg-white/10 mx-6 shadow-inner" />
-        </div>
+        )}
 
-        {/* Right: Interactive Kinetic Search Hub */}
-        <div
-          className="relative flex items-center group cursor-pointer z-10"
-          onMouseEnter={() => setIsSearchHovered(true)}
-          onMouseLeave={() => setIsSearchHovered(false)}
-        >
-          <motion.div
-            initial={false}
-            animate={{
-              x: isSearchHovered ? -120 : 0,
-              backgroundColor: isSearchHovered ? "rgba(255,255,255,0.15)" : "transparent",
-              borderColor: isSearchHovered ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)"
-            }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="w-12 h-12 rounded-full border flex items-center justify-center text-slate-400 group-hover:text-slate-100 transition-all shadow-inner"
-          >
-            <Search className="w-5.5 h-5.5" />
-          </motion.div>
-
-          <AnimatePresence>
-            {isSearchHovered && (
-              <motion.div
-                initial={{ opacity: 0, x: 20, scale: 0.9, filter: "blur(4px)" }}
-                animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
-                exit={{ opacity: 0, x: 10, scale: 0.9, filter: "blur(4px)" }}
-                className="absolute right-0 flex items-center"
-              >
-                <button className="px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-full shadow-[0_0_40px_rgba(255,255,255,0.3)] transition-all hover:scale-105 active:scale-95">
-                  Search
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* Right: Login / Logout */}
+        <div className="z-10">
+          {user ? (
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/10 text-slate-400 hover:text-white hover:border-white/30 text-[10px] font-bold tracking-[0.15em] uppercase transition-all"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Logout
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-white text-black text-[10px] font-black tracking-[0.15em] uppercase hover:bg-slate-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              Login
+            </Link>
+          )}
         </div>
       </motion.header>
     </div>

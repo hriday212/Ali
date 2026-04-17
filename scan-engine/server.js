@@ -6,9 +6,12 @@ const os = require('os');
 const fetch = require('node-fetch');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
+const { DEFAULT_ACCOUNTS } = require('./defaultAccounts');
+
 const app = express();
 const PORT = 4000;
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
 
 app.use(cors());
 app.use(express.json());
@@ -28,13 +31,29 @@ function readScanData(accountId) {
   try {
     if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   } catch {}
-  return { posts: [], history: [] };
+  return { posts: [], history: [], platform: 'youtube' };
 }
 
 function writeScanData(accountId, data) {
   ensureDataDir();
   const filePath = path.join(DATA_DIR, `${accountId}.json`);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+// --- Apify Helper ---
+async function runApifyActor(actorId, input) {
+  const formattedId = actorId.replace('/', '~');
+  const url = `https://api.apify.com/v2/acts/${formattedId}/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}&timeout=180`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Apify error (${formattedId}): ${err}`);
+  }
+  return await response.json();
 }
 
 // --- YouTube Helpers ---
@@ -71,154 +90,226 @@ function parseDuration(duration) {
     return parseInt(match[1] || '0') * 3600 + parseInt(match[2] || '0') * 60 + parseInt(match[3] || '0');
 }
 
+// --- Platform Scan Functions ---
+async function scanYouTube(accountId, accountLink) {
+  const channelId = await getChannelIdFromUrl(accountLink);
+  if (!channelId) return null;
+  const items = await getChannelVideos(channelId, 10);
+  return items.map(item => ({
+    id: item.id,
+    title: item.snippet.title,
+    thumbnail: item.snippet.thumbnails?.high?.url || '',
+    views: parseInt(item.statistics?.viewCount || '0'),
+    likes: parseInt(item.statistics?.likeCount || '0'),
+    comments: parseInt(item.statistics?.commentCount || '0'),
+    shares: 0,
+    link: `https://www.youtube.com/watch?v=${item.id}`,
+    date: item.snippet.publishedAt,
+    type: parseDuration(item.contentDetails?.duration || '') < 65 ? 'short' : 'video',
+    platform: 'youtube',
+  })).sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+async function scanTikTok(accountId, accountLink) {
+  const handleMatch = accountLink.match(/@([a-zA-Z0-9._-]+)/);
+  const profile = handleMatch ? handleMatch[1] : accountLink;
+  const items = await runApifyActor('clockworks/tiktok-scraper', {
+    profiles: [`https://www.tiktok.com/@${profile}`],
+    resultsPerPage: 20,
+  });
+  return (items || []).map(item => ({
+    id: item.id || item.webVideoUrl || String(Math.random()),
+    title: item.text || '',
+    thumbnail: item.covers?.default || item.cover || '',
+    views: item.playCount || item.stats?.playCount || 0,
+    likes: item.diggCount || item.stats?.diggCount || 0,
+    comments: item.commentCount || item.stats?.commentCount || 0,
+    shares: item.shareCount || item.stats?.shareCount || 0,
+    link: item.webVideoUrl || accountLink,
+    date: item.createTime ? new Date(item.createTime * 1000).toISOString() : new Date().toISOString(),
+    type: 'video',
+    platform: 'tiktok',
+  }));
+}
+
+async function scanInstagram(accountId, accountLink) {
+  const items = await runApifyActor('apify/instagram-scraper', {
+    directUrls: [accountLink],
+    resultsLimit: 20,
+    resultsType: 'posts',
+  });
+  return (items || []).map(item => ({
+    id: item.id || item.shortCode || String(Math.random()),
+    title: item.caption || item.alt || '',
+    thumbnail: item.displayUrl || item.imageUrl || '',
+    views: item.videoViewCount || item.videoPlayCount || 0,
+    likes: item.likesCount || item.likes || 0,
+    comments: item.commentsCount || item.comments || 0,
+    shares: 0,
+    link: item.url || `https://instagram.com/p/${item.shortCode}`,
+    date: item.timestamp || new Date().toISOString(),
+    type: item.type === 'Video' ? 'video' : 'post',
+    platform: 'instagram',
+  }));
+}
+
+// --- High-Water Mark system (works for all platforms) ---
+function applyHighWaterMark(data, posts) {
+  if (!data.peakViews) data.peakViews = {};
+  posts.forEach(p => {
+    const existing = data.peakViews[p.id];
+    if (!existing || p.views >= existing.views) {
+      data.peakViews[p.id] = { views: p.views, likes: p.likes, comments: p.comments, shares: p.shares || 0, title: p.title };
+    }
+  });
+  const allPeaks = Object.values(data.peakViews);
+  return {
+    peakTotalViews: allPeaks.reduce((s, p) => s + p.views, 0),
+    peakTotalLikes: allPeaks.reduce((s, p) => s + p.likes, 0),
+    peakTotalComments: allPeaks.reduce((s, p) => s + p.comments, 0),
+    peakTotalShares: allPeaks.reduce((s, p) => s + (p.shares || 0), 0),
+  };
+}
+
 // --- Scan Engine State ---
 const activeScans = new Map();
 
-async function executeScan(accountId, accountLink) {
-    const scan = activeScans.get(accountId);
-    if (!scan) return;
-    console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId}...`);
-    try {
-        const channelId = await getChannelIdFromUrl(accountLink);
-        if (!channelId) return;
-        const items = await getChannelVideos(channelId, 10);
-        const posts = items.map(item => ({
-            id: item.id,
-            title: item.snippet.title,
-            thumbnail: item.snippet.thumbnails?.high?.url || '',
-            views: parseInt(item.statistics?.viewCount || '0'),
-            likes: parseInt(item.statistics?.likeCount || '0'),
-            comments: parseInt(item.statistics?.commentCount || '0'),
-            link: `https://www.youtube.com/watch?v=${item.id}`,
-            date: item.snippet.publishedAt,
-            type: parseDuration(item.contentDetails?.duration || '') < 65 ? 'short' : 'video'
-        })).sort((a,b) => new Date(b.date) - new Date(a.date));
+async function executeScan(accountId, accountLink, platform) {
+  const scan = activeScans.get(accountId);
+  if (!scan) return;
+  console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId} (${platform})...`);
+  try {
+    let posts = [];
+    if (platform === 'youtube') posts = await scanYouTube(accountId, accountLink);
+    else if (platform === 'tiktok') posts = await scanTikTok(accountId, accountLink);
+    else if (platform === 'instagram') posts = await scanInstagram(accountId, accountLink);
 
-        const data = readScanData(accountId);
-        data.posts = posts;
-        
-        // ========== HIGH-WATER MARK SYSTEM ==========
-        // Peak Views: remembers the HIGHEST view count ever seen for each video.
-        // Even if a scan misses a video, its peak is still counted in the total.
-        // This guarantees the graph ONLY goes up.
-        if (!data.peakViews) data.peakViews = {};   // { videoId: { views, likes, comments, title } }
+    if (!posts || posts.length === 0) {
+      console.log(`[ScanEngine] No posts returned for ${accountId}`);
+      return;
+    }
 
-        // Update peaks: only store if current views >= stored peak
-        posts.forEach(p => {
-          const existing = data.peakViews[p.id];
-          if (!existing || p.views >= existing.views) {
-            data.peakViews[p.id] = {
-              views: p.views,
-              likes: p.likes,
-              comments: p.comments,
-              title: p.title
-            };
-          }
-        });
+    const data = readScanData(accountId);
+    data.posts = posts;
+    data.platform = platform;
 
-        // Calculate totals from ALL peaks (not just current scan)
-        const allPeakValues = Object.values(data.peakViews);
-        const peakTotalViews = allPeakValues.reduce((s, p) => s + p.views, 0);
-        const peakTotalLikes = allPeakValues.reduce((s, p) => s + p.likes, 0);
-        const peakTotalComments = allPeakValues.reduce((s, p) => s + p.comments, 0);
+    const { peakTotalViews, peakTotalLikes, peakTotalComments, peakTotalShares } = applyHighWaterMark(data, posts);
 
-        // 1. Update Global Account History (using peak totals — never drops)
-        data.history = [...(data.history || []), {
-            time: new Date().toISOString(),
-            totalViews: peakTotalViews,
-            totalLikes: peakTotalLikes,
-            totalComments: peakTotalComments
-        }].slice(-50);
+    data.history = [...(data.history || []), {
+      time: new Date().toISOString(),
+      totalViews: peakTotalViews,
+      totalLikes: peakTotalLikes,
+      totalComments: peakTotalComments,
+      totalShares: peakTotalShares,
+    }].slice(-50);
 
-        // 2. Update Atomic Video History (raw API data, no special logic)
-        // Individual video views only go up on YouTube, so just store what the API returns.
-        if (!data.videoHistory) data.videoHistory = {};
-        posts.forEach(p => {
-          if (!data.videoHistory[p.id]) data.videoHistory[p.id] = [];
-          data.videoHistory[p.id] = [...data.videoHistory[p.id], {
-            time: new Date().toISOString(),
-            views: p.views
-          }].slice(-50);
-        });
+    if (!data.videoHistory) data.videoHistory = {};
+    posts.forEach(p => {
+      if (!data.videoHistory[p.id]) data.videoHistory[p.id] = [];
+      data.videoHistory[p.id] = [...data.videoHistory[p.id], {
+        time: new Date().toISOString(),
+        views: p.views,
+      }].slice(-50);
+    });
 
-        writeScanData(accountId, data);
-
-        scan.scanCount++;
-        scan.lastScanTime = new Date().toISOString();
-        scan.nextScanAt = new Date(Date.now() + scan.intervalMinutes * 60 * 1000).toISOString();
-        saveAllState();
-    } catch (e) { console.error(e); }
+    writeScanData(accountId, data);
+    scan.scanCount++;
+    scan.lastScanTime = new Date().toISOString();
+    scan.nextScanAt = new Date(Date.now() + scan.intervalMinutes * 60 * 1000).toISOString();
+    saveAllState();
+    console.log(`[ScanEngine] ✓ ${accountId}: ${posts.length} posts, ${peakTotalViews.toLocaleString()} total views`);
+  } catch (e) {
+    console.error(`[ScanEngine] Error scanning ${accountId}:`, e.message);
+  }
 }
 
 function saveAllState() {
-    ensureDataDir();
-    const state = {};
-    activeScans.forEach((v, k) => {
-        const { timer, ...clean } = v; // Remove the circular timer object
-        state[k] = clean;
-    });
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
-}
-
-function restoreState() {
-    try {
-        if (fs.existsSync(STATE_FILE)) {
-            const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
-            for (const [id, scan] of Object.entries(state)) {
-                startScanInternal(scan);
-            }
-        }
-    } catch (e) {}
+  ensureDataDir();
+  const state = {};
+  activeScans.forEach((v, k) => {
+    const { timer, ...clean } = v;
+    state[k] = clean;
+  });
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
 function startScanInternal(scan) {
-    activeScans.set(scan.accountId, scan);
-    scan.timer = setInterval(() => executeScan(scan.accountId, scan.accountLink), scan.intervalMinutes * 60 * 1000);
+  activeScans.set(scan.accountId, scan);
+  scan.timer = setInterval(() => executeScan(scan.accountId, scan.accountLink, scan.platform || 'youtube'), scan.intervalMinutes * 60 * 1000);
+}
+
+function restoreState() {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+      for (const [id, scan] of Object.entries(state)) {
+        startScanInternal(scan);
+      }
+      console.log(`[ScanEngine] Restored ${Object.keys(state).length} active scans from disk.`);
+      return Object.keys(state).length;
+    }
+  } catch (e) { console.error('Failed to restore state:', e); }
+  return 0;
+}
+
+// --- Auto-start default accounts if none are running ---
+async function autoStartDefaults() {
+  const restored = restoreState();
+  if (restored > 0) return; // No need — already running from disk
+  console.log('[ScanEngine] No saved state found. Auto-starting default LinkMe accounts...');
+  for (const acc of DEFAULT_ACCOUNTS) {
+    const scan = { ...acc, scanCount: 0, lastScanTime: null, nextScanAt: null };
+    startScanInternal(scan);
+    await executeScan(acc.accountId, acc.accountLink, acc.platform);
+  }
 }
 
 // --- API Routes ---
 app.post('/api/start', async (req, res) => {
-    const { accountId, accountLink, intervalMinutes } = req.body;
-    const existing = activeScans.get(accountId);
-    if (existing) clearInterval(existing.timer);
-
-    const scan = { accountId, accountLink, intervalMinutes, scanCount: 0, lastScanTime: null, nextScanAt: null };
-    startScanInternal(scan);
-    await executeScan(accountId, accountLink);
-    res.json({ success: true });
+  const { accountId, accountLink, intervalMinutes, platform } = req.body;
+  const existing = activeScans.get(accountId);
+  if (existing) clearInterval(existing.timer);
+  const scan = { accountId, accountLink, intervalMinutes, platform: platform || 'youtube', scanCount: 0, lastScanTime: null, nextScanAt: null };
+  startScanInternal(scan);
+  await executeScan(accountId, accountLink, scan.platform);
+  res.json({ success: true });
 });
 
 app.post('/api/stop', (req, res) => {
-    const { accountId } = req.body;
-    const existing = activeScans.get(accountId);
-    if (existing) clearInterval(existing.timer);
-    activeScans.delete(accountId);
-    saveAllState();
-    res.json({ success: true });
+  const { accountId } = req.body;
+  const existing = activeScans.get(accountId);
+  if (existing) clearInterval(existing.timer);
+  activeScans.delete(accountId);
+  saveAllState();
+  res.json({ success: true });
 });
 
 app.get('/api/status', (req, res) => {
-    const accountId = req.query.accountId;
-    const scan = activeScans.get(accountId);
-    const data = readScanData(accountId);
-    
-    let cleanStatus = null;
-    if (scan) {
-        const { timer, ...rest } = scan; // Remove the circular timer object
-        cleanStatus = { 
-            ...rest, 
-            secondsRemaining: scan.nextScanAt ? Math.max(0, Math.floor((new Date(scan.nextScanAt) - Date.now()) / 1000)) : 0 
-        };
-    }
+  const accountId = req.query.accountId;
+  const scan = activeScans.get(accountId);
+  const data = readScanData(accountId);
+  let cleanStatus = null;
+  if (scan) {
+    const { timer, ...rest } = scan;
+    cleanStatus = {
+      ...rest,
+      secondsRemaining: scan.nextScanAt ? Math.max(0, Math.floor((new Date(scan.nextScanAt) - Date.now()) / 1000)) : 0
+    };
+  }
+  res.json({ active: !!scan, status: cleanStatus, data });
+});
 
-    res.json({
-        active: !!scan,
-        status: cleanStatus,
-        data
-    });
+// New: list all active scans
+app.get('/api/scans', (req, res) => {
+  const scans = [];
+  activeScans.forEach((v, k) => {
+    const { timer, ...rest } = v;
+    scans.push({ ...rest, secondsRemaining: v.nextScanAt ? Math.max(0, Math.floor((new Date(v.nextScanAt) - Date.now()) / 1000)) : 0 });
+  });
+  res.json({ scans });
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Scan Engine running on http://localhost:${PORT}`);
-    restoreState();
+  console.log(`🚀 Scan Engine running on http://localhost:${PORT}`);
+  autoStartDefaults();
 });

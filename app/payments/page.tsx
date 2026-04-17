@@ -14,11 +14,13 @@ import {
   ChevronUp,
   Loader2,
   User,
-  Film
+  Film,
+  ShieldAlert
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { addPayout, getTotalPaid, getLatestPayoutForVideo, type PayoutRecord } from '@/lib/payoutsStore';
 import { getAccounts } from '@/lib/accountsStore';
+import { useAuth } from '@/lib/authStore';
 
 const PlatformIcon = ({ platform }: { platform: string }) => {
   if (platform === 'youtube') return <Youtube className="w-5 h-5 text-red-500" />;
@@ -49,7 +51,31 @@ interface AccountGroup {
 }
 
 export default function PaymentsPage() {
+  const { isClient } = useAuth();
+
+  // Client access guard
+  if (isClient) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="min-h-[70vh] flex flex-col items-center justify-center"
+      >
+        <div className="glass-card p-16 text-center max-w-md relative overflow-hidden">
+          <div className="absolute inset-0 bg-red-500/[0.03] pointer-events-none" />
+          <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-8">
+            <ShieldAlert className="w-10 h-10 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-black italic tracking-tighter mb-3">Restricted Zone</h2>
+          <p className="text-[11px] font-bold tracking-[0.15em] uppercase text-slate-500">Administrator Privileges Required</p>
+          <p className="text-slate-600 text-sm mt-4">The Payout Ledger is only accessible to Admin nodes.</p>
+        </div>
+      </motion.div>
+    );
+  }
+
   const [groupedData, setGroupedData] = useState<AccountGroup[]>([]);
+
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Eye, Heart, MessageCircle, DollarSign, TrendingUp, Filter, Calendar } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { SUMMARY_STATS } from '@/lib/mockData';
 import { motion } from 'framer-motion';
@@ -18,8 +19,8 @@ export default function Home() {
       <div className="relative w-full max-w-full flex flex-col items-center justify-center overflow-hidden py-20 px-8">
         
         {/* Hero Branding - Clypso Kinetic Identity (Soft Diffusion) */}
-        <div className="relative text-center z-10">
-          <div className="flex items-center justify-center flex-wrap sm:flex-nowrap gap-x-2 sm:gap-x-0">
+        <div className="relative text-center z-10 w-full">
+          <div className="flex items-center justify-center flex-wrap sm:flex-nowrap gap-x-2 sm:gap-x-0 w-full mt-4">
             {"CLYPSO".split("").map((letter, i) => (
               <motion.span
                 key={i}
@@ -47,7 +48,7 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.8, duration: 1.5 }}
-            className="flex flex-col items-center gap-4 mt-2 sm:-mt-4"
+            className="flex flex-col items-center gap-4 mt-8"
           >
             <div className="w-12 h-[1px] bg-white/10 shadow-inner" />
             <p className="text-[9px] sm:text-[11px] font-black tracking-[0.6em] uppercase text-slate-500 ml-[0.6em] italic">
