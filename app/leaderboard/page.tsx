@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Medal, ArrowUp, BarChart, Youtube, Instagram, Music2, Search, Loader2 } from 'lucide-react';
 import { API_ROUTES } from '@/lib/apiConfig';
+import { safeFetchJson } from '@/lib/fetchUtils';
 
 interface LeaderboardNode {
   accountId: string;
@@ -23,13 +24,13 @@ export default function LeaderboardPage() {
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
-      const res = await fetch(API_ROUTES.SCANS);
-      const { scans } = await res.json();
+      const data = await safeFetchJson(API_ROUTES.SCANS);
+      if (!data) { setNodes([]); return; }
+      const { scans } = data;
       
       const enrichedNodes = await Promise.all(scans.map(async (scan: any) => {
-        const statusRes = await fetch(`${API_ROUTES.STATUS}?accountId=${scan.accountId}`);
-        const statusData = await statusRes.json();
-        const data = statusData.data || {};
+        const statusData = await safeFetchJson(`${API_ROUTES.STATUS}?accountId=${scan.accountId}`);
+        const scanData = (statusData || {}).data || {};
         
         return {
           accountId: scan.accountId,
@@ -37,8 +38,8 @@ export default function LeaderboardPage() {
           platform: scan.platform,
           scanCount: scan.scanCount,
           lastScanTime: scan.lastScanTime,
-          totalViews: (data.history || []).slice(-1)[0]?.totalViews || 0,
-          postsCount: (data.posts || []).length
+          totalViews: (scanData.history || []).slice(-1)[0]?.totalViews || 0,
+          postsCount: (scanData.posts || []).length
         };
       }));
 

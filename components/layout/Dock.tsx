@@ -11,7 +11,8 @@ import {
   LineChart, 
   Settings2,
   Trophy,
-  LayoutGrid
+  LayoutGrid,
+  Hash
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAuth } from '@/lib/authStore';
@@ -139,6 +140,7 @@ export default function Dock() {
     { name: 'Network', icon: UsersRound, href: '/accounts', adminOnly: false },
     { name: 'Ledger', icon: Wallet, href: '/payments', adminOnly: true },
     { name: 'Forecast', icon: LineChart, href: '/analytics', adminOnly: false },
+    { name: 'Intelligence', icon: Hash, href: '/hashtags', adminOnly: false },
     { name: 'System', icon: Settings2, href: '/settings', adminOnly: true },
   ];
 

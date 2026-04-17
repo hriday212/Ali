@@ -15,19 +15,52 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExpandedAnalyticsView } from '@/components/dashboard/ExpandedAnalyticsView';
-import { MOCK_STATS_24H, PLATFORM_DISTRIBUTION } from '@/lib/mockData';
+import { API_ROUTES } from '@/lib/apiConfig';
+import { safeFetchJson } from '@/lib/fetchUtils';
 
-const ACCOUNTS = [
-  { id: '1', name: 'LinkMeTalks YT', platform: 'YouTube', icon: Youtube, color: 'text-red-500', totalViews: '2.4M', growth: '+12.5%', data: MOCK_STATS_24H, distribution: PLATFORM_DISTRIBUTION },
-  { id: '2', name: 'LinkMePrime TT', platform: 'TikTok', icon: Music2, color: 'text-slate-100', totalViews: '890k', growth: '+8.2%', data: MOCK_STATS_24H.map(d => ({ ...d, views: d.views * 0.4 })), distribution: PLATFORM_DISTRIBUTION },
-  { id: '3', name: 'LinkMeSnipes TT', platform: 'TikTok', icon: Music2, color: 'text-slate-100', totalViews: '1.2M', growth: '+15.8%', data: MOCK_STATS_24H.map(d => ({ ...d, views: d.views * 0.7 })), distribution: PLATFORM_DISTRIBUTION },
-];
+interface AccountNode {
+  id: string;
+  name: string;
+  platform: string;
+  icon: any;
+  color: string;
+  totalViews: string;
+  growth: string;
+  data: any[];
+  distribution: any[];
+  posts: any[];
+}
 
 export default function AnalyticsPage() {
   const [search, setSearch] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState<typeof ACCOUNTS[0] | null>(null);
+  const [accounts, setAccounts] = useState<AccountNode[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAccount, setSelectedAccount] = useState<AccountNode | null>(null);
 
-  const filteredAccounts = ACCOUNTS.filter(a => 
+  React.useEffect(() => {
+    async function loadNodes() {
+      const data = await safeFetchJson(API_ROUTES.SCANS);
+      if (data && data.scans) {
+        const nodes = data.scans.map((s: any) => ({
+          id: s.accountId,
+          name: s.accountId.split('|')[0] || s.accountId,
+          platform: s.platform || 'Unknown',
+          icon: s.platform === 'youtube' ? Youtube : s.platform === 'tiktok' ? Music2 : Instagram,
+          color: s.platform === 'youtube' ? 'text-red-500' : 'text-slate-100',
+          totalViews: s.lastViews?.toLocaleString() || '0',
+          growth: '+0.0%', // Mock growth for now
+          data: s.history || [],
+          distribution: [],
+          posts: s.posts || []
+        }));
+        setAccounts(nodes);
+      }
+      setLoading(false);
+    }
+    loadNodes();
+  }, []);
+
+  const filteredAccounts = accounts.filter(a => 
     a.name.toLowerCase().includes(search.toLowerCase()) || 
     a.platform.toLowerCase().includes(search.toLowerCase())
   );
@@ -61,8 +94,14 @@ export default function AnalyticsPage() {
 
       {/* Account Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <AnimatePresence>
-          {filteredAccounts.map((account, index) => (
+        <AnimatePresence mode="popLayout">
+          {loading ? (
+             <div className="col-span-full py-32 flex flex-col items-center justify-center gap-6">
+                <div className="w-16 h-16 rounded-full border-t-2 border-blue-600 animate-spin" />
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 animate-pulse">Initializing Channel Audit...</p>
+             </div>
+          ) : filteredAccounts.length > 0 ? (
+            filteredAccounts.map((account, index) => (
             <motion.div
               key={account.id}
               layoutId={`card-${account.id}`}
@@ -114,8 +153,13 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))
+          ) : (
+            <div className="col-span-full py-32 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
+              <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-xs">No Active Channels Found</p>
+            </div>
+          )}
         </AnimatePresence>
       </div>
 

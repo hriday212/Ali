@@ -22,6 +22,7 @@ import { addPayout, getTotalPaid, getLatestPayoutForVideo, type PayoutRecord } f
 import { getAccounts } from '@/lib/accountsStore';
 import { useAuth } from '@/lib/authStore';
 import { API_ROUTES } from '@/lib/apiConfig';
+import { safeFetchJson } from '@/lib/fetchUtils';
 
 const PlatformIcon = ({ platform }: { platform: string }) => {
   if (platform === 'youtube') return <Youtube className="w-5 h-5 text-red-500" />;
@@ -89,10 +90,9 @@ export default function PaymentsPage() {
 
     for (const acc of accounts) {
       try {
-        const res = await fetch(`${API_ROUTES.STATUS}?accountId=${acc.id}`);
-        if (res.ok) {
-          const result = await res.json();
-          const videos = result.data?.posts || [];
+        const result = await safeFetchJson(`${API_ROUTES.STATUS}?accountId=${acc.id}`);
+        if (result && result.data) {
+          const videos = result.data.posts || [];
           
           let accountUnpaidSteps = 0;
           videos.forEach((v: any) => {

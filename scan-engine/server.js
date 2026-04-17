@@ -157,6 +157,44 @@ async function scanInstagram(accountId, accountLink) {
   }));
 }
 
+async function scanHashtag(tag, platform = 'instagram') {
+  const cleanTag = tag.startsWith('#') ? tag.slice(1) : tag;
+  if (platform === 'instagram') {
+    const items = await runApifyActor('apify/instagram-hashtag-scraper', {
+      hashtags: [cleanTag],
+      resultsLimit: 20
+    });
+    return (items || []).map(item => ({
+      id: item.id || item.shortCode,
+      platform: 'instagram',
+      views: item.videoViewCount || 0,
+      likes: item.likesCount || 0,
+      comments: item.commentsCount || 0,
+      link: item.url,
+      thumbnail: item.displayUrl,
+      owner: item.ownerUsername,
+      date: item.timestamp
+    }));
+  } else if (platform === 'tiktok') {
+    const items = await runApifyActor('clockworks/tiktok-scraper', {
+      hashtags: [cleanTag],
+      resultsPerPage: 20
+    });
+    return (items || []).map(item => ({
+      id: item.id,
+      platform: 'tiktok',
+      views: item.playCount || 0,
+      likes: item.diggCount || 0,
+      comments: item.commentCount || 0,
+      link: item.webVideoUrl,
+      thumbnail: item.cover,
+      owner: item.authorMeta?.name,
+      date: item.createTime ? new Date(item.createTime * 1000).toISOString() : null
+    }));
+  }
+  return [];
+}
+
 // --- High-Water Mark system (works for all platforms) ---
 function applyHighWaterMark(data, posts) {
   if (!data.peakViews) data.peakViews = {};
@@ -311,6 +349,54 @@ app.get('/api/scans', (req, res) => {
     scans.push({ ...rest, secondsRemaining: v.nextScanAt ? Math.max(0, Math.floor((new Date(v.nextScanAt) - Date.now()) / 1000)) : 0 });
   });
   res.json({ scans });
+});
+
+// New: Global content feed
+app.get('/api/scans/latest-posts', (req, res) => {
+  const limit = parseInt(req.query.limit) || 12;
+  const allPosts = [];
+  
+  // Read all data files
+  if (fs.existsSync(DATA_DIR)) {
+    const files = fs.readdirSync(DATA_DIR);
+    files.forEach(file => {
+      if (file.endsWith('.json') && file !== 'state.json') {
+        const data = JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8'));
+        if (data.posts) {
+          data.posts.forEach(p => allPosts.push({
+            ...p,
+            nodeId: file.replace('.json', '')
+          }));
+        }
+      }
+    });
+  }
+  
+  // Sort by date (desc) and limit
+  const latest = allPosts
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, limit);
+    
+  res.json({ posts: latest });
+});
+
+// Mock: Payouts Ledger
+app.get('/api/payouts', (req, res) => {
+  // In a real app, this would read from a ledger DB
+  res.json({ payouts: [] }); 
+});
+
+// New: Hashtag Intelligence
+app.get('/api/hashtags/scan', async (req, res) => {
+  const { tag, platform } = req.query;
+  if (!tag) return res.status(400).json({ error: 'Hashtag required' });
+  
+  try {
+    const results = await scanHashtag(tag, platform || 'instagram');
+    res.json({ tag, platform: platform || 'instagram', results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {

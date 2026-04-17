@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Youtube, Instagram, Music2, ArrowUpRight, Globe, Clock, Subtitles, Eye, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { AnalyticsCharts } from './AnalyticsCharts';
+import { EngagementFunnel, ViralVelocityRadar } from './VisualizationSuite';
 
 interface ExpandedAnalyticsViewProps {
   account: any;
@@ -114,63 +115,37 @@ export function ExpandedAnalyticsView({ account, onClose }: ExpandedAnalyticsVie
             <AnalyticsCharts 
               data={account.data} 
               platformDistribution={account.distribution}
-              title="Trajectory Analysis"
-              description={`Auditing engagement velocity for ${account.name}.`}
+              postMarkers={(account.posts || []).slice(0, 5).map((p: any) => ({
+                time: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                label: 'POST'
+              }))}
+              title="Impact Evaluation"
+              description={`Auditing content-driven growth for ${account.name}.`}
             />
           </motion.div>
 
           {/* Bottom Insights */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-12">
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-12">
              <motion.div 
                initial={{ x: -20, opacity: 0 }}
                animate={{ x: 0, opacity: 1 }}
                transition={{ delay: 1.1 }}
-               className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-10"
+               className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-10 min-h-[450px]"
              >
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-                    <Subtitles className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-bold italic tracking-tight text-white uppercase">Viral Candidates</h3>
-                </div>
-                <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                  Based on current view velocity, we've identified 3 clips with high engagement probability. Suggesting re-sharing on TikTok for maximum yield.
-                </p>
-                <div className="flex gap-4">
-                  <button className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Download Audit</button>
-                  <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Optimize Node</button>
-                </div>
+                <ViralVelocityRadar />
              </motion.div>
 
              <motion.div 
                initial={{ x: 20, opacity: 0 }}
                animate={{ x: 0, opacity: 1 }}
                transition={{ delay: 1.2 }}
-               className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-10"
+               className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-10 min-h-[450px]"
              >
-                <h3 className="text-xl font-bold italic tracking-tight text-white uppercase mb-8">Performance Mix</h3>
-                <div className="space-y-6">
-                   {[
-                     { label: 'Retention Rate', val: 78, color: 'bg-blue-500' },
-                     { label: 'Click Through', val: 12, color: 'bg-emerald-500' },
-                     { label: 'Shareability', val: 64, color: 'bg-pink-500' }
-                   ].map(bar => (
-                     <div key={bar.label}>
-                       <div className="flex justify-between items-center mb-2">
-                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{bar.label}</span>
-                         <span className="text-xs font-black italic text-white">{bar.val}%</span>
-                       </div>
-                       <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                         <motion.div 
-                           initial={{ width: 0 }}
-                           animate={{ width: `${bar.val}%` }}
-                           transition={{ duration: 1.5, ease: "easeOut", delay: 1.4 }}
-                           className={`h-full ${bar.color}`}
-                         />
-                       </div>
-                     </div>
-                   ))}
-                </div>
+                <EngagementFunnel 
+                  views={parseInt(account.totalViews.replace(/[^0-9.]/g, '')) * (account.totalViews.includes('M') ? 1000000 : 1000)} 
+                  likes={124000} 
+                  comments={840} 
+                />
              </motion.div>
           </div>
 

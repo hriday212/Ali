@@ -1,65 +1,114 @@
 'use client';
 
 import React from 'react';
-import { Eye, Heart, MessageCircle, DollarSign, TrendingUp, Filter, Calendar } from 'lucide-react';
+import { Eye, Heart, MessageCircle, DollarSign, TrendingUp, Filter, Calendar, Zap, Terminal } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import Image from 'next/image';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { SUMMARY_STATS } from '@/lib/mockData';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/lib/authStore';
+import { ContentPulse } from '@/components/dashboard/ContentPulse';
 
 const AnalyticsCharts = dynamic(() => import('@/components/dashboard/AnalyticsCharts').then(mod => mod.AnalyticsCharts), {
   ssr: false,
-  loading: () => <div className="h-[400px] w-full bg-slate-900/10 rounded-2xl animate-pulse flex items-center justify-center text-slate-500">Initializing Analytics...</div>
+  loading: () => <div className="h-[400px] w-full bg-white/[0.03] border border-white/5 rounded-[2.5rem] animate-pulse flex items-center justify-center text-slate-500 font-black uppercase tracking-widest text-xs">Initializing Neural Engine...</div>
 });
 
 export default function Home() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center relative">
-      <div className="relative w-full max-w-full flex flex-col items-center justify-center overflow-hidden py-20 px-8">
-        
-        {/* Hero Branding - Clypso Kinetic Identity (Soft Diffusion) */}
-        <div className="relative text-center z-10 w-full">
-          <div className="flex items-center justify-center flex-wrap sm:flex-nowrap gap-x-2 sm:gap-x-0 w-full mt-4">
-            {"CLYPSO".split("").map((letter, i) => (
-              <motion.span
-                key={i}
-                initial={{ y: 80, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ 
-                  duration: 1.4, 
-                  delay: i * 0.1, 
-                  ease: [0.16, 1, 0.3, 1] 
-                }}
-                className="text-[clamp(4rem,18vw,16rem)] font-black text-white italic uppercase tracking-tighter leading-none select-none inline-block relative py-12 px-4 overflow-visible"
-              >
-                {letter}
-                {/* Diffusion Glimmer (Soft Gaussian Bloom) */}
-                <motion.div
-                  animate={{ x: ['-250%', '250%'] }}
-                  transition={{ repeat: Infinity, duration: 6, ease: "linear", delay: 2 + (i * 0.1) }}
-                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[35deg] pointer-events-none mix-blend-overlay blur-[15px]" 
-                />
-              </motion.span>
-            ))}
-          </div>
-          
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.8, duration: 1.5 }}
-            className="flex flex-col items-center gap-4 mt-8"
-          >
-            <div className="w-12 h-[1px] bg-white/10 shadow-inner" />
-            <p className="text-[9px] sm:text-[11px] font-black tracking-[0.6em] uppercase text-slate-500 ml-[0.6em] italic">
-              Monetization Protocol v1.4
-            </p>
-          </motion.div>
+    <div className="space-y-12 pb-20">
+      {/* Hero / Welcome */}
+      <section className="relative overflow-hidden pt-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+           <div>
+              <div className="flex items-center gap-3 text-blue-500 mb-4 px-1">
+                <Terminal className="w-5 h-5" />
+                <span className="text-[10px] font-black uppercase tracking-[0.4em]">Neural Link Established</span>
+              </div>
+              <h1 className="text-6xl md:text-8xl font-black italic tracking-tighter text-white uppercase leading-[0.8]">
+                {isAdmin ? 'Network' : 'Control'}<br />
+                <span className="text-blue-600">Protocol</span>
+              </h1>
+           </div>
+           
+           <div className="flex flex-col items-end gap-2 pr-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 opacity-50 italic">Clypso v1.4.2 // Stable Build</span>
+              <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Scan Engine Active</span>
+              </div>
+           </div>
         </div>
 
-        {/* Gloss Aura Background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[75vw] h-[75vh] bg-white/[0.012] blur-[150px] rounded-full pointer-events-none" />
-      </div>
+        {/* Global Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+           <StatsCard 
+             title="Total Network Reach" 
+             value={SUMMARY_STATS.totalViews} 
+             growth={12.5} 
+             icon={Eye} 
+             variant="silver"
+           />
+           <StatsCard 
+             title="Interaction Index" 
+             value={SUMMARY_STATS.totalLikes} 
+             growth={8.2} 
+             icon={Heart} 
+             variant="silver"
+           />
+           <StatsCard 
+             title="Conversation Yield" 
+             value={SUMMARY_STATS.totalComments} 
+             growth={5.4} 
+             icon={MessageCircle} 
+             variant="silver"
+           />
+           <StatsCard 
+             title="Estimated Earnings" 
+             value={SUMMARY_STATS.estimatedEarnings} 
+             growth={15.8} 
+             icon={DollarSign} 
+             variant="silver"
+           />
+        </div>
+      </section>
+
+      {/* Content Pulse Section */}
+      <section className="space-y-8">
+        <div className="flex items-center justify-between">
+           <div>
+              <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white">
+                {isAdmin ? 'Network Content Pulse' : 'My Content Alpha'}
+              </h2>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Real-time signal from all connected nodes</p>
+           </div>
+           <button className="flex items-center gap-2 px-6 py-3 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-2xl transition-all">
+              <Zap className="w-4 h-4 text-blue-500" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-white">Sync All</span>
+           </button>
+        </div>
+        
+        <ContentPulse />
+      </section>
+
+      {/* Global Trajectory Section */}
+      <section className="space-y-8">
+        <div>
+           <h2 className="text-3xl font-black italic uppercase tracking-tighter text-white">Neural Trajectory</h2>
+           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Cross-platform growth algorithm</p>
+        </div>
+        <div className="glass-card p-10 bg-white/[0.01]">
+          <AnalyticsCharts 
+            data={[]} // Will fetch in component
+            platformDistribution={[]}
+            title="Protocol Expansion"
+            description="Aggregated view growth across the LinkMe network."
+          />
+        </div>
+      </section>
     </div>
   );
 }

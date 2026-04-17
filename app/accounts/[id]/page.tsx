@@ -41,6 +41,7 @@ import {
 import { getAccountById, type Account } from '@/lib/accountsStore';
 import { getPayouts, getPayoutsForAccount, type PayoutRecord } from '@/lib/payoutsStore';
 import { API_ROUTES } from '@/lib/apiConfig';
+import { safeFetchJson } from '@/lib/fetchUtils';
 
 // --- Types ---
 interface PostData {
@@ -166,9 +167,8 @@ export default function AccountForensicPage() {
       setPayouts(getPayoutsForAccount(account.id));
 
       try {
-        const res = await fetch(`${API_ROUTES.STATUS}?accountId=${account.id}`);
-        if (res.ok) {
-          const statusResult = await res.json();
+        const statusResult = await safeFetchJson(`${API_ROUTES.STATUS}?accountId=${account.id}`);
+        if (statusResult) {
           if (statusResult.active) {
             const s = statusResult.status;
             setAutoScanActive(true);
@@ -276,7 +276,7 @@ export default function AccountForensicPage() {
     setScanError(null);
 
     try {
-      const res = await fetch(API_ROUTES.START, {
+      const data = await safeFetchJson(API_ROUTES.START, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -286,7 +286,7 @@ export default function AccountForensicPage() {
         })
       });
 
-      if (!res.ok) throw new Error('Failed to start server-side scan');
+      if (!data) throw new Error('Failed to start server-side scan');
 
       setAutoScanActive(true);
       setIntervalMinutes(minutes);
@@ -304,7 +304,7 @@ export default function AccountForensicPage() {
     setNextScanIn(0);
 
     try {
-      await fetch(API_ROUTES.STOP, {
+      await safeFetchJson(API_ROUTES.STOP, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId: account.id })

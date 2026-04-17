@@ -12,7 +12,9 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend
+  Legend,
+  ReferenceLine,
+  Label
 } from 'recharts';
 import { MOCK_STATS_24H, PLATFORM_DISTRIBUTION } from '@/lib/mockData';
 import { motion } from 'framer-motion';
@@ -20,11 +22,18 @@ import { motion } from 'framer-motion';
 interface AnalyticsChartsProps {
   data: any[];
   platformDistribution: any[];
+  postMarkers?: { time: string, label: string }[];
   title?: string;
   description?: string;
 }
 
-export function AnalyticsCharts({ data, platformDistribution, title = "Views Analytics", description = "Real-time performance tracking" }: AnalyticsChartsProps) {
+export function AnalyticsCharts({ 
+  data, 
+  platformDistribution, 
+  postMarkers = [],
+  title = "Views Analytics", 
+  description = "Real-time performance tracking" 
+}: AnalyticsChartsProps) {
   const [mounted, setMounted] = React.useState(false);
   const [interval, setInterval] = useState<'6h' | '12h' | '24h'>('24h');
 
@@ -111,6 +120,25 @@ export function AnalyticsCharts({ data, platformDistribution, title = "Views Ana
                 fill="url(#colorViews)" 
                 animationDuration={1500}
               />
+
+              {postMarkers?.map((marker, i) => (
+                <ReferenceLine 
+                  key={i}
+                  x={marker.time} 
+                  stroke="#3b82f6" 
+                  strokeDasharray="3 3"
+                  strokeWidth={2}
+                >
+                  <Label 
+                    value={marker.label} 
+                    position="top" 
+                    fill="#3b82f6" 
+                    fontSize={10} 
+                    fontWeight="900"
+                    offset={10}
+                  />
+                </ReferenceLine>
+              ))}
             </AreaChart>
           </ResponsiveContainer>
         </div>

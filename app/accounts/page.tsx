@@ -12,6 +12,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import AccountCard from '@/components/dashboard/AccountCard';
 import { getAccounts, saveAccounts, type Account } from '@/lib/accountsStore';
+import { API_ROUTES } from '@/lib/apiConfig';
+import { safeFetchJson } from '@/lib/fetchUtils';
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -21,9 +23,43 @@ export default function AccountsPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
 
-  // Load accounts from localStorage on mount
+  // Load accounts from localStorage on mount AND sync with backend
   useEffect(() => {
-    setAccounts(getAccounts());
+    const local = getAccounts();
+    setAccounts(local);
+
+    const syncWithBackend = async () => {
+      try {
+        const data = await safeFetchJson(API_ROUTES.SCANS);
+        if (data && data.scans) {
+          const { scans } = data;
+          const backendAccounts: Account[] = scans.map((s: any) => ({
+            id: s.accountId,
+            name: s.accountId, 
+            platform: s.platform,
+            link: s.accountLink,
+            followers: '...',
+            status: 'connected',
+            hasNew: false,
+            avatarUrl: '',
+            channelId: '', 
+            addedAt: new Date().toISOString(),
+          }));
+
+          const existingIds = new Set(local.map(a => a.id));
+          const toAdd = backendAccounts.filter(a => !existingIds.has(a.id));
+          
+          if (toAdd.length > 0) {
+            const merged = [...local, ...toAdd];
+            setAccounts(merged);
+            saveAccounts(merged);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync with backend nodes:', err);
+      }
+    };
+    syncWithBackend();
   }, []);
 
   const handleDelete = (id: string) => {
