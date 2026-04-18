@@ -279,8 +279,8 @@ export default function AccountForensicPage() {
 
   // --- Start Auto-Scan (delegates to SERVER ScanManager) ---
   const startAutoScan = async (minutes: number) => {
-    if (!account || !account.link || account.platform !== 'youtube') {
-      setScanError('Only YouTube accounts can be scanned.');
+    if (!account || !account.link) {
+      setScanError('Account link is missing.');
       return;
     }
     setShowIntervalPicker(false);
