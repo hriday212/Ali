@@ -484,7 +484,7 @@ app.get('/api/hashtags/scan', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Scan Engine running on http://localhost:${PORT}`);
-  autoStartDefaults();
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Scan Engine running on http://0.0.0.0:${PORT}`);
+  autoStartDefaults().catch(console.error);
 });
