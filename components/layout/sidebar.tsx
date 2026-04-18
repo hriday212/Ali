@@ -10,8 +10,7 @@ import {
   BarChart3, 
   Settings, 
   TrendingUp,
-  LogOut,
-  ChevronRight
+  LogOut
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';

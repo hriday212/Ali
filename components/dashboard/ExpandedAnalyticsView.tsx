@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Youtube, Instagram, Music2, ArrowUpRight, Globe, Clock, Subtitles, Eye, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { AnalyticsCharts } from './AnalyticsCharts';
-import { EngagementFunnel, ViralVelocityRadar } from './VisualizationSuite';
+import { MonetizationFunnel, ViralVelocityRadar } from './VisualizationSuite';
 
 interface ExpandedAnalyticsViewProps {
   account: any;
@@ -88,7 +88,7 @@ export function ExpandedAnalyticsView({ account, onClose }: ExpandedAnalyticsVie
             {[
               { label: 'Total Reach', value: account.totalViews, sub: 'Lifetime Views', icon: Eye, color: 'text-blue-400' },
               { label: 'Growth', value: account.growth, sub: 'Last 30 Days', icon: ArrowUpRight, color: 'text-emerald-400' },
-              { label: 'Engagement', value: '8.4%', sub: 'High Health', icon: Heart, color: 'text-pink-400' },
+              { label: 'Engagement', value: account.engagement || '0.0%', sub: 'Avg Health', icon: Heart, color: 'text-pink-400' },
               { label: 'Active Node', value: 'Online', sub: 'Syncing every 30m', icon: Globe, color: 'text-blue-500' }
             ].map((stat, i) => (
               <motion.div
@@ -141,7 +141,7 @@ export function ExpandedAnalyticsView({ account, onClose }: ExpandedAnalyticsVie
                transition={{ delay: 1.2 }}
                className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-10 min-h-[450px]"
              >
-                <EngagementFunnel 
+                <MonetizationFunnel 
                   views={parseInt(account.totalViews.replace(/[^0-9.]/g, '')) * (account.totalViews.includes('M') ? 1000000 : 1000)} 
                   likes={124000} 
                   comments={840} 

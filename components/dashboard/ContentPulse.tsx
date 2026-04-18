@@ -59,7 +59,7 @@ export function ContentPulse({ filterNodeId }: { filterNodeId?: string }) {
   return (
     <div className="flex gap-6 overflow-x-auto pb-8 pt-4 custom-scrollbar snap-x">
       {posts.map((post, i) => (
-        <ContentCard key={post.id} post={post} index={i} />
+        <ContentCard key={`${post.id}-${i}`} post={post} index={i} />
       ))}
     </div>
   );

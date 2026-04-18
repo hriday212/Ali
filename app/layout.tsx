@@ -5,6 +5,8 @@ import { TopHeader } from "@/components/layout/TopHeader";
 import Dock from "@/components/layout/Dock";
 import ShapeGrid from "@/components/effects/ShapeGrid";
 import { AuthProvider } from "@/lib/authStore";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { LoginModal } from "@/components/auth/LoginModal";
 
 export const metadata: Metadata = {
   title: "Clypso | Monetization Protocol",
@@ -37,12 +39,15 @@ export default function RootLayout({
           />
           <div className="flex flex-col min-h-screen">
             <TopHeader />
-            <main className="flex-1 pt-24 pb-32">
-              <div className="max-w-[1400px] mx-auto px-8">
-                {children}
-              </div>
-            </main>
-            <Dock />
+            <LoginModal />
+            <AuthGuard>
+              <main className="flex-1 pt-24 pb-32">
+                <div className="max-w-[1400px] mx-auto px-8">
+                  {children}
+                </div>
+              </main>
+              <Dock />
+            </AuthGuard>
           </div>
         </AuthProvider>
       </body>

@@ -7,6 +7,9 @@ export const API_ROUTES = {
   STOP: `${BACKEND_URL}/api/stop`,
   HASHTAG_SCAN: `${BACKEND_URL}/api/hashtags/scan`,
   PAYOUTS: `${BACKEND_URL}/api/payouts`,
+  GLOBAL_INTERVAL: `${BACKEND_URL}/api/settings/global-interval`,
+  SMART_ENGINE: `${BACKEND_URL}/api/settings/smart-engine`,
+  FORCE_SYNC: `${BACKEND_URL}/api/settings/force-sync`,
   LATEST_POSTS: `${BACKEND_URL}/api/scans/latest-posts`,
   // Next.js internal routes
   RESOLVE: '/api/accounts/resolve',

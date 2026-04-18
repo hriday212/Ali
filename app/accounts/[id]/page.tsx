@@ -20,8 +20,11 @@ import {
   Film,
   Loader2,
   AlertCircle,
-  Scan
+  Scan,
+  Download
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import {
   AreaChart,
   Area,
@@ -38,6 +41,16 @@ import {
   ReferenceLine,
   Brush
 } from 'recharts';
+import {
+  HookDecayChart,
+  SentimentCloud,
+  ViralVelocityRadar,
+  UploadOptimization,
+  AudienceForensics,
+  MonetizationFunnel,
+  EcosystemGravity,
+  SaveShareMatrix
+} from '@/components/dashboard/VisualizationSuite';
 import { getAccountById, type Account } from '@/lib/accountsStore';
 import { getPayouts, getPayoutsForAccount, type PayoutRecord } from '@/lib/payoutsStore';
 import { API_ROUTES } from '@/lib/apiConfig';
@@ -53,7 +66,8 @@ interface PostData {
   comments: number | string;
   link: string;
   date?: string;
-  type?: 'video' | 'short';
+  type?: string;
+  platform?: string;
 }
 
 // Chart data placeholder (used before real scan data populates)
@@ -104,6 +118,7 @@ export default function AccountForensicPage() {
   const [isScanning, setIsScanning] = React.useState(false);
   const [scanError, setScanError] = React.useState<string | null>(null);
   const [hasScanned, setHasScanned] = React.useState(false);
+  const [isExporting, setIsExporting] = React.useState(false);
 
   // Payout data from shared store
   const [payouts, setPayouts] = React.useState<PayoutRecord[]>([]);
@@ -119,9 +134,6 @@ export default function AccountForensicPage() {
   const [isGraphZoomed, setIsGraphZoomed] = React.useState(false);
   const [intervalMinutes, setIntervalMinutes] = React.useState(5);
   const [customMinutes, setCustomMinutes] = React.useState('');
-
-  // ... rest of the component logic ...
-
 
   // Scan history
   const [scanHistory, setScanHistory] = React.useState<Array<{ time: string; totalViews: number; totalLikes: number; totalComments: number }>>([]);
@@ -224,8 +236,8 @@ export default function AccountForensicPage() {
   }, []);
 
   // --- Derived Data ---
-  const videos = allPosts.filter(p => p.type === 'video');
-  const shorts = allPosts.filter(p => p.type === 'short');
+  const shorts = allPosts.filter(p => p.type === 'short' || p.platform === 'tiktok' || p.type === 'reel');
+  const videos = allPosts.filter(p => p.type === 'video' || (!shorts.includes(p)));
   const activeList = registryTab === 'videos' ? videos : shorts;
   const visibleCount = registryTab === 'videos' ? videosVisible : shortsVisible;
   const visibleAssets = activeList.slice(0, visibleCount);
@@ -311,6 +323,28 @@ export default function AccountForensicPage() {
       });
     } catch (err) {
       console.error('Failed to stop scan via API:', err);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    const element = document.getElementById('analytics-export-wrapper');
+    if (!element) return;
+    
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#020617' });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width / 2, canvas.height / 2]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.save(`Clypso_Report_${account?.name || 'Analytics'}.pdf`);
+    } catch (e) {
+      console.error('PDF export failed', e);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -454,6 +488,14 @@ export default function AccountForensicPage() {
             {scanCount > 0 && (
               <span className="text-[7px] font-black uppercase tracking-widest text-slate-700 italic">Scan #{scanCount}</span>
             )}
+            <button 
+              onClick={handleExportPDF} 
+              disabled={isExporting}
+              className="flex items-center gap-4 px-8 py-4 bg-blue-500/10 border border-blue-500/20 text-blue-400 font-black uppercase rounded-xl hover:bg-blue-500/20 transition-all text-[10px] tracking-widest disabled:opacity-50"
+            >
+              {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              {isExporting ? 'Exporting...' : 'Export PDF'}
+            </button>
             <button onClick={() => window.open(account.link, '_blank')} className="flex items-center gap-4 px-8 py-4 bg-white text-black font-black uppercase rounded-xl hover:bg-slate-200 transition-all text-[10px] tracking-widest">
               Open source <ExternalLink className="w-3.5 h-3.5" />
             </button>
@@ -472,7 +514,7 @@ export default function AccountForensicPage() {
         </AnimatePresence>
 
         {/* Main Grid: Locked Height */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 flex-1 min-h-0 mb-8">
+        <div id="analytics-export-wrapper" className="grid grid-cols-1 xl:grid-cols-4 gap-6 flex-1 min-h-0 mb-8 pt-4">
 
           {/* Primary Analytics (Scrollable Left) */}
           <div className="xl:col-span-3 flex flex-col gap-6 min-h-0 overflow-y-auto custom-scrollbar pr-2">
@@ -846,7 +888,7 @@ export default function AccountForensicPage() {
                         {/* TRADING TERMINAL TOOLTIP / CROSSHAIRS */}
                         <Tooltip
                           cursor={{ stroke: '#ffffff20', strokeWidth: 1, strokeDasharray: '3 3' }}
-                          content={({ active, payload, label }) => {
+                          content={({ active, payload, label }: any) => {
                             if (active && payload && payload.length) {
                               return (
                                 <div className="bg-white text-black p-3 rounded-lg shadow-2xl font-black italic scale-110">
@@ -967,8 +1009,10 @@ export default function AccountForensicPage() {
                           <XAxis dataKey="label" stroke="#334155" fontSize={8} tick={{ fontWeight: 'black' }} />
                           <YAxis stroke="#334155" fontSize={8} domain={[0, 'auto']} tickFormatter={(val) => Math.round(val).toLocaleString()} tick={{ fontWeight: 'black' }} />
                           <Tooltip
+                            cursor={{ fill: '#ffffff05' }}
                             contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }}
                             itemStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                            formatter={(val: any) => val.toLocaleString()}
                           />
                           <Area type="monotone" dataKey="views" fill="url(#pRe)" stroke="#ffffff" strokeWidth={2} animationDuration={300} dot={{ r: 2, fill: '#fff' }} />
                         </AreaChart>

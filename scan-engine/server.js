@@ -257,11 +257,47 @@ async function executeScan(accountId, accountLink, platform) {
     writeScanData(accountId, data);
     scan.scanCount++;
     scan.lastScanTime = new Date().toISOString();
-    scan.nextScanAt = new Date(Date.now() + scan.intervalMinutes * 60 * 1000).toISOString();
+
+    // Smart Engine: Optimize API tokens based on momentum and recency (200 Node Scale)
+    let nextInterval = scan.intervalMinutes || 30;
+    
+    // Calculate Days Since Last Post
+    let daysSinceLastPost = 0;
+    if (posts && posts.length > 0) {
+      const latestPostDate = new Date(Math.max(...posts.map(p => new Date(p.date).getTime())));
+      daysSinceLastPost = (Date.now() - latestPostDate) / (1000 * 60 * 60 * 24);
+    }
+
+    if (data.history && data.history.length > 1) {
+      const latest = data.history[data.history.length - 1].totalViews;
+      const previous = data.history[data.history.length - 2].totalViews;
+      
+      if (latest > previous + 100 && smartEngineEnabled) {
+        // High view activity -> Accelerate to 10m minimum
+        nextInterval = Math.min(10, scan.intervalMinutes);
+        console.log(`[SmartEngine] 🚀 High activity on ${accountId}. Escalating tracking to ${nextInterval}m.`);
+      } else if (latest === previous && scan.scanCount > 2 && smartEngineEnabled) {
+        // Dormancy logic -> Slow down drastically based on post age
+        const oldInterval = scan.currentInterval || scan.intervalMinutes;
+        
+        let maxThrottle = 360; // 6 hours default cap
+        if (daysSinceLastPost > 30) maxThrottle = 10080; // 1 week cap if dead account
+        else if (daysSinceLastPost > 7) maxThrottle = 1440; // 24 hours cap if no posts in a week
+        
+        nextInterval = Math.min(oldInterval * 3, maxThrottle);
+        console.log(`[SmartEngine] 💤 Node ${accountId} dormant (${daysSinceLastPost.toFixed(1)}d since post). Throttling to ${nextInterval}m.`);
+      }
+    }
+    
+    scan.currentInterval = nextInterval;
+    scheduleNextScan(scan, nextInterval);
+
     saveAllState();
     console.log(`[ScanEngine] ✓ ${accountId}: ${posts.length} posts, ${peakTotalViews.toLocaleString()} total views`);
   } catch (e) {
     console.error(`[ScanEngine] Error scanning ${accountId}:`, e.message);
+    const scan = activeScans.get(accountId);
+    if(scan) scheduleNextScan(scan, scan.intervalMinutes);
   }
 }
 
@@ -275,9 +311,20 @@ function saveAllState() {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
+function scheduleNextScan(scan, overrideMinutes = null) {
+  if (scan.timer) clearTimeout(scan.timer);
+  const mins = overrideMinutes || scan.intervalMinutes;
+  scan.nextScanAt = new Date(Date.now() + mins * 60 * 1000).toISOString();
+  scan.timer = setTimeout(async () => {
+    await executeScan(scan.accountId, scan.accountLink, scan.platform || 'youtube');
+  }, mins * 60 * 1000);
+}
+
 function startScanInternal(scan) {
   activeScans.set(scan.accountId, scan);
-  scan.timer = setInterval(() => executeScan(scan.accountId, scan.accountLink, scan.platform || 'youtube'), scan.intervalMinutes * 60 * 1000);
+  // Initialize currentInterval tracking if missing
+  if (!scan.currentInterval) scan.currentInterval = scan.intervalMinutes;
+  scheduleNextScan(scan, scan.currentInterval);
 }
 
 function restoreState() {
@@ -307,11 +354,15 @@ async function autoStartDefaults() {
 }
 
 // --- API Routes ---
+let globalDefaultInterval = 30;
+let smartEngineEnabled = true; // SmartEngine auto-escalation toggle
+
 app.post('/api/start', async (req, res) => {
   const { accountId, accountLink, intervalMinutes, platform } = req.body;
   const existing = activeScans.get(accountId);
-  if (existing) clearInterval(existing.timer);
-  const scan = { accountId, accountLink, intervalMinutes, platform: platform || 'youtube', scanCount: 0, lastScanTime: null, nextScanAt: null };
+  if (existing && existing.timer) clearTimeout(existing.timer);
+  const selectedInterval = intervalMinutes || globalDefaultInterval;
+  const scan = { accountId, accountLink, intervalMinutes: selectedInterval, platform: platform || 'youtube', scanCount: 0, lastScanTime: null, nextScanAt: null, currentInterval: selectedInterval };
   startScanInternal(scan);
   await executeScan(accountId, accountLink, scan.platform);
   res.json({ success: true });
@@ -320,7 +371,7 @@ app.post('/api/start', async (req, res) => {
 app.post('/api/stop', (req, res) => {
   const { accountId } = req.body;
   const existing = activeScans.get(accountId);
-  if (existing) clearInterval(existing.timer);
+  if (existing && existing.timer) clearTimeout(existing.timer);
   activeScans.delete(accountId);
   saveAllState();
   res.json({ success: true });
@@ -348,7 +399,41 @@ app.get('/api/scans', (req, res) => {
     const { timer, ...rest } = v;
     scans.push({ ...rest, secondsRemaining: v.nextScanAt ? Math.max(0, Math.floor((new Date(v.nextScanAt) - Date.now()) / 1000)) : 0 });
   });
-  res.json({ scans });
+  res.json({ scans, globalDefaultInterval, smartEngineEnabled });
+});
+
+// Admin Route: SmartEngine Toggle
+app.post('/api/settings/smart-engine', (req, res) => {
+  const { enabled } = req.body;
+  smartEngineEnabled = !!enabled;
+  console.log(`[ScanEngine] ⚙️ SmartEngine auto-escalation ${smartEngineEnabled ? 'ENABLED' : 'DISABLED'} by Admin.`);
+  res.json({ success: true, smartEngineEnabled });
+});
+
+// Admin Route: Global Cadence Control
+app.post('/api/settings/global-interval', (req, res) => {
+  const { interval } = req.body;
+  if (!interval) return res.status(400).json({ error: 'interval required' });
+  globalDefaultInterval = parseInt(interval);
+  
+  activeScans.forEach((scan, accountId) => {
+    scan.intervalMinutes = globalDefaultInterval;
+    scan.currentInterval = globalDefaultInterval;
+    scheduleNextScan(scan, globalDefaultInterval);
+  });
+  saveAllState();
+  console.log(`[ScanEngine] ⚙️ Admin changed Global Cadence to ${globalDefaultInterval}m for all ${activeScans.size} nodes.`);
+  res.json({ success: true, newInterval: globalDefaultInterval });
+});
+
+// Admin Route: Force Sync All
+app.post('/api/settings/force-sync', async (req, res) => {
+  console.log(`[ScanEngine] ⚡ Admin initiated FORCE GLOBAL SYNC. Scraping ${activeScans.size} nodes immediately.`);
+  activeScans.forEach((scan, accountId) => {
+    // Schedule everything sequentially to avoid memory crash
+    scheduleNextScan(scan, 0.1); 
+  });
+  res.json({ success: true });
 });
 
 // New: Global content feed

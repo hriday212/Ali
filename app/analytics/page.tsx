@@ -41,18 +41,39 @@ export default function AnalyticsPage() {
     async function loadNodes() {
       const data = await safeFetchJson(API_ROUTES.SCANS);
       if (data && data.scans) {
-        const nodes = data.scans.map((s: any) => ({
-          id: s.accountId,
-          name: s.accountId.split('|')[0] || s.accountId,
-          platform: s.platform || 'Unknown',
-          icon: s.platform === 'youtube' ? Youtube : s.platform === 'tiktok' ? Music2 : Instagram,
-          color: s.platform === 'youtube' ? 'text-red-500' : 'text-slate-100',
-          totalViews: s.lastViews?.toLocaleString() || '0',
-          growth: '+0.0%', // Mock growth for now
-          data: s.history || [],
-          distribution: [],
-          posts: s.posts || []
-        }));
+        const nodes = data.scans.map((s: any) => {
+          // Calculate growth from history
+          let growthNum = 0;
+          if (s.history && s.history.length >= 2) {
+            const current = s.history[s.history.length - 1].totalViews || 0;
+            const previous = s.history[s.history.length - 2].totalViews || 0;
+            if (previous > 0) {
+              growthNum = ((current - previous) / previous) * 100;
+            }
+          }
+          const growthStr = growthNum > 0 ? `+${growthNum.toFixed(1)}%` : `${growthNum.toFixed(1)}%`;
+
+          // Calculate engagement
+          let engagementStr = '0.0%';
+          if (s.lastViews && s.lastViews > 0) {
+            const engagement = ((s.lastLikes || 0) + (s.lastComments || 0)) / s.lastViews * 100;
+            engagementStr = `${engagement.toFixed(1)}%`;
+          }
+
+          return {
+            id: s.accountId,
+            name: s.accountId.split('|')[0] || s.accountId,
+            platform: s.platform || 'Unknown',
+            icon: s.platform === 'youtube' ? Youtube : s.platform === 'tiktok' ? Music2 : Instagram,
+            color: s.platform === 'youtube' ? 'text-red-500' : 'text-slate-100',
+            totalViews: s.lastViews?.toLocaleString() || '0',
+            growth: growthStr,
+            engagement: engagementStr, // Passing engagement down
+            data: s.history || [],
+            distribution: [],
+            posts: s.posts || []
+          };
+        });
         setAccounts(nodes);
       }
       setLoading(false);
@@ -93,7 +114,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Account Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <AnimatePresence mode="popLayout">
           {loading ? (
              <div className="col-span-full py-32 flex flex-col items-center justify-center gap-6">
@@ -148,8 +169,11 @@ export default function AnalyticsPage() {
                     <p className="text-[9px] uppercase font-black text-slate-600 tracking-widest mb-1 italic">Total Reach</p>
                     <p className="text-xl font-black italic text-white tracking-tighter">{account.totalViews}</p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-black transition-all">
-                    <ChevronRight className="w-6 h-6" />
+                  <div className="flex items-center gap-4">
+                     <span className="text-[9px] font-black uppercase text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 tracking-[0.2em] italic">Click to Expand</span>
+                     <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-black transition-all">
+                       <ChevronRight className="w-6 h-6" />
+                     </div>
                   </div>
                 </div>
               </div>

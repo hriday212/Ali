@@ -16,6 +16,8 @@ interface AuthContextType {
   logout: () => void;
   isAdmin: boolean;
   isClient: boolean;
+  isLoginModalOpen: boolean;
+  setLoginModalOpen: (open: boolean) => void;
 }
 
 // Hardcoded demo credentials
@@ -28,11 +30,14 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }): React.ReactElement {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoginModalOpen, setLoginModalOpen] = useState(false);
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem('clypso_user');
-      if (stored) setUser(JSON.parse(stored));
+      if (stored) {
+        setTimeout(() => setUser(JSON.parse(stored)), 0);
+      }
     } catch {}
   }, []);
 
@@ -59,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
       logout,
       isAdmin: user?.role === 'admin',
       isClient: user?.role === 'client',
+      isLoginModalOpen,
+      setLoginModalOpen,
     }}>
       {children}
     </AuthContext.Provider>

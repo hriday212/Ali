@@ -117,8 +117,17 @@ export default function LeaderboardPage() {
               >
                 <div className="glass-card flex flex-col md:flex-row items-center gap-8 p-1 px-10 h-24 relative z-10 hover:bg-white/[0.05] transition-all duration-500">
                   {/* Rank Indicator */}
-                  <div className={`w-12 text-3xl font-black italic tracking-tighter ${rankColor} flex items-center justify-center`}>
-                    {isTop3 ? <Medal className="w-8 h-8" /> : `#${index + 1}`}
+                  <div className={`w-12 flex flex-col items-center justify-center ${rankColor}`}>
+                    {isTop3 ? (
+                      <>
+                        <Medal className="w-6 h-6 mb-1 drop-shadow-md" />
+                        <span className="text-[10px] font-black uppercase tracking-widest leading-none drop-shadow-md">
+                          {index === 0 ? '1ST' : index === 1 ? '2ND' : '3RD'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-3xl font-black italic tracking-tighter shadow-black drop-shadow-md">{`#${index + 1}`}</span>
+                    )}
                   </div>
 
                   {/* Icon & Details */}

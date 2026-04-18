@@ -11,10 +11,9 @@ import {
   LineChart, 
   Settings2,
   Trophy,
-  LayoutGrid,
-  Hash
+  Hash,
+  Film
 } from 'lucide-react';
-import Image from 'next/image';
 import { useAuth } from '@/lib/authStore';
 import './Dock.css';
 
@@ -22,20 +21,19 @@ interface DockItemProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-  mouseX: any;
-  spring: any;
+  mouseX: import('framer-motion').MotionValue<number>;
+  spring: import('framer-motion').SpringOptions;
   distance: number;
   magnification: number;
   baseItemSize: number;
   href?: string;
-  imgSrc?: string;
 }
 
-function DockItem({ children, className = '', onClick, mouseX, spring, distance, magnification, baseItemSize, href, imgSrc }: DockItemProps) {
+function DockItem({ children, className = '', onClick, mouseX, spring, distance, magnification, baseItemSize, href }: DockItemProps) {
   const ref = useRef<HTMLDivElement>(null);
   const isHovered = useMotionValue(0);
 
-  const mouseDistance = useTransform(mouseX, (val: any) => {
+  const mouseDistance = useTransform(mouseX, (val: number) => {
     const rect = ref.current?.getBoundingClientRect() ?? {
       x: 0,
       width: baseItemSize
@@ -63,20 +61,23 @@ function DockItem({ children, className = '', onClick, mouseX, spring, distance,
     >
       {href ? (
         <Link href={href} className="w-full h-full flex items-center justify-center">
-           {Children.map(children, (child: any) => cloneElement(child, { isHovered }))}
+           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+           {Children.map(children, (child) => React.isValidElement(child) ? cloneElement(child, { isHovered } as any) : child)}
         </Link>
       ) : (
-        Children.map(children, (child: any) => cloneElement(child, { isHovered }))
+        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+        Children.map(children, (child) => React.isValidElement(child) ? cloneElement(child, { isHovered } as any) : child)
       )}
     </motion.div>
   );
 }
 
-function DockLabel({ children, className = '', ...rest }: { children: React.ReactNode; className?: string; isHovered?: any }) {
+function DockLabel({ children, className = '', ...rest }: { children: React.ReactNode; className?: string; isHovered?: import('framer-motion').MotionValue<number> }) {
   const { isHovered } = rest;
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    if (!isHovered) return;
     const unsubscribe = isHovered.on('change', (latest: number) => {
       setIsVisible(latest === 1);
     });
@@ -122,10 +123,9 @@ function DockIcon({ children, className = '', isActive }: { children: React.Reac
 
 export default function Dock() {
   const pathname = usePathname();
-  const { role } = useAuth();
+  const { user, role } = useAuth();
   const mouseX = useMotionValue(Infinity);
   const isHoveredIndicator = useMotionValue(0);
-
   // Re-tuned for 'Liquid' Feel
   const spring = { mass: 0.1, stiffness: 150, damping: 15 };
   const magnification = 110;
@@ -138,6 +138,7 @@ export default function Dock() {
     { name: 'Dashboard', icon: Home, href: '/', adminOnly: false },
     { name: 'Leaderboard', icon: Trophy, href: '/leaderboard', adminOnly: false },
     { name: 'Network', icon: UsersRound, href: '/accounts', adminOnly: false },
+    { name: 'Library', icon: Film, href: '/videos', adminOnly: false },
     { name: 'Ledger', icon: Wallet, href: '/payments', adminOnly: true },
     { name: 'Forecast', icon: LineChart, href: '/analytics', adminOnly: false },
     { name: 'Intelligence', icon: Hash, href: '/hashtags', adminOnly: false },
@@ -153,6 +154,8 @@ export default function Dock() {
   );
   const heightRow = useTransform(isHoveredIndicator, [0, 1], [panelHeight, maxHeight]);
   const height = useSpring(heightRow, spring);
+
+  if (!user) return null;
 
   return (
     <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">

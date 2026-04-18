@@ -16,7 +16,7 @@ import {
   ReferenceLine,
   Label
 } from 'recharts';
-import { MOCK_STATS_24H, PLATFORM_DISTRIBUTION } from '@/lib/mockData';
+
 import { motion } from 'framer-motion';
 
 interface AnalyticsChartsProps {

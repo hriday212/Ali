@@ -51,7 +51,7 @@ export async function getChannelVideos(channelId: string, maxResults: number = 1
         return [];
     }
 
-    const videoIds = playlistData.items.map((item: any) => item.contentDetails.videoId);
+    const videoIds = playlistData.items.map((item: { contentDetails: { videoId: string } }) => item.contentDetails.videoId);
 
     // 3. Fetch detailed statistics for those videos
     const videosRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoIds.join(',')}&key=${YOUTUBE_API_KEY}`);
