@@ -10,8 +10,25 @@ const { DEFAULT_ACCOUNTS } = require('./defaultAccounts');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
-const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
+const ALL_YOUTUBE_KEYS = Object.keys(process.env).filter(k => k.startsWith('YOUTUBE_API_KEY')).map(k => process.env[k]).filter(Boolean);
+const ALL_APIFY_TOKENS = Object.keys(process.env).filter(k => k.startsWith('APIFY_API_TOKEN')).map(k => process.env[k]).filter(Boolean);
+
+let ytKeyIdx = 0;
+let apifyKeyIdx = 0;
+
+function getYouTubeKey() {
+  if (ALL_YOUTUBE_KEYS.length === 0) return null;
+  const key = ALL_YOUTUBE_KEYS[ytKeyIdx];
+  ytKeyIdx = (ytKeyIdx + 1) % ALL_YOUTUBE_KEYS.length;
+  return key;
+}
+
+function getApifyToken() {
+  if (ALL_APIFY_TOKENS.length === 0) return null;
+  const token = ALL_APIFY_TOKENS[apifyKeyIdx];
+  apifyKeyIdx = (apifyKeyIdx + 1) % ALL_APIFY_TOKENS.length;
+  return token;
+}
 
 app.use(cors());
 app.use(express.json());
@@ -47,7 +64,7 @@ function writeScanData(accountId, data) {
 // --- Apify Helper ---
 async function runApifyActor(actorId, input) {
   const formattedId = actorId.replace('/', '~');
-  const url = `https://api.apify.com/v2/acts/${formattedId}/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}&timeout=180`;
+  const url = `https://api.apify.com/v2/acts/${formattedId}/run-sync-get-dataset-items?token=${getApifyToken()}&timeout=180`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -67,7 +84,7 @@ async function getChannelIdFromUrl(url) {
     if (channelIdMatch) return channelIdMatch[1];
     const handleMatch = url.match(/@([a-zA-Z0-9._-]+)/);
     if (handleMatch) {
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${handleMatch[1]}&key=${YOUTUBE_API_KEY}`);
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${handleMatch[1]}&key=${getYouTubeKey()}`);
         const data = await res.json();
         if (data.items?.[0]) return data.items[0].id;
     }
@@ -75,15 +92,15 @@ async function getChannelIdFromUrl(url) {
 }
 
 async function getChannelVideos(channelId, maxResults = 10) {
-    const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${YOUTUBE_API_KEY}`);
+    const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${getYouTubeKey()}`);
     const channelData = await channelRes.json();
     if (!channelData.items?.[0]) return [];
     const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
-    const playlistRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`);
+    const playlistRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${maxResults}&key=${getYouTubeKey()}`);
     const playlistData = await playlistRes.json();
     if (!playlistData.items) return [];
     const videoIds = playlistData.items.map(item => item.contentDetails.videoId);
-    const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoIds.join(',')}&key=${YOUTUBE_API_KEY}`);
+    const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoIds.join(',')}&key=${getYouTubeKey()}`);
     const vData = await vRes.json();
     return vData.items || [];
 }
