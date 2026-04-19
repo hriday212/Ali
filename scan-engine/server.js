@@ -71,8 +71,17 @@ async function runApifyActor(actorId, input) {
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Apify error (${formattedId}): ${err}`);
+    const errText = await response.text();
+    // AUTO-EVICT DEAD KEYS
+    if (errText.includes('Monthly usage hard limit exceeded') || errText.includes('limit exceeded')) {
+      const deadToken = new URL(url).searchParams.get('token');
+      const idx = ALL_APIFY_TOKENS.indexOf(deadToken);
+      if (idx > -1) {
+        ALL_APIFY_TOKENS.splice(idx, 1);
+        console.log(`[ScanEngine] 🚨 APIFY TOKEN DEAD. Evicted token from rotation. Remaining keys: ${ALL_APIFY_TOKENS.length}`);
+      }
+    }
+    throw new Error(`Apify error (${formattedId}): ${errText}`);
   }
   return await response.json();
 }
@@ -371,8 +380,8 @@ async function autoStartDefaults() {
 }
 
 // --- API Routes ---
-let globalDefaultInterval = 30;
-let smartEngineEnabled = true; // SmartEngine auto-escalation toggle
+let globalDefaultInterval = 360;
+let smartEngineEnabled = false; // SmartEngine auto-escalation disabled by default for credit safety
 
 app.post('/api/start', async (req, res) => {
   const { accountId, accountLink, intervalMinutes, platform } = req.body;
@@ -381,6 +390,10 @@ app.post('/api/start', async (req, res) => {
   const selectedInterval = intervalMinutes || globalDefaultInterval;
   const scan = { accountId, accountLink, intervalMinutes: selectedInterval, platform: platform || 'youtube', scanCount: 0, lastScanTime: null, nextScanAt: null, currentInterval: selectedInterval };
   startScanInternal(scan);
+  
+  // FIXED: Save state IMMEDIATELY so interval isn't lost if the first scan fails
+  saveAllState();
+  
   await executeScan(accountId, accountLink, scan.platform);
   res.json({ success: true });
 });

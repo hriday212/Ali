@@ -45,7 +45,7 @@ export default function GlobalVideosPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activePlatform, setActivePlatform] = useState<string>('all');
-  const [activeType, setActiveType] = useState<'all' | 'video' | 'short'>('all');
+  const [activeType, setActiveType] = useState<'all' | 'video' | 'short' | 'viral'>('all');
   const [visibleCount, setVisibleCount] = useState(30);
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function GlobalVideosPage() {
     loadLatest();
   }, []);
 
-  const filteredPosts = posts.filter(post => {
+  let filteredPosts = posts.filter(post => {
     if (searchQuery && !post.title.toLowerCase().includes(searchQuery.toLowerCase()) && !post.nodeId?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (activePlatform !== 'all' && post.platform !== activePlatform) return false;
     
@@ -81,6 +81,15 @@ export default function GlobalVideosPage() {
 
     return true;
   });
+
+  // Rank-wise sorting for Viral tab
+  if (activeType === 'viral') {
+    filteredPosts = [...filteredPosts].sort((a, b) => {
+      const vA = typeof a.views === 'string' ? parseInt(a.views) : a.views;
+      const vB = typeof b.views === 'string' ? parseInt(b.views) : b.views;
+      return (vB || 0) - (vA || 0);
+    });
+  }
 
   const visiblePosts = filteredPosts.slice(0, visibleCount);
 
@@ -145,6 +154,13 @@ export default function GlobalVideosPage() {
         >
           Short-Form Feeds
         </button>
+        <button
+          onClick={() => setActiveType('viral')}
+          className={`px-4 py-2 flex items-center gap-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${activeType === 'viral' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-transparent text-slate-500 border-white/5 hover:border-white/10 hover:text-emerald-400'}`}
+        >
+          <TrendingUp className="w-3 h-3" />
+          Ranked Viral
+        </button>
       </div>
 
       {/* Grid */}
@@ -160,7 +176,7 @@ export default function GlobalVideosPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             <AnimatePresence>
               {visiblePosts.map((post, i) => {
                 const isShort = (post as any).isShort;
@@ -177,32 +193,48 @@ export default function GlobalVideosPage() {
                     transition={{ delay: i * 0.02 }}
                     className="group"
                   >
-                    <div className="glass-card overflow-hidden border-white/10 hover:border-emerald-500/30 transition-all duration-500 cursor-pointer h-full flex flex-col" onClick={() => window.open(post.link, '_blank')}>
+                    <div className="glass-card overflow-hidden border-white/10 hover:border-emerald-500/30 transition-all duration-500 cursor-pointer h-full flex flex-col group/card" onClick={() => window.open(post.link, '_blank')}>
                       {/* Thumbnail Container */}
-                      <div className={`relative w-full ${isShort ? 'aspect-[9/16] max-h-[350px]' : 'aspect-video'} bg-slate-900 border-b border-white/10 overflow-hidden`}>
+                      <div className={`relative w-full ${isShort ? 'aspect-[3/4]' : 'aspect-video'} bg-slate-900 overflow-hidden`}>
                         {post.thumbnail ? (
-                          <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                          <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center opacity-30"><Film className="w-8 h-8" /></div>
+                          <div className="w-full h-full flex items-center justify-center opacity-30"><Film className="w-6 h-6" /></div>
                         )}
                         
                         {/* Overlay Gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-80" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent opacity-90" />
+                        
+                        {/* Rank Badge for Viral Tab */}
+                        {activeType === 'viral' && (
+                          <div className="absolute top-2 left-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-[10px] font-black text-black z-20 shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+                            #{i + 1}
+                          </div>
+                        )}
                         
                         {/* Status Badges */}
-                        <div className="absolute top-3 left-3 flex items-center gap-2">
-                          <div className={`px-2 py-1 bg-black/60 backdrop-blur-md rounded-md flex items-center gap-1.5 border border-white/10`}>
-                            {post.platform === 'youtube' && <Youtube className="w-3 h-3 text-red-500" />}
-                            {post.platform === 'instagram' && <Instagram className="w-3 h-3 text-pink-500" />}
-                            {post.platform === 'tiktok' && <Music2 className="w-3 h-3 text-slate-100" />}
-                            <span className="text-[7px] font-black uppercase tracking-widest text-white">{post.platform}</span>
+                        <div className={`absolute top-2 ${activeType === 'viral' ? 'left-10' : 'left-2'} flex items-center gap-2 z-10`}>
+                          <div className={`px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded-[4px] flex items-center gap-1 border border-white/10`}>
+                            {post.platform === 'youtube' && <Youtube className="w-2.5 h-2.5 text-red-500" />}
+                            {post.platform === 'instagram' && <Instagram className="w-2.5 h-2.5 text-pink-500" />}
+                            {post.platform === 'tiktok' && <Music2 className="w-2.5 h-2.5 text-slate-100" />}
                           </div>
                         </div>
                         
-                        <div className="absolute top-3 right-3 flex items-center gap-2">
-                          <div className={`px-2 py-1 bg-black/60 backdrop-blur-md rounded-md border border-white/10 text-[7px] font-black uppercase tracking-widest text-white`}>
-                            {isShort ? 'SHORT' : 'VIDEO'}
+                        <div className="absolute top-2 right-2 flex items-center gap-2 z-10">
+                          <div className={`px-1.5 py-0.5 bg-black/60 backdrop-blur-md rounded-[4px] border border-white/10 text-[6px] font-black uppercase tracking-widest text-white`}>
+                            {isShort ? 'SHORT' : 'VID'}
                           </div>
+                        </div>
+
+                        {/* Text Overlay on Image */}
+                        <div className="absolute bottom-2 left-2 right-2 z-10">
+                          <h3 className="text-[10px] font-black uppercase italic tracking-tighter text-white leading-tight line-clamp-2 drop-shadow-md mb-1 group-hover/card:text-emerald-400 transition-colors">
+                            {post.title || 'UNTITLED ASSET'}
+                          </h3>
+                          <span className="text-[7px] font-black text-emerald-400/80 uppercase tracking-widest inline-flex items-center gap-1 bg-emerald-500/10 px-1 py-0.5 rounded backdrop-blur border border-emerald-500/20">
+                            {post.nodeId}
+                          </span>
                         </div>
 
                         {/* Floating Node Tag */}
@@ -213,28 +245,23 @@ export default function GlobalVideosPage() {
                         )}
                       </div>
 
-                      {/* Content Info */}
-                      <div className="p-5 flex-1 flex flex-col justify-between bg-white/[0.01]">
-                        <div className="mb-4">
-                          <h3 className="text-xs font-black uppercase italic tracking-tighter text-white leading-tight line-clamp-2 group-hover:text-emerald-400 transition-colors">{post.title || 'UNTITLED ASSET'}</h3>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{timeAgo(post.date)}</span>
-                            <div className="flex items-center gap-1 text-slate-400 group-hover:text-white transition-colors">
-                              <span className="text-[8px] font-black uppercase tracking-widest">Source</span>
-                              <ArrowUpRight className="w-3 h-3" />
-                            </div>
+                      {/* Analytics Footer */}
+                      <div className="p-2 bg-white/[0.01]">
+                        <div className="grid grid-cols-2 gap-1 mb-2">
+                          <div className="bg-slate-900/60 p-2 rounded-lg flex flex-col items-center justify-center">
+                            <span className="text-[6px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1"><Eye className="w-2 h-2" /> Reach</span>
+                            <span className={`text-[10px] font-black italic tracking-tighter ${activeType === 'viral' ? 'text-emerald-400' : 'text-white'}`}>{formatNumber(post.views)}</span>
+                          </div>
+                          <div className="bg-slate-900/60 p-2 rounded-lg flex flex-col items-center justify-center">
+                            <span className="text-[6px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1"><TrendingUp className="w-2 h-2" /> Eng</span>
+                            <span className={`text-[10px] font-black italic tracking-tighter ${parseFloat(engRate) > 5 ? 'text-emerald-400' : 'text-slate-300'}`}>{engRate}%</span>
                           </div>
                         </div>
-
-                        {/* Analytics Footer */}
-                        <div className="grid grid-cols-2 gap-px bg-white/5 rounded-xl overflow-hidden border border-white/5">
-                          <div className="bg-slate-900/80 p-3 flex flex-col justify-center">
-                            <span className="text-[7px] font-black uppercase tracking-widest text-slate-500 mb-0.5 flex items-center gap-1"><Eye className="w-2 h-2" /> Reach</span>
-                            <span className="text-sm font-black italic tracking-tighter">{formatNumber(post.views)}</span>
-                          </div>
-                          <div className="bg-slate-900/80 p-3 flex flex-col justify-center">
-                            <span className="text-[7px] font-black uppercase tracking-widest text-slate-500 mb-0.5 flex items-center gap-1"><TrendingUp className="w-2 h-2" /> Eng Rate</span>
-                            <span className={`text-sm font-black italic tracking-tighter ${parseFloat(engRate) > 5 ? 'text-emerald-400' : 'text-slate-300'}`}>{engRate}%</span>
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">{timeAgo(post.date)}</span>
+                          <div className="flex items-center gap-1 text-slate-500 group-hover/card:text-emerald-400 transition-colors">
+                            <span className="text-[6px] font-black uppercase tracking-widest">Src</span>
+                            <ArrowUpRight className="w-2.5 h-2.5" />
                           </div>
                         </div>
                       </div>
