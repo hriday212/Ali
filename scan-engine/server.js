@@ -63,27 +63,40 @@ function writeScanData(accountId, data) {
 
 // --- Apify Helper ---
 async function runApifyActor(actorId, input) {
-  const formattedId = actorId.replace('/', '~');
-  const url = `https://api.apify.com/v2/acts/${formattedId}/run-sync-get-dataset-items?token=${getApifyToken()}&timeout=180`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!response.ok) {
-    const errText = await response.text();
-    // AUTO-EVICT DEAD KEYS
-    if (errText.includes('Monthly usage hard limit exceeded') || errText.includes('limit exceeded')) {
-      const deadToken = new URL(url).searchParams.get('token');
-      const idx = ALL_APIFY_TOKENS.indexOf(deadToken);
-      if (idx > -1) {
-        ALL_APIFY_TOKENS.splice(idx, 1);
-        console.log(`[ScanEngine] 🚨 APIFY TOKEN DEAD. Evicted token from rotation. Remaining keys: ${ALL_APIFY_TOKENS.length}`);
+  let maxAttempts = Math.max(1, ALL_APIFY_TOKENS.length);
+  let attempt = 0;
+  
+  while (attempt < maxAttempts) {
+    const formattedId = actorId.replace('/', '~');
+    const token = getApifyToken();
+    if (!token) throw new Error('No valid Apify tokens available for runApifyActor');
+    
+    const url = `https://api.apify.com/v2/acts/${formattedId}/run-sync-get-dataset-items?token=${token}&timeout=180`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    
+    if (!response.ok) {
+      const errText = await response.text();
+      // SMART FALLBACK: If token is dead, evict it and instantly loop again
+      if (errText.includes('Monthly usage hard limit exceeded') || errText.includes('limit exceeded')) {
+        const deadToken = new URL(url).searchParams.get('token');
+        const idx = ALL_APIFY_TOKENS.indexOf(deadToken);
+        if (idx > -1) {
+          ALL_APIFY_TOKENS.splice(idx, 1);
+          console.log(`[ScanEngine] 🚨 APIFY TOKEN DEAD. Evicted token. Remaining keys: ${ALL_APIFY_TOKENS.length}`);
+        }
+        attempt++;
+        console.log(`[ScanEngine] Smart Fallback: Instantly retrying request with backup token...`);
+        continue;
       }
+      throw new Error(`Apify error (${formattedId}): ${errText}`);
     }
-    throw new Error(`Apify error (${formattedId}): ${errText}`);
+    return await response.json();
   }
-  return await response.json();
+  throw new Error(`Apify error: All available tokens are completely exhausted for this cycle.`);
 }
 
 // --- YouTube Helpers ---
