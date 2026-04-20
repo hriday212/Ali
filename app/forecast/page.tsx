@@ -4,7 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, Calendar, TrendingUp, TrendingDown, Eye, Heart, MessageCircle, 
-  Share2, ArrowUpRight, ArrowDownRight, Minus, Loader2, ChevronDown
+  Share2, ArrowUpRight, ArrowDownRight, Minus, Loader2, ChevronDown, ChevronUp,
+  Youtube, Music2, Instagram, X
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -99,6 +100,7 @@ export default function ForecastPage() {
   const [activeRange, setActiveRange] = useState<RangeKey>('7d');
   const [loading, setLoading] = useState(true);
   const [allScans, setAllScans] = useState<any[]>([]);
+  const [activePlatform, setActivePlatform] = useState<string | null>(null);
   
   useEffect(() => {
     async function loadData() {
@@ -340,20 +342,141 @@ export default function ForecastPage() {
             )}
           </div>
 
-          {/* Legend */}
+          {/* Legend — Clickable */}
           <div className="space-y-3 mt-4">
             {platformDist.map((p: any) => (
-              <div key={p.name} className="flex items-center justify-between">
+              <button
+                key={p.name}
+                onClick={() => setActivePlatform(activePlatform === p.name.toLowerCase() ? null : p.name.toLowerCase())}
+                className={`w-full flex items-center justify-between p-2 rounded-lg transition-all ${
+                  activePlatform === p.name.toLowerCase()
+                    ? 'bg-white/10 border border-white/20'
+                    : 'hover:bg-white/5 border border-transparent'
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PLATFORM_COLORS[p.name] || '#64748b' }} />
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{p.name}</span>
                 </div>
-                <span className="text-[10px] font-black italic text-white">{p.value}%</span>
-              </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black italic text-white">{p.value}%</span>
+                  {activePlatform === p.name.toLowerCase()
+                    ? <ChevronUp className="w-3 h-3 text-slate-500" />
+                    : <ChevronDown className="w-3 h-3 text-slate-500" />
+                  }
+                </div>
+              </button>
             ))}
           </div>
         </motion.div>
       </div>
+
+      {/* Platform Drill-Down Panel */}
+      <AnimatePresence>
+        {activePlatform && (
+          <motion.div
+            key={activePlatform}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="glass-card p-8 border border-white/10" style={{ borderColor: PLATFORM_COLORS[activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)] + '30' }}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  {activePlatform === 'youtube' && <Youtube className="w-5 h-5 text-red-500" />}
+                  {activePlatform === 'tiktok' && <Music2 className="w-5 h-5 text-cyan-400" />}
+                  {activePlatform === 'instagram' && <Instagram className="w-5 h-5 text-pink-500" />}
+                  <div>
+                    <h3 className="text-xl font-black italic uppercase text-white tracking-widest">
+                      {activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)} Intelligence
+                    </h3>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">Per-Node Breakdown</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActivePlatform(null)}
+                  className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all"
+                >
+                  <X className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+              </div>
+
+              {/* Platform-specific aggregate KPIs */}
+              {(() => {
+                const platformScans = allScans.filter(s => s.platform === activePlatform);
+                const totalViews = platformScans.reduce((s, n) => s + (n.lastViews || 0), 0);
+                const totalLikes = platformScans.reduce((s, n) => s + (n.lastLikes || 0), 0);
+                const totalComments = platformScans.reduce((s, n) => s + (n.lastComments || 0), 0);
+                const formatNum = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}K` : n.toLocaleString();
+
+                return (
+                  <>
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                      <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 text-center">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Views</p>
+                        <p className="text-2xl font-black italic tracking-tighter text-white">{formatNum(totalViews)}</p>
+                      </div>
+                      <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 text-center">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Likes</p>
+                        <p className="text-2xl font-black italic tracking-tighter text-white">{formatNum(totalLikes)}</p>
+                      </div>
+                      <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 text-center">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Comments</p>
+                        <p className="text-2xl font-black italic tracking-tighter text-white">{formatNum(totalComments)}</p>
+                      </div>
+                    </div>
+
+                    {/* Node Table */}
+                    <div className="space-y-2">
+                      {platformScans.sort((a, b) => (b.lastViews || 0) - (a.lastViews || 0)).map((node: any) => (
+                        <div
+                          key={node.accountId}
+                          onClick={() => window.location.href = `/accounts/${encodeURIComponent(node.accountId)}`}
+                          className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:border-white/20 hover:bg-white/[0.04] cursor-pointer transition-all group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                              {activePlatform === 'youtube' && <Youtube className="w-4 h-4 text-red-500" />}
+                              {activePlatform === 'tiktok' && <Music2 className="w-4 h-4 text-cyan-400" />}
+                              {activePlatform === 'instagram' && <Instagram className="w-4 h-4 text-pink-500" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">
+                                {node.accountId.split('|')[0]}
+                              </p>
+                              <p className="text-[8px] font-bold uppercase tracking-widest text-slate-600">
+                                {node.scanCount || 0} scans • Last: {node.lastScanTime ? new Date(node.lastScanTime).toLocaleTimeString() : 'Never'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Views</p>
+                              <p className="text-sm font-black italic text-white">{formatNum(node.lastViews || 0)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Likes</p>
+                              <p className="text-sm font-black italic text-white">{formatNum(node.lastLikes || 0)}</p>
+                            </div>
+                            <ArrowUpRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
+                          </div>
+                        </div>
+                      ))}
+                      {platformScans.length === 0 && (
+                        <div className="py-8 text-center">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">No {activePlatform} nodes detected in the network</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
