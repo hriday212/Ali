@@ -255,7 +255,7 @@ function applyHighWaterMark(data, posts) {
 // --- Scan Engine State ---
 const activeScans = new Map();
 
-async function executeScan(accountId, accountLink, platform) {
+async function executeScan(accountId, accountLink, platform, isManual = false) {
   const scan = activeScans.get(accountId);
   if (!scan) return;
   console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId} (${platform})...`);
@@ -329,7 +329,11 @@ async function executeScan(accountId, accountLink, platform) {
     }
     
     scan.currentInterval = nextInterval;
-    scheduleNextScan(scan, nextInterval);
+    
+    // Only reschedule if this isn't a manual "instant refresh"
+    if (!isManual) {
+      scheduleNextScan(scan, nextInterval);
+    }
 
     saveAllState();
     console.log(`[ScanEngine] ✓ ${accountId}: ${posts.length} posts, ${peakTotalViews.toLocaleString()} total views`);
@@ -481,12 +485,11 @@ app.post('/api/settings/global-interval', (req, res) => {
   res.json({ success: true, newInterval: globalDefaultInterval });
 });
 
-// Admin Route: Force Sync All
 app.post('/api/settings/force-sync', async (req, res) => {
   console.log(`[ScanEngine] ⚡ Admin initiated FORCE GLOBAL SYNC. Scraping ${activeScans.size} nodes immediately.`);
   activeScans.forEach((scan, accountId) => {
-    // Schedule everything sequentially to avoid memory crash
-    scheduleNextScan(scan, 0.1); 
+    // Execute immediate scan without clearing or resetting the main background timer
+    executeScan(accountId, scan.accountLink, scan.platform, true); 
   });
   res.json({ success: true });
 });
