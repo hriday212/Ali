@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line
 } from 'recharts';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
@@ -101,6 +101,9 @@ export default function ForecastPage() {
   const [loading, setLoading] = useState(true);
   const [allScans, setAllScans] = useState<any[]>([]);
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
+  const [customStart, setCustomStart] = useState<string>('');
+  const [customEnd, setCustomEnd] = useState<string>('');
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
   
   useEffect(() => {
     async function loadData() {
@@ -121,11 +124,20 @@ export default function ForecastPage() {
 
   // Compute date ranges
   const rangeDays = RANGE_OPTIONS.find(r => r.key === activeRange)?.days || 7;
-  const { start: currentStart, end: currentEnd } = getDateRange(activeRange, rangeDays);
+  let currentStart: Date, currentEnd: Date;
+  if (activeRange === 'custom' && customStart && customEnd) {
+    currentStart = new Date(customStart);
+    currentEnd = new Date(customEnd);
+    currentEnd.setHours(23, 59, 59); // Include full end day
+  } else {
+    const range = getDateRange(activeRange, rangeDays);
+    currentStart = range.start;
+    currentEnd = range.end;
+  }
   const { start: prevStart, end: prevEnd } = getPreviousPeriod(currentStart, currentEnd);
 
   // Aggregate data across all nodes for both periods
-  const { currentKPIs, prevKPIs, platformDist, timeSeriesCurrent, timeSeriesPrev } = useMemo(() => {
+  const { currentKPIs, prevKPIs, platformDist, timeSeriesCurrent, timeSeriesPrev, hourlyPattern } = useMemo(() => {
     let cViews = 0, cLikes = 0, cComments = 0, cShares = 0;
     let pViews = 0, pLikes = 0, pComments = 0, pShares = 0;
     const platViews: Record<string, number> = {};
@@ -186,14 +198,46 @@ export default function ForecastPage() {
         previous: timeMapPrev[day] || 0,
       }));
 
+    // Hourly activity pattern
+    const hourMapCurrent: Record<string, number> = {};
+    const hourMapPrev: Record<string, number> = {};
+    const hourLabels = Array.from({ length: 24 }, (_, i) => {
+      const h = i % 12 || 12;
+      const ampm = i < 12 ? 'AM' : 'PM';
+      return `${h} ${ampm}`;
+    });
+    hourLabels.forEach(l => { hourMapCurrent[l] = 0; hourMapPrev[l] = 0; });
+
+    for (const scan of allScans) {
+      const history = scan.history || [];
+      const currentH = filterHistoryByRange(history, currentStart, currentEnd);
+      for (const h of currentH) {
+        const hr = new Date(h.time).getHours();
+        const label = hourLabels[hr];
+        hourMapCurrent[label] = (hourMapCurrent[label] || 0) + (h.totalViews || 0);
+      }
+      const prevH = filterHistoryByRange(history, prevStart, prevEnd);
+      for (const h of prevH) {
+        const hr = new Date(h.time).getHours();
+        const label = hourLabels[hr];
+        hourMapPrev[label] = (hourMapPrev[label] || 0) + (h.totalViews || 0);
+      }
+    }
+    const hourlyPattern = hourLabels.map(hour => ({
+      hour,
+      current: hourMapCurrent[hour] || 0,
+      previous: hourMapPrev[hour] || 0,
+    }));
+
     return {
       currentKPIs: { views: cViews, likes: cLikes, comments: cComments, shares: cShares },
       prevKPIs: { views: pViews, likes: pLikes, comments: pComments, shares: pShares },
       platformDist,
       timeSeriesCurrent: mergedTimeSeries,
       timeSeriesPrev: mergedTimeSeries,
+      hourlyPattern,
     };
-  }, [allScans, activeRange]);
+  }, [allScans, activeRange, customStart, customEnd]);
 
   const PLATFORM_COLORS: Record<string, string> = {
     Youtube: '#FF0000',
@@ -225,20 +269,67 @@ export default function ForecastPage() {
         </div>
 
         {/* DateRange Controller */}
-        <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5">
-          {RANGE_OPTIONS.map((opt) => (
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5">
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => { setActiveRange(opt.key); setShowCustomPicker(false); }}
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  activeRange === opt.key
+                    ? 'bg-white text-black shadow-lg shadow-white/10'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
             <button
-              key={opt.key}
-              onClick={() => setActiveRange(opt.key)}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeRange === opt.key
+              onClick={() => { setActiveRange('custom'); setShowCustomPicker(true); }}
+              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                activeRange === 'custom'
                   ? 'bg-white text-black shadow-lg shadow-white/10'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              {opt.label}
+              <Calendar className="w-3 h-3" />
+              Custom
             </button>
-          ))}
+          </div>
+
+          {/* Custom Date Picker */}
+          <AnimatePresence>
+            {showCustomPicker && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center gap-3 bg-white/[0.03] border border-white/10 rounded-xl p-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[7px] font-black uppercase tracking-widest text-slate-500">From</label>
+                    <input
+                      type="date"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-blue-500 transition-colors [color-scheme:dark]"
+                    />
+                  </div>
+                  <div className="text-slate-600 font-black">→</div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[7px] font-black uppercase tracking-widest text-slate-500">To</label>
+                    <input
+                      type="date"
+                      value={customEnd}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-blue-500 transition-colors [color-scheme:dark]"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -250,6 +341,99 @@ export default function ForecastPage() {
         <KpiCard label="Network Shares" value={currentKPIs.shares} prevValue={prevKPIs.shares} icon={Share2} color="text-emerald-400" delay={0.25} />
       </div>
 
+      {/* Hourly Activity Pattern (New Premium Chart) */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="glass-card p-8 border border-white/10 overflow-hidden relative"
+      >
+        <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
+          <TrendingUp className="w-48 h-48 text-blue-500" />
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+              <TrendingUp className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black italic uppercase text-white tracking-widest leading-none">Hourly Activity Pattern</h3>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-1.5 flex items-center gap-1.5">
+                Scan Velocity Intensity • Grouped by Hour of Day
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+              <span className="text-[9px] font-black uppercase text-slate-400">Current Period</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500 border-dashed animate-pulse" />
+              <span className="text-[9px] font-black uppercase text-slate-400">Previous Period</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={hourlyPattern} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={true} horizontal={true} />
+              <XAxis 
+                dataKey="hour" 
+                tick={{ fill: '#475569', fontSize: 9, fontWeight: 900 }} 
+                axisLine={false} 
+                tickLine={false}
+                interval={1}
+              />
+              <YAxis 
+                tick={{ fill: '#475569', fontSize: 9 }} 
+                axisLine={false} 
+                tickLine={false} 
+                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '16px', padding: '12px' }}
+                itemStyle={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}
+                labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, marginBottom: '8px' }}
+                cursor={{ stroke: '#ffffff10', strokeWidth: 1 }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="current" 
+                stroke="#3b82f6" 
+                strokeWidth={3}
+                fillOpacity={1} 
+                fill="url(#colorCurrent)" 
+                animationDuration={2000}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="previous" 
+                stroke="#10b981" 
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                fillOpacity={1} 
+                fill="url(#colorPrev)" 
+                animationDuration={2000}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </motion.div>
+        
       {/* Bottom Grid: Bar Chart + Pie Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -382,7 +566,7 @@ export default function ForecastPage() {
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="glass-card p-8 border border-white/10" style={{ borderColor: PLATFORM_COLORS[activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)] + '30' }}>
+            <div className="glass-card p-8 border border-white/10" style={{ borderColor: (PLATFORM_COLORS[(activePlatform as string).charAt(0).toUpperCase() + (activePlatform as string).slice(1)] || '#64748b') + '30' }}>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   {activePlatform === 'youtube' && <Youtube className="w-5 h-5 text-red-500" />}
@@ -390,7 +574,7 @@ export default function ForecastPage() {
                   {activePlatform === 'instagram' && <Instagram className="w-5 h-5 text-pink-500" />}
                   <div>
                     <h3 className="text-xl font-black italic uppercase text-white tracking-widest">
-                      {activePlatform.charAt(0).toUpperCase() + activePlatform.slice(1)} Intelligence
+                      {(activePlatform as string).charAt(0).toUpperCase() + (activePlatform as string).slice(1)} Intelligence
                     </h3>
                     <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">Per-Node Breakdown</p>
                   </div>
