@@ -140,7 +140,7 @@ export default function Dock() {
     { name: 'Network', icon: UsersRound, href: '/accounts', adminOnly: false },
     { name: 'Library', icon: Film, href: '/videos', adminOnly: false },
     { name: 'Ledger', icon: Wallet, href: '/payments', adminOnly: true },
-    { name: 'Forecast', icon: LineChart, href: '/analytics', adminOnly: false },
+    { name: 'Forecast', icon: LineChart, href: '/forecast', adminOnly: false },
     { name: 'Intelligence', icon: Hash, href: '/hashtags', adminOnly: false },
     { name: 'System', icon: Settings2, href: '/settings', adminOnly: true },
   ];
