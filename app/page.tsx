@@ -87,12 +87,20 @@ export default function Home() {
       })));
 
       // Build aggregated time-series chart from all histories 
-      const timeMap = new Map<string, number>();
+      const timeMap = new Map<number, number>();
       for (const h of allHistory) {
-        const label = new Date(h.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        timeMap.set(label, (timeMap.get(label) || 0) + h.totalViews);
+        const d = new Date(h.time);
+        d.setSeconds(0, 0);
+        const ts = d.getTime();
+        timeMap.set(ts, (timeMap.get(ts) || 0) + h.totalViews);
       }
-      setChartData(Array.from(timeMap.entries()).map(([time, views]) => ({ time, views })));
+
+      setChartData(Array.from(timeMap.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([ts, views]) => ({ 
+          time: new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), 
+          views 
+        })));
     }
     fetchLive();
     const interval = setInterval(fetchLive, 60000); // refresh every 60s
