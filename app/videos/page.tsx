@@ -195,12 +195,11 @@ export default function GlobalVideosPage() {
                   >
                     <div className="glass-card overflow-hidden border-white/10 hover:border-emerald-500/30 transition-all duration-500 cursor-pointer h-full flex flex-col group/card" onClick={() => window.open(post.link, '_blank')}>
                       {/* Thumbnail Container */}
-                      <div className={`relative w-full ${isShort ? 'aspect-[3/4]' : 'aspect-video'} bg-slate-900 overflow-hidden`}>
+                      <div className={`relative w-full ${isShort ? 'aspect-square' : 'aspect-video'} bg-slate-900 overflow-hidden`}>
                         {post.thumbnail ? (
-                          <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center opacity-30"><Film className="w-6 h-6" /></div>
-                        )}
+                          <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                        ) : null}
+                        <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 ${post.thumbnail ? 'hidden' : ''}`}><Film className="w-6 h-6 text-slate-600" /></div>
                         
                         {/* Overlay Gradient */}
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent opacity-90" />
@@ -236,13 +235,6 @@ export default function GlobalVideosPage() {
                             {post.nodeId}
                           </span>
                         </div>
-
-                        {/* Floating Node Tag */}
-                        {post.nodeId && (
-                          <div className="absolute bottom-3 left-3 px-2 py-1 bg-emerald-500/20 text-emerald-400 backdrop-blur-md rounded-md border border-emerald-500/30 text-[7px] font-black uppercase tracking-widest flex items-center gap-1">
-                            {post.nodeId}
-                          </div>
-                        )}
                       </div>
 
                       {/* Analytics Footer */}
