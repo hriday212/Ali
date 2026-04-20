@@ -197,7 +197,7 @@ export default function GlobalVideosPage() {
                       {/* Thumbnail Container */}
                       <div className={`relative w-full ${isShort ? 'aspect-square' : 'aspect-video'} bg-slate-900 overflow-hidden`}>
                         {post.thumbnail ? (
-                          <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
+                          <img src={post.thumbnail} alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-700" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }} />
                         ) : null}
                         <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 ${post.thumbnail ? 'hidden' : ''}`}><Film className="w-6 h-6 text-slate-600" /></div>
                         

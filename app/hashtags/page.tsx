@@ -142,7 +142,7 @@ export default function HashtagsPage() {
               >
                 <div className="glass-card bg-[#0f172a]/50 overflow-hidden group-hover:bg-white/[0.05] transition-all">
                    <div className="h-48 relative overflow-hidden">
-                      <img src={result.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400'} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
+                      <img src={result.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400'} referrerPolicy="no-referrer" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                       <div className="absolute bottom-4 left-4">
                          <p className="text-[10px] font-black italic text-white group-hover:text-blue-400">@{result.owner}</p>

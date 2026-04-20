@@ -146,7 +146,7 @@ export function ViralRadar() {
                  
                  <div className="flex items-center gap-3 z-10 mb-2">
                    {candidate.thumbnail ? (
-                     <img src={candidate.thumbnail} alt="" className="w-12 h-12 rounded-lg object-cover border border-white/10" />
+                     <img src={candidate.thumbnail} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-lg object-cover border border-white/10" />
                    ) : (
                      <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
                        {candidate.platform === 'youtube' && <Youtube className="w-5 h-5 text-red-500" />}

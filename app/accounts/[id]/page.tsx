@@ -332,7 +332,7 @@ export default function AccountForensicPage() {
     
     setIsExporting(true);
     try {
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#020617' });
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#020617' });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -447,7 +447,7 @@ export default function AccountForensicPage() {
             </button>
             <div className="flex items-center gap-6 min-w-0">
               <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center ring-1 ring-white/10 overflow-hidden">
-                {account.avatarUrl ? <img src={account.avatarUrl} alt="" className="w-full h-full object-cover" /> : <User className="w-8 h-8 text-slate-700" />}
+                {account.avatarUrl ? <img src={account.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : <User className="w-8 h-8 text-slate-700" />}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-3 mb-1">
@@ -590,7 +590,7 @@ export default function AccountForensicPage() {
                     <div key={payout.id} className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-white/20 transition-all">
                       <div className="flex items-center gap-5 min-w-0">
                         {payout.thumbnail ? (
-                          <img src={payout.thumbnail} alt="" className="w-10 h-7 rounded-lg object-cover flex-shrink-0 border border-white/5" />
+                          <img src={payout.thumbnail} alt="" referrerPolicy="no-referrer" className="w-10 h-7 rounded-lg object-cover flex-shrink-0 border border-white/5" />
                         ) : (
                           <Calendar className="w-5 h-5 text-slate-700 flex-shrink-0" />
                         )}
@@ -619,7 +619,7 @@ export default function AccountForensicPage() {
                     <div key={post.id} onClick={() => hasScanned ? setSelectedPost(post as PostData) : null} className={`flex items-center justify-between p-4 bg-white/[0.03] border border-white/10 rounded-2xl transition-all group ${hasScanned ? 'hover:bg-white/[0.08] cursor-pointer' : 'opacity-40'}`}>
                       <div className="flex items-center gap-4 min-w-0">
                         {(post as PostData).thumbnail ? (
-                          <img src={(post as PostData).thumbnail} alt="" className="w-12 h-8 rounded-lg object-cover flex-shrink-0 border border-white/5" />
+                          <img src={(post as PostData).thumbnail} alt="" referrerPolicy="no-referrer" className="w-12 h-8 rounded-lg object-cover flex-shrink-0 border border-white/5" />
                         ) : (
                           <div className="w-12 h-8 bg-black border border-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
                             <Film className="w-3 h-3 text-slate-700" />
@@ -702,7 +702,7 @@ export default function AccountForensicPage() {
                           {/* Real Thumbnail */}
                           <div className="aspect-video bg-slate-900 border border-white/5 rounded-lg flex items-center justify-center relative overflow-hidden flex-shrink-0">
                             {post.thumbnail ? (
-                              <img src={post.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                              <img src={post.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                             ) : (
                               <Film className="w-4 h-4 text-slate-800" />
                             )}
@@ -988,7 +988,7 @@ export default function AccountForensicPage() {
                 <div className="lg:col-span-2 flex flex-col gap-6">
                   {selectedPost.thumbnail && (
                     <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 flex-shrink-0">
-                      <img src={selectedPost.thumbnail} alt="" className="w-full h-full object-cover" />
+                      <img src={selectedPost.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                     </div>
                   )}
                   <div className="bg-black/40 border border-white/10 rounded-[2.5rem] p-8 min-h-[250px] flex flex-col flex-1">
