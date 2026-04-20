@@ -440,7 +440,19 @@ app.get('/api/scans', (req, res) => {
   const scans = [];
   activeScans.forEach((v, k) => {
     const { timer, ...rest } = v;
-    scans.push({ ...rest, secondsRemaining: v.nextScanAt ? Math.max(0, Math.floor((new Date(v.nextScanAt) - Date.now()) / 1000)) : 0 });
+    const diskData = readScanData(k);
+    const lastHistory = diskData.history && diskData.history.length > 0 ? diskData.history[diskData.history.length - 1] : {};
+    scans.push({
+      ...rest,
+      secondsRemaining: v.nextScanAt ? Math.max(0, Math.floor((new Date(v.nextScanAt) - Date.now()) / 1000)) : 0,
+      lastViews: lastHistory.totalViews || 0,
+      lastLikes: lastHistory.totalLikes || 0,
+      lastComments: lastHistory.totalComments || 0,
+      lastShares: lastHistory.totalShares || 0,
+      history: diskData.history || [],
+      posts: (diskData.posts || []).slice(0, 20),
+      platform: v.platform || diskData.platform || 'youtube',
+    });
   });
   res.json({ scans, globalDefaultInterval, smartEngineEnabled });
 });
@@ -506,6 +518,51 @@ app.get('/api/scans/latest-posts', (req, res) => {
     .slice(0, limit);
     
   res.json({ posts: latest });
+});
+
+// API Credit Usage Monitor
+app.get('/api/apify-usage', async (req, res) => {
+  try {
+    const results = [];
+    // Query Apify's billing API for each token we have (including evicted ones from env)
+    const allTokensFromEnv = Object.keys(process.env).filter(k => k.startsWith('APIFY_API_TOKEN')).map(k => process.env[k]).filter(Boolean);
+    
+    await Promise.all(allTokensFromEnv.map(async (token, i) => {
+      try {
+        const limitsRes = await fetch(`https://api.apify.com/v2/users/me/limits?token=${token}`);
+        if (!limitsRes.ok) {
+          results.push({ key: `TOKEN_${i + 1}`, status: 'error', error: 'Failed to fetch' });
+          return;
+        }
+        const limits = await limitsRes.json();
+        const isAlive = ALL_APIFY_TOKENS.includes(token);
+        results.push({
+          key: `TOKEN_${i + 1}`,
+          status: isAlive ? 'active' : 'exhausted',
+          monthlyUsageUsd: limits.current?.monthlyUsageUsd || limits.monthlyUsageUsd || 0,
+          maxMonthlyUsageUsd: limits.limits?.maxMonthlyUsageUsd || limits.maxMonthlyUsageUsd || 5,
+          usagePct: 0,
+        });
+        const last = results[results.length - 1];
+        last.usagePct = last.maxMonthlyUsageUsd > 0 ? +((last.monthlyUsageUsd / last.maxMonthlyUsageUsd) * 100).toFixed(1) : 0;
+      } catch (e) {
+        results.push({ key: `TOKEN_${i + 1}`, status: 'error', error: e.message });
+      }
+    }));
+    
+    const totalUsed = results.reduce((s, r) => s + (r.monthlyUsageUsd || 0), 0);
+    const totalLimit = results.reduce((s, r) => s + (r.maxMonthlyUsageUsd || 0), 0);
+    
+    res.json({
+      tokens: results,
+      activeTokenCount: ALL_APIFY_TOKENS.length,
+      totalUsedUsd: +totalUsed.toFixed(2),
+      totalLimitUsd: +totalLimit.toFixed(2),
+      totalPct: totalLimit > 0 ? +((totalUsed / totalLimit) * 100).toFixed(1) : 0,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Mock: Payouts Ledger

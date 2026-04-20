@@ -11,6 +11,7 @@ export const API_ROUTES = {
   SMART_ENGINE: `${BACKEND_URL}/api/settings/smart-engine`,
   FORCE_SYNC: `${BACKEND_URL}/api/settings/force-sync`,
   LATEST_POSTS: `${BACKEND_URL}/api/scans/latest-posts`,
+  APIFY_USAGE: `${BACKEND_URL}/api/apify-usage`,
   // Next.js internal routes
   RESOLVE: '/api/accounts/resolve',
 };
