@@ -6,6 +6,7 @@ import { Settings2, Clock, Zap, Shield, AlertTriangle, Loader2, Gauge, Server, K
 import { useAuth } from '@/lib/authStore';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
+import { ApiPulse } from '@/components/dashboard/ApiPulse';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -196,22 +197,8 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* ActionWidget: API Guard */}
-          <div className="glass-card p-8 border border-white/5">
-            <h2 className="text-lg font-black italic uppercase text-white tracking-widest mb-4 flex items-center gap-2">
-              <KeySquare className="w-4 h-4 text-slate-400" /> Vault Integrity
-            </h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/5">
-                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Apify Actor Keys</span>
-                 <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Secured</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/5">
-                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">YouTube v3 Quota</span>
-                 <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Healthy (2%)</span>
-              </div>
-            </div>
-          </div>
+          {/* API Pulse — Live Credit Monitor */}
+          <ApiPulse />
         </div>
 
       </div>
