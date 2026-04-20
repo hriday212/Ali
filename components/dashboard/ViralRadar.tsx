@@ -35,6 +35,7 @@ export function ViralRadar() {
           const scanData = (statusResult || {}).data;
           
           if (scanData && scanData.videoHistory && scanData.posts) {
+            // NEW: Per-video viral detection
             for (const [videoId, history] of Object.entries(scanData.videoHistory)) {
               if ((history as any).length > 1) {
                 const histArr = history as any[];
@@ -42,7 +43,6 @@ export function ViralRadar() {
                 const previous = histArr[histArr.length - 2];
                 const viewDelta = latest.views - previous.views;
                 
-                // Flag video if it jumps by more than 50 views continuously
                 if (viewDelta > 50) {
                   const post = scanData.posts.find((p: any) => p.id === videoId);
                   
@@ -59,6 +59,29 @@ export function ViralRadar() {
                   });
                 }
               }
+            }
+          } else if (scanData && scanData.history && scanData.history.length > 1) {
+            // FALLBACK: Account-level detection for older data without videoHistory
+            const history = scanData.history;
+            const latest = history[history.length - 1];
+            const previous = history[history.length - 2];
+            const viewDelta = latest.totalViews - previous.totalViews;
+            
+            if (viewDelta > 50) {
+              // Try to find the top post by views from the posts array
+              const topPost = scanData.posts?.sort((a: any, b: any) => (b.views || 0) - (a.views || 0))[0];
+              
+              flagged.push({
+                id: scan.accountId,
+                accountId: scan.accountId,
+                title: topPost ? topPost.title : scan.accountId,
+                thumbnail: topPost ? topPost.thumbnail : null,
+                link: topPost ? topPost.link : `/accounts/${scan.accountId}`,
+                platform: scan.platform || 'youtube',
+                viewDelta,
+                currentViews: latest.totalViews,
+                time: latest.time
+              });
             }
           }
         }));
