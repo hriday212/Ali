@@ -353,13 +353,34 @@ export function SentimentCloud() {
 }
 
 // --- Viral Velocity Radar ---
-export function ViralVelocityRadar() {
+export function ViralVelocityRadar({ history = [], posts = [] }: { history?: any[]; posts?: any[] }) {
+  // Compute real radar values from scan history
+  const len = history.length;
+  const lastH = len > 0 ? history[len - 1] : {};
+  const prevH = len > 1 ? history[len - 2] : {};
+  
+  const growthScore = len > 1 && prevH.totalViews > 0
+    ? Math.min(150, Math.round(((lastH.totalViews - prevH.totalViews) / prevH.totalViews) * 1000))
+    : 50;
+  
+  const consistencyScore = Math.min(150, Math.round((len / 50) * 150)); // More scans = more consistent
+  
+  const engagementScore = lastH.totalViews > 0
+    ? Math.min(150, Math.round(((lastH.totalLikes || 0) + (lastH.totalComments || 0)) / lastH.totalViews * 1500))
+    : 50;
+  
+  const reachScore = Math.min(150, Math.round(Math.log10(Math.max(lastH.totalViews || 1, 1)) * 30));
+  
+  const retentionScore = len > 2
+    ? Math.min(150, Math.round((history.filter((h: any, i: number) => i > 0 && h.totalViews >= history[i-1].totalViews).length / Math.max(len - 1, 1)) * 150))
+    : 75;
+
   const data = [
-    { subject: 'Growth', A: 120, B: 110, fullMark: 150 },
-    { subject: 'Consistency', A: 98, B: 130, fullMark: 150 },
-    { subject: 'Engagement', A: 86, B: 130, fullMark: 150 },
-    { subject: 'Reach', A: 99, B: 100, fullMark: 150 },
-    { subject: 'Retention', A: 85, B: 90, fullMark: 150 },
+    { subject: 'Growth', A: Math.max(growthScore, 10), B: 75, fullMark: 150 },
+    { subject: 'Consistency', A: Math.max(consistencyScore, 10), B: 75, fullMark: 150 },
+    { subject: 'Engagement', A: Math.max(engagementScore, 10), B: 75, fullMark: 150 },
+    { subject: 'Reach', A: Math.max(reachScore, 10), B: 75, fullMark: 150 },
+    { subject: 'Retention', A: Math.max(retentionScore, 10), B: 75, fullMark: 150 },
   ];
 
   return (
@@ -405,7 +426,7 @@ export function ViralVelocityRadar() {
         </ResponsiveContainer>
       </div>
       <p className="text-[9px] text-slate-500 mt-4 leading-relaxed border-t border-white/5 pt-4">
-        <strong>Data Context:</strong> A holistic audit of the node. Compares this specific account against the global network average across 5 distinct algorithmic pillars, highlighting strengths.
+        <strong>Data Context:</strong> Computed from real scan history. Growth tracks view velocity changes, Consistency measures scan frequency, Engagement derives from likes+comments vs views, Reach is log-scaled total views, Retention tracks sustained growth across scans.
       </p>
     </div>
   );

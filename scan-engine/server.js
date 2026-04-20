@@ -534,13 +534,14 @@ app.get('/api/apify-usage', async (req, res) => {
           results.push({ key: `TOKEN_${i + 1}`, status: 'error', error: 'Failed to fetch' });
           return;
         }
-        const limits = await limitsRes.json();
+        const limitsRaw = await limitsRes.json();
+        const limitsData = limitsRaw.data || limitsRaw; // Apify wraps in { data: { ... } }
         const isAlive = ALL_APIFY_TOKENS.includes(token);
         results.push({
           key: `TOKEN_${i + 1}`,
           status: isAlive ? 'active' : 'exhausted',
-          monthlyUsageUsd: limits.current?.monthlyUsageUsd || limits.monthlyUsageUsd || 0,
-          maxMonthlyUsageUsd: limits.limits?.maxMonthlyUsageUsd || limits.maxMonthlyUsageUsd || 5,
+          monthlyUsageUsd: limitsData.current?.monthlyUsageUsd || 0,
+          maxMonthlyUsageUsd: limitsData.limits?.maxMonthlyUsageUsd || 5,
           usagePct: 0,
         });
         const last = results[results.length - 1];

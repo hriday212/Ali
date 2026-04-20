@@ -87,9 +87,9 @@ export function ExpandedAnalyticsView({ account, onClose }: ExpandedAnalyticsVie
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { label: 'Total Reach', value: account.totalViews, sub: 'Lifetime Views', icon: Eye, color: 'text-blue-400' },
-              { label: 'Growth', value: account.growth, sub: 'Last 30 Days', icon: ArrowUpRight, color: 'text-emerald-400' },
+              { label: 'Growth', value: account.growth, sub: 'vs Previous Scan', icon: ArrowUpRight, color: 'text-emerald-400' },
               { label: 'Engagement', value: account.engagement || '0.0%', sub: 'Avg Health', icon: Heart, color: 'text-pink-400' },
-              { label: 'Active Node', value: 'Online', sub: 'Syncing every 30m', icon: Globe, color: 'text-blue-500' }
+              { label: 'Active Node', value: 'Online', sub: `${account.data?.length || 0} scans recorded`, icon: Globe, color: 'text-blue-500' }
             ].map((stat, i) => (
               <motion.div
                 key={stat.label}
@@ -132,7 +132,7 @@ export function ExpandedAnalyticsView({ account, onClose }: ExpandedAnalyticsVie
                transition={{ delay: 1.1 }}
                className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-10 min-h-[450px]"
              >
-                <ViralVelocityRadar />
+                <ViralVelocityRadar history={account.data} posts={account.posts} />
              </motion.div>
 
              <motion.div 
@@ -143,8 +143,8 @@ export function ExpandedAnalyticsView({ account, onClose }: ExpandedAnalyticsVie
              >
                 <MonetizationFunnel 
                   views={parseInt(account.totalViews.replace(/[^0-9.]/g, '')) * (account.totalViews.includes('M') ? 1000000 : 1000)} 
-                  likes={124000} 
-                  comments={840} 
+                  likes={account.lastLikes || 0} 
+                  comments={account.lastComments || 0} 
                 />
              </motion.div>
           </div>

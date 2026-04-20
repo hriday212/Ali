@@ -69,6 +69,9 @@ export default function AnalyticsPage() {
             totalViews: s.lastViews?.toLocaleString() || '0',
             growth: growthStr,
             engagement: engagementStr, // Passing engagement down
+            lastLikes: s.lastLikes || 0,
+            lastComments: s.lastComments || 0,
+            lastShares: s.lastShares || 0,
             data: s.history || [],
             distribution: [],
             posts: s.posts || []
