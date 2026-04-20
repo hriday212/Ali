@@ -113,8 +113,11 @@ export function ExpandedAnalyticsView({ account, onClose }: ExpandedAnalyticsVie
             transition={{ delay: 0.9 }}
           >
             <AnalyticsCharts 
-              data={account.data} 
-              platformDistribution={account.distribution}
+              data={(account.data || []).map((h: any) => ({
+                time: new Date(h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                views: h.totalViews || 0,
+              }))} 
+              platformDistribution={[{ name: account.platform || 'Unknown', value: 100 }]}
               postMarkers={(account.posts || []).slice(0, 5).map((p: any) => ({
                 time: new Date(p.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 label: 'POST'
