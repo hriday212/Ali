@@ -5,6 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Medal, ArrowUp, BarChart, Youtube, Instagram, Music2, Search, Loader2 } from 'lucide-react';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 interface LeaderboardNode {
   accountId: string;
@@ -14,6 +20,7 @@ interface LeaderboardNode {
   lastScanTime: string | null;
   totalViews: number;
   postsCount: number;
+  lastError?: string | null;
 }
 
 export default function LeaderboardPage() {
@@ -39,7 +46,8 @@ export default function LeaderboardPage() {
           scanCount: scan.scanCount,
           lastScanTime: scan.lastScanTime,
           totalViews: (scanData.history || []).slice(-1)[0]?.totalViews || 0,
-          postsCount: (scanData.posts || []).length
+          postsCount: (scanData.posts || []).length,
+          lastError: scan.lastError
         };
       }));
 
@@ -151,7 +159,14 @@ export default function LeaderboardPage() {
                     </div>
                     <div className="hidden sm:block">
                       <p className="text-[9px] font-black uppercase tracking-widest text-slate-600 mb-1 italic">Scan Frequency</p>
-                      <p className="text-lg font-black italic tracking-tight text-slate-400">{node.scanCount} Scans</p>
+                      <div className="flex flex-col items-end">
+                        <p className={cn("text-lg font-black italic tracking-tight", node.lastError ? "text-amber-500" : "text-slate-400")}>
+                          {node.scanCount} Scans
+                        </p>
+                        {node.lastError && (
+                          <span className="text-[7px] font-black uppercase tracking-tighter text-amber-500/70">{node.lastError.substring(0, 20)}...</span>
+                        )}
+                      </div>
                     </div>
                     <div className="w-[120px]">
                        <div className="flex justify-between items-center mb-1.5">
