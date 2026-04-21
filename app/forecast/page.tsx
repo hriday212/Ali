@@ -198,7 +198,7 @@ export default function ForecastPage() {
         previous: timeMapPrev[day] || 0,
       }));
 
-    // Hourly activity pattern
+    // Hourly activity pattern (Show GAINS/DELTAS per hour instead of totals)
     const hourMapCurrent: Record<string, number> = {};
     const hourMapPrev: Record<string, number> = {};
     const hourLabels = Array.from({ length: 24 }, (_, i) => {
@@ -210,23 +210,38 @@ export default function ForecastPage() {
 
     for (const scan of allScans) {
       const history = scan.history || [];
-      const currentH = filterHistoryByRange(history, currentStart, currentEnd);
-      for (const h of currentH) {
-        const hr = new Date(h.time).getHours();
-        const label = hourLabels[hr];
-        hourMapCurrent[label] = (hourMapCurrent[label] || 0) + (h.totalViews || 0);
+      
+      // Compute Current Period Gains
+      for (let i = 0; i < history.length; i++) {
+        const h = history[i];
+        const hTime = new Date(h.time).getTime();
+        if (hTime >= currentStart.getTime() && hTime <= currentEnd.getTime()) {
+          const prevH = history[i - 1];
+          const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : 0;
+          const hr = new Date(h.time).getHours();
+          const label = hourLabels[hr];
+          hourMapCurrent[label] = (hourMapCurrent[label] || 0) + delta;
+        }
       }
-      const prevH = filterHistoryByRange(history, prevStart, prevEnd);
-      for (const h of prevH) {
-        const hr = new Date(h.time).getHours();
-        const label = hourLabels[hr];
-        hourMapPrev[label] = (hourMapPrev[label] || 0) + (h.totalViews || 0);
+
+      // Compute Previous Period Gains
+      for (let i = 0; i < history.length; i++) {
+        const h = history[i];
+        const hTime = new Date(h.time).getTime();
+        if (hTime >= prevStart.getTime() && hTime <= prevEnd.getTime()) {
+          const prevH = history[i - 1];
+          const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : 0;
+          const hr = new Date(h.time).getHours();
+          const label = hourLabels[hr];
+          hourMapPrev[label] = (hourMapPrev[label] || 0) + delta;
+        }
       }
     }
+
     const hourlyPattern = hourLabels.map(hour => ({
       hour,
-      current: hourMapCurrent[hour] || 0,
-      previous: hourMapPrev[hour] || 0,
+      current: hourMapCurrent[hour],
+      previous: hourMapPrev[hour],
     }));
 
     return {
