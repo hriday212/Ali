@@ -44,7 +44,7 @@ export default function Home() {
         totalComments += scan.lastComments || 0;
         totalShares += scan.lastShares || 0;
 
-        const plat = scan.platform || 'unknown';
+        const plat = (scan.platform || 'unknown').toLowerCase();
         platformViews[plat] = (platformViews[plat] || 0) + (scan.lastViews || 0);
 
         // Merge history for the aggregate chart

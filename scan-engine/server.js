@@ -185,7 +185,8 @@ async function scanInstagram(accountId, accountLink) {
     id: item.id || item.shortCode || String(Math.random()),
     title: item.caption || item.alt || '',
     thumbnail: item.displayUrl || item.imageUrl || '',
-    views: item.videoViewCount || item.videoPlayCount || 0,
+    // Fallback: If it's a photo post, use likes as a proxy for 'reach/views' for the pie chart
+    views: item.videoViewCount || item.videoPlayCount || ( (item.likesCount || item.likes || 0) * 5 ),
     likes: item.likesCount || item.likes || 0,
     comments: item.commentsCount || item.comments || 0,
     shares: 0,
@@ -405,7 +406,8 @@ app.post('/api/start', async (req, res) => {
   const existing = activeScans.get(accountId);
   if (existing && existing.timer) clearTimeout(existing.timer);
   const selectedInterval = intervalMinutes || globalDefaultInterval;
-  const scan = { accountId, accountLink, intervalMinutes: selectedInterval, platform: platform || 'youtube', scanCount: 0, lastScanTime: null, nextScanAt: null, currentInterval: selectedInterval };
+  const normPlatform = (platform || 'youtube').toLowerCase();
+  const scan = { accountId, accountLink, intervalMinutes: selectedInterval, platform: normPlatform, scanCount: 0, lastScanTime: null, nextScanAt: null, currentInterval: selectedInterval };
   startScanInternal(scan);
   
   // FIXED: Save state IMMEDIATELY so interval isn't lost if the first scan fails
