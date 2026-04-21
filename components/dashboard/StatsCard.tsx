@@ -46,7 +46,7 @@ export function StatsCard({ title, value, growth, icon: Icon, variant = 'silver'
         </div>
         <div className={cn(
           "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold",
-          isPositive ? "bg-white/10 text-white" : "bg-slate-800 text-slate-400"
+          isPositive ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-800 text-slate-400"
         )}>
           {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
           {Math.abs(growth)}%
