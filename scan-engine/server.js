@@ -268,8 +268,14 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
 
     if (!posts || posts.length === 0) {
       console.log(`[ScanEngine] No posts returned for ${accountId}`);
+      scan.lastError = "No posts returned - possible rate limit or empty profile.";
+      scan.lastErrorTime = new Date().toISOString();
       return;
     }
+
+    // Success - clear errors
+    scan.lastError = null;
+    scan.lastErrorTime = null;
 
     const data = readScanData(accountId);
     data.posts = posts;
@@ -341,7 +347,11 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
   } catch (e) {
     console.error(`[ScanEngine] Error scanning ${accountId}:`, e.message);
     const scan = activeScans.get(accountId);
-    if(scan) scheduleNextScan(scan, scan.intervalMinutes);
+    if(scan) {
+      scan.lastError = e.message;
+      scan.lastErrorTime = new Date().toISOString();
+      scheduleNextScan(scan, scan.intervalMinutes);
+    }
   }
 }
 
