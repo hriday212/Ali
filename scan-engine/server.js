@@ -80,8 +80,8 @@ async function runApifyActor(actorId, input) {
     
     if (!response.ok) {
       const errText = await response.text();
-      // SMART FALLBACK: If token is dead, evict it and instantly loop again
-      if (errText.includes('Monthly usage hard limit exceeded') || errText.includes('limit exceeded')) {
+      // SMART FALLBACK: Only evict if it's a genuine Apify billing/usage limit
+      if (errText.includes('Monthly usage hard limit exceeded')) {
         const deadToken = new URL(url).searchParams.get('token');
         const idx = ALL_APIFY_TOKENS.indexOf(deadToken);
         if (idx > -1) {
@@ -154,8 +154,10 @@ async function scanYouTube(accountId, accountLink) {
 }
 
 async function scanTikTok(accountId, accountLink) {
-  const handleMatch = accountLink.match(/@([a-zA-Z0-9._-]+)/);
-  const profile = handleMatch ? handleMatch[1] : accountLink;
+  // Strip query params (?_r=1...) to ensure clean profile lookup
+  const cleanLink = accountLink.split('?')[0];
+  const handleMatch = cleanLink.match(/@([a-zA-Z0-9._-]+)/);
+  const profile = handleMatch ? handleMatch[1] : cleanLink.replace(/https?:\/\/(www\.)?tiktok\.com\/@/, '').replace(/\//g, '');
   const items = await runApifyActor('clockworks/tiktok-scraper', {
     profiles: [`https://www.tiktok.com/@${profile}`],
     resultsPerPage: 20,
