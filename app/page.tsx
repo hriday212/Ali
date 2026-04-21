@@ -86,21 +86,53 @@ export default function Home() {
         color: name === 'youtube' ? '#FF0000' : name === 'tiktok' ? '#ffffff' : '#E1306C',
       })));
 
-      // Build aggregated time-series chart from all histories 
-      const timeMap = new Map<number, number>();
-      for (const h of allHistory) {
-        const d = new Date(h.time);
-        d.setSeconds(0, 0);
-        const ts = d.getTime();
-        timeMap.set(ts, (timeMap.get(ts) || 0) + h.totalViews);
+      // --- ADVANCED AGGREGATION: CONTINUOUS NETWORK STATE (Fill-Forward) ---
+      // 1. Collect all unique time buckets (minutes) across the entire network
+      const allTimestamps = new Set<number>();
+      for (const scan of data.scans) {
+        if (scan.history) {
+          for (const h of scan.history) {
+            const d = new Date(h.time);
+            d.setSeconds(0, 0);
+            allTimestamps.add(d.getTime());
+          }
+        }
       }
 
-      setChartData(Array.from(timeMap.entries())
-        .sort(([a], [b]) => a - b)
-        .map(([ts, views]) => ({ 
-          time: new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), 
-          views 
-        })));
+      const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b);
+      
+      // 2. For each node, map its history for fast lookup
+      const nodeHistories = data.scans.map((scan: any) => {
+        const history = (scan.history || []).map((h: any) => {
+          const d = new Date(h.time);
+          d.setSeconds(0, 0);
+          return { ts: d.getTime(), views: h.totalViews || 0 };
+        }).sort((a: any, b: any) => a.ts - b.ts);
+        return history;
+      }).filter((h: any[]) => h.length > 0);
+
+      // 3. For each unique timestamp, sum the latest known views for EVERY node
+      const chartPoints = sortedTimestamps.map(ts => {
+        let totalAtTs = 0;
+        for (const history of nodeHistories) {
+          // Find the last record in this node's history that is <= the current timestamp
+          let lastViews = 0;
+          for (const point of history) {
+            if (point.ts <= ts) {
+              lastViews = point.views;
+            } else {
+              break; // Histories are sorted, so we can stop
+            }
+          }
+          totalAtTs += lastViews;
+        }
+        return {
+          time: new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          views: totalAtTs
+        };
+      });
+
+      setChartData(chartPoints);
     }
     fetchLive();
     const interval = setInterval(fetchLive, 60000); // refresh every 60s
