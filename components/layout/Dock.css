@@ -4,7 +4,7 @@
   max-width: 100%;
   align-items: center;
   position: fixed;
-  bottom: 3.5rem;
+  bottom: 2.2rem; /* Lowered from 3.5rem */
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -12,7 +12,7 @@
 
 .dock-panel {
   display: flex;
-  align-items: flex-end; /* changed from center to flex-end so scaling grows upwards */
+  align-items: flex-end; 
   justify-content: center;
   width: fit-content;
   gap: 1.5rem;
@@ -20,7 +20,7 @@
   background-color: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(40px);
   border: 3px solid rgba(255, 255, 255, 0.2);
-  padding: 0.85rem 1.5rem;
+  padding: 0.5rem 1.5rem 0.65rem; /* Reduced padding to fit 76px panelHeight */
   box-shadow: 
     0 35px 70px -12px rgba(0, 0, 0, 0.7),
     0 0 50px rgba(255, 255, 255, 0.02);
@@ -33,6 +33,8 @@
   justify-content: center;
   border-radius: 1.25rem;
   background-color: rgba(30, 41, 59, 0.4);
+  border: 3px solid rgba(255, 255, 100, 0.0); /* Transparent border by default to avoid boxy look? No, user wanted original look. */
+  /* Wait, user wanted original look which had 3px white border. But it creates a boxy feel. I'll stick to their request. */
   border: 3px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.5);
   cursor: pointer;
@@ -61,7 +63,7 @@
 
 .dock-label {
   position: absolute;
-  top: -4.5rem;
+  top: -3.5rem; /* Lowered from -4.5rem */
   left: 50%;
   width: max-content;
   white-space: nowrap;

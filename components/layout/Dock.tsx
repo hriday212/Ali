@@ -116,10 +116,10 @@ export default function Dock() {
   const isHoveredIndicator = useMotionValue(0);
   
   const spring = { mass: 0.1, stiffness: 150, damping: 12 };
-  const magnification = 70;
+  const magnification = 85;
   const distance = 200;
-  const panelHeight = 68;
-  const dockHeight = 256;
+  const panelHeight = 76;
+  const dockHeight = 150;
   const baseItemSize = 50;
 
   const allItems = [
