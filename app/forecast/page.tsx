@@ -156,8 +156,8 @@ export default function ForecastPage() {
         const originalIndex = history.indexOf(h);
         const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
         
-        // Calculate the view gain (delta) since the last scan
-        const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : 0;
+        // Use full absolute views for the very first baseline record so it shows up in history!
+        const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : (h.totalViews || 0);
         
         const dayLabel = new Date(h.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         tempMapC[dayLabel] = (tempMapC[dayLabel] || 0) + delta;
@@ -186,8 +186,8 @@ export default function ForecastPage() {
         const originalIndex = history.indexOf(h);
         const prevHData = originalIndex > 0 ? history[originalIndex - 1] : null;
         
-        // Calculate the view gain (delta) since the last scan
-        const delta = prevHData ? Math.max(0, (h.totalViews || 0) - (prevHData.totalViews || 0)) : 0;
+        // Use full absolute views for the very first baseline record so it shows up in history!
+        const delta = prevHData ? Math.max(0, (h.totalViews || 0) - (prevHData.totalViews || 0)) : (h.totalViews || 0);
         
         const dayLabel = new Date(h.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         tempMapP[dayLabel] = (tempMapP[dayLabel] || 0) + delta;
@@ -255,8 +255,9 @@ export default function ForecastPage() {
         const h = history[i];
         const hTime = new Date(h.time).getTime();
         if (hTime >= currentStart.getTime() && hTime <= currentEnd.getTime()) {
-          const prevH = history[i - 1];
-          const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : 0;
+          const originalIndex = history.indexOf(h);
+          const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
+          const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : (h.totalViews || 0);
           const hr = new Date(h.time).getHours();
           const label = hourLabels[hr];
           hourMapCurrent[label] = (hourMapCurrent[label] || 0) + delta;
@@ -268,8 +269,9 @@ export default function ForecastPage() {
         const h = history[i];
         const hTime = new Date(h.time).getTime();
         if (hTime >= prevStart.getTime() && hTime <= prevEnd.getTime()) {
-          const prevH = history[i - 1];
-          const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : 0;
+          const originalIndex = history.indexOf(h);
+          const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
+          const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : (h.totalViews || 0);
           const hr = new Date(h.time).getHours();
           const label = hourLabels[hr];
           hourMapPrev[label] = (hourMapPrev[label] || 0) + delta;
