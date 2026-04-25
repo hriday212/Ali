@@ -183,19 +183,7 @@ async function scanTikTok(accountId, accountLink) {
     resultsPerPage: 20,
   });
   return (items || []).map(item => {
-    // Aggressive fallback for TikTok thumbnails across various scraper schemas
-    const rawThumb = item.covers?.default || 
-                    item.covers?.origin || 
-                    item.cover || 
-                    item.coverUrl ||
-                    item.videoMeta?.coverUrl || 
-                    item.video?.cover || 
-                    item.video?.coverUrl ||
-                    item.video?.originCover ||
-                    item.videoThumb ||
-                    item.video_cover ||
-                    item.origin_cover ||
-                    '';
+    const rawThumb = item.covers?.default || item.cover || '';
     return {
       id: item.id || item.webVideoUrl || String(Math.random()),
       title: item.text || '',
@@ -297,13 +285,8 @@ function applyHighWaterMark(data, posts) {
 const activeScans = new Map();
 
 async function executeScan(accountId, accountLink, platform, isManual = false) {
-  let scan = activeScans.get(accountId);
-  if (!scan && isManual) {
-    scan = { accountId, accountLink, platform, isScraping: true };
-    activeScans.set(accountId, scan);
-  } else if (!scan) return;
-  
-  scan.isScraping = true;
+  const scan = activeScans.get(accountId);
+  if (!scan) return;
   console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId} (${platform})...`);
   try {
     let posts = [];
@@ -401,9 +384,6 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       scan.lastErrorTime = new Date().toISOString();
       scheduleNextScan(scan, scan.intervalMinutes);
     }
-  } finally {
-    const freshScan = activeScans.get(accountId);
-    if (freshScan) freshScan.isScraping = false;
   }
 }
 
