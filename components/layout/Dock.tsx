@@ -49,15 +49,17 @@ function DockItem({ children, className = '', onClick, mouseX, spring, distance,
       ref={ref}
       style={{
         width: size,
-        height: size,
+        height: size
       }}
-      whileHover={{ y: -8, scale: 1.05 }}
-      whileTap={{ scale: 0.9 }}
       onHoverStart={() => isHovered.set(1)}
       onHoverEnd={() => isHovered.set(0)}
+      onFocus={() => isHovered.set(1)}
+      onBlur={() => isHovered.set(0)}
       onClick={onClick}
       className={`dock-item ${className}`}
       tabIndex={0}
+      role="button"
+      aria-haspopup="true"
     >
       {href ? (
         <Link href={href} className="w-full h-full flex items-center justify-center">
@@ -88,11 +90,12 @@ function DockLabel({ children, className = '', ...rest }: { children: React.Reac
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          initial={{ opacity: 0, y: 10, scale: 0.8, filter: 'blur(10px)' }}
-          animate={{ opacity: 1, y: -5, scale: 1, filter: 'blur(0px)' }}
-          exit={{ opacity: 0, y: 5, scale: 0.8, filter: 'blur(5px)' }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+          initial={{ opacity: 0, y: 0 }}
+          animate={{ opacity: 1, y: -10 }}
+          exit={{ opacity: 0, y: 0 }}
+          transition={{ duration: 0.2 }}
           className={`dock-label ${className}`}
+          role="tooltip"
           style={{ x: '-50%' }}
         >
           {children}
@@ -102,23 +105,8 @@ function DockLabel({ children, className = '', ...rest }: { children: React.Reac
   );
 }
 
-function DockIcon({ children, className = '', isActive }: { children: React.ReactNode; className?: string; isActive?: boolean }) {
-  return (
-    <motion.div 
-      className={`dock-icon ${className}`}
-      animate={isActive ? {
-        scale: [1, 1.08, 1],
-        opacity: [0.8, 1, 0.8]
-      } : {}}
-      transition={isActive ? {
-        duration: 2,
-        repeat: Infinity,
-        ease: "easeInOut"
-      } : {}}
-    >
-      {children}
-    </motion.div>
-  );
+function DockIcon({ children, className = '' }: { children: React.ReactNode; className?: string; isActive?: boolean }) {
+  return <div className={`dock-icon ${className}`}>{children}</div>;
 }
 
 export default function Dock() {
@@ -126,13 +114,13 @@ export default function Dock() {
   const { user, role } = useAuth();
   const mouseX = useMotionValue(Infinity);
   const isHoveredIndicator = useMotionValue(0);
-  // Re-tuned for 'Liquid' Feel
-  const spring = { mass: 0.1, stiffness: 150, damping: 15 };
-  const magnification = 110;
-  const distance = 180;
-  const panelHeight = 88;
-  const dockHeight = 220;
-  const baseItemSize = 64;
+  
+  const spring = { mass: 0.1, stiffness: 150, damping: 12 };
+  const magnification = 70;
+  const distance = 200;
+  const panelHeight = 68;
+  const dockHeight = 256;
+  const baseItemSize = 50;
 
   const allItems = [
     { name: 'Dashboard', icon: Home, href: '/', adminOnly: false },
@@ -149,7 +137,7 @@ export default function Dock() {
   const items = allItems.filter(item => !item.adminOnly || role === 'admin');
 
   const maxHeight = useMemo(
-    () => Math.max(dockHeight, magnification + 30),
+    () => Math.max(dockHeight, magnification + magnification / 2 + 4),
     [magnification, dockHeight]
   );
   const heightRow = useTransform(isHoveredIndicator, [0, 1], [panelHeight, maxHeight]);
@@ -168,7 +156,7 @@ export default function Dock() {
           isHoveredIndicator.set(0);
           mouseX.set(Infinity);
         }}
-        className="dock-panel overflow-x-auto hide-scrollbar touch-pan-x min-w-max"
+        className="dock-panel max-w-max"
         style={{ height: panelHeight }}
         role="toolbar"
         aria-label="Application dock"
@@ -187,7 +175,7 @@ export default function Dock() {
               baseItemSize={baseItemSize}
             >
               <DockIcon isActive={isActive}>
-                <item.icon className={isActive ? 'text-white' : 'text-neutral-500'} size={28} strokeWidth={2.5} />
+                <item.icon className={isActive ? 'text-white' : 'text-neutral-500'} size={24} strokeWidth={2.5} />
               </DockIcon>
               <DockLabel className="font-black text-[10px] uppercase tracking-[0.2em]">{item.name}</DockLabel>
             </DockItem>
