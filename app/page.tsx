@@ -205,12 +205,12 @@ export default function Home() {
         {/* Slide Up Content Layer */}
         <div className="absolute top-[80vh] left-0 right-0 flex flex-col items-center justify-center pointer-events-none">
           <motion.div style={{ y: contentY, opacity: contentOpacity }} className="text-center space-y-8 max-w-5xl px-4 relative z-10 pointer-events-auto">
-            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-black uppercase tracking-widest mb-4">
+            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] md:text-xs font-black uppercase tracking-widest mb-4">
               <Zap className="w-4 h-4 animate-pulse" />
               Network Intelligence Offline
             </div>
             
-            <h2 className="text-5xl md:text-7xl lg:text-8xl font-black italic tracking-tighter text-white uppercase max-w-5xl leading-[0.85] mx-auto">
+            <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black italic tracking-tighter text-white uppercase max-w-5xl leading-[0.85] mx-auto">
               The Default Operating System <br />
               <span className="text-blue-500">For Your Content</span>
             </h2>
@@ -234,7 +234,7 @@ export default function Home() {
                 <Terminal className="w-5 h-5" />
                 <span className="text-[10px] font-black uppercase tracking-[0.4em]">Neural Link Established</span>
               </div>
-              <h1 className="text-6xl md:text-8xl font-black italic tracking-tighter text-white uppercase leading-[0.8]">
+              <h1 className="text-5xl sm:text-6xl md:text-8xl font-black italic tracking-tighter text-white uppercase leading-[0.8]">
                 {isAdmin ? 'Network' : 'Control'}<br />
                 <span className="text-blue-600">Protocol</span>
               </h1>

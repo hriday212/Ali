@@ -158,7 +158,7 @@ export default function Dock() {
   if (!user) return null;
 
   return (
-    <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">
+    <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer w-full max-w-full overflow-x-auto overflow-y-hidden px-4 md:px-0 scroll-smooth">
       <motion.div
         onMouseMove={({ pageX }) => {
           isHoveredIndicator.set(1);
@@ -168,7 +168,7 @@ export default function Dock() {
           isHoveredIndicator.set(0);
           mouseX.set(Infinity);
         }}
-        className="dock-panel"
+        className="dock-panel min-w-max md:min-w-0 mx-auto"
         style={{ height: panelHeight }}
         role="toolbar"
         aria-label="Application dock"
@@ -189,7 +189,7 @@ export default function Dock() {
               <DockIcon isActive={isActive}>
                 <item.icon className={isActive ? 'text-white' : 'text-neutral-500'} size={28} strokeWidth={2.5} />
               </DockIcon>
-              <DockLabel className="font-black text-[10px] uppercase tracking-[0.2em]">{item.name}</DockLabel>
+              <DockLabel className="font-black text-[10px] uppercase tracking-[0.2em] hidden md:block">{item.name}</DockLabel>
             </DockItem>
           );
         })}

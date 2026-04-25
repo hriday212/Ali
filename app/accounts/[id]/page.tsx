@@ -465,35 +465,35 @@ export default function AccountForensicPage() {
   }
 
   return (
-    <div className="h-screen bg-slate-950 text-white flex flex-col overflow-hidden selection:bg-white selection:text-black">
+    <div className="min-h-[100dvh] xl:h-screen bg-slate-950 text-white flex flex-col xl:overflow-hidden selection:bg-white selection:text-black">
       {/* HUD Backdrop */}
-      <div className="fixed inset-0 pointer-events-none opacity-20">
+      <div className="fixed inset-0 pointer-events-none opacity-20 hidden md:block">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-white/5 blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-white/5 blur-[120px]" />
       </div>
 
-      <div className="relative z-10 flex-1 flex flex-col max-w-[1800px] mx-auto w-full px-6 py-6 lg:px-12 min-h-0">
+      <div className="relative z-10 flex-1 flex flex-col max-w-[1800px] mx-auto w-full px-4 md:px-6 py-6 lg:px-12 min-h-0 overflow-y-auto xl:overflow-hidden custom-scrollbar">
 
         {/* Compact Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6 bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-8 md:p-10 backdrop-blur-xl flex-shrink-0">
-          <div className="flex items-center gap-8 min-w-0">
-            <button onClick={() => router.push('/accounts')} className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-all group">
-              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1.5 transition-transform" />
+        <header className="flex flex-col xl:flex-row xl:items-center justify-between mb-8 gap-6 bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-6 md:p-10 backdrop-blur-xl flex-shrink-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 min-w-0">
+            <button onClick={() => router.push('/accounts')} className="w-10 h-10 md:w-12 md:h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-all group shrink-0">
+              <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-1.5 transition-transform" />
             </button>
-            <div className="flex items-center gap-6 min-w-0">
-              <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center ring-1 ring-white/10 overflow-hidden">
-                {account.avatarUrl ? <img src={account.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : <User className="w-8 h-8 text-slate-700" />}
+            <div className="flex items-center gap-4 md:gap-6 min-w-0 w-full sm:w-auto">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 rounded-2xl flex items-center justify-center ring-1 ring-white/10 overflow-hidden shrink-0">
+                {account.avatarUrl ? <img src={account.avatarUrl} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : <User className="w-6 h-6 md:w-8 md:h-8 text-slate-700" />}
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-3xl font-black italic tracking-tighter uppercase leading-none truncate">{account.name}</h1>
-                  <div className="px-2.5 py-0.5 bg-white/10 border border-white/20 rounded-full text-[7px] font-black uppercase tracking-widest">{account.platform} NODE</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 md:gap-3 mb-1">
+                  <h1 className="text-2xl md:text-3xl font-black italic tracking-tighter uppercase leading-none truncate">{account.name}</h1>
+                  <div className="px-2.5 py-0.5 bg-white/10 border border-white/20 rounded-full text-[7px] font-black uppercase tracking-widest shrink-0 hidden sm:block">{account.platform} NODE</div>
                 </div>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">{account.followers} Reach Presence</p>
+                <p className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">{account.followers} Reach</p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 relative">
+          <div className="flex items-center gap-2 md:gap-3 relative flex-wrap sm:flex-nowrap w-full xl:w-auto">
             {/* Auto-Scan Controls */}
             {autoScanActive && (
               <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
@@ -552,16 +552,16 @@ export default function AccountForensicPage() {
         <div id="analytics-export-wrapper" className="grid grid-cols-1 xl:grid-cols-4 gap-6 flex-1 min-h-0 mb-8 pt-4">
 
           {/* Primary Analytics (Scrollable Left) */}
-          <div className="xl:col-span-3 flex flex-col gap-6 min-h-0 overflow-y-auto custom-scrollbar pr-2">
+          <div className="xl:col-span-3 flex flex-col gap-6 xl:min-h-0 xl:overflow-y-auto custom-scrollbar xl:pr-2">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-shrink-0">
-              <div onClick={() => setActiveSubHUD('performance')} className="lg:col-span-2 glass-card p-8 h-[380px] cursor-pointer group border-white/10 hover:border-white/20 transition-all relative">
-                <div className="flex items-center justify-between mb-8">
+              <div onClick={() => setActiveSubHUD('performance')} className="lg:col-span-2 glass-card p-6 md:p-8 h-[380px] cursor-pointer group border-white/10 hover:border-white/20 transition-all relative overflow-hidden flex flex-col">
+                <div className="flex items-start md:items-center justify-between mb-8 flex-col sm:flex-row gap-4">
                   <div className="flex items-center gap-4">
-                    <TrendingUp className="w-5 h-5" />
-                    <h2 className="text-xs font-black uppercase tracking-[0.2em] italic">Forensic Performance Analysis</h2>
+                    <TrendingUp className="w-5 h-5 flex-shrink-0" />
+                    <h2 className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] italic">Forensic Performance Analysis</h2>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center bg-white/[0.03] border border-white/5 rounded-full p-1 mr-4 hidden sm:flex">
+                  <div className="flex items-center gap-3 w-full justify-between sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar flex-shrink-0">
+                    <div className="flex items-center bg-white/[0.03] border border-white/5 rounded-full p-1 mr-4">
                       {['6h', '12h', '24h', '7d', 'ALL'].map((tf) => (
                         <button
                           key={tf}
@@ -572,14 +572,19 @@ export default function AccountForensicPage() {
                         </button>
                       ))}
                     </div>
-                    {hasScanned && <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{scanHistory.length} Scans | {allPosts.length} Assets</span>}
-                    <div className={`px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest italic ${isScraping ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]' : autoScanActive ? 'animate-pulse' : 'opacity-50'}`}>
-                      {isScraping ? 'Engine Scraping...' : autoScanActive ? 'Auto-Scanning' : hasScanned ? 'Scan Data' : 'Awaiting Scan'}
-                    </div>
                   </div>
                 </div>
-                <div className="absolute inset-0 top-24 bottom-8 left-8 right-8 pointer-events-none">
-                  <ResponsiveContainer width="99%" height="100%">
+                
+                <div className="flex items-center justify-between mt-auto mb-4 px-2">
+                   {hasScanned && <span className="text-[8px] font-black text-white/30 uppercase tracking-widest hidden md:inline">{scanHistory.length} Scans | {allPosts.length} Assets</span>}
+                   <div className={`px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest italic ${isScraping ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]' : autoScanActive ? 'animate-pulse' : 'opacity-50'}`}>
+                      {isScraping ? 'Engine Scraping...' : autoScanActive ? 'Auto-Scanning' : hasScanned ? 'Scan Data' : 'Awaiting Scan'}
+                   </div>
+                </div>
+
+                <div className="flex-1 w-full overflow-x-auto hide-scrollbar touch-pan-x pointer-events-auto mt-4">
+                  <div className="min-w-[600px] h-[220px] pointer-events-none px-4 pb-2">
+                    <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
                       <defs>
                         <linearGradient id="vG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ffffff" stopOpacity={0.12} /><stop offset="95%" stopColor="#ffffff" stopOpacity={0} /></linearGradient>
@@ -593,11 +598,12 @@ export default function AccountForensicPage() {
                       <Area yAxisId="right" type="monotone" dataKey="shares" stroke="#f59e0b" strokeWidth={2} fill="url(#sG)" />
                     </AreaChart>
                   </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-6">
-                <div onClick={() => setActiveSubHUD('engagement')} className="glass-card p-8 h-[240px] cursor-pointer group border-white/10 hover:border-white/20 transition-all flex flex-col">
+              <div className="flex flex-col md:flex-row lg:flex-col gap-6">
+                <div onClick={() => setActiveSubHUD('engagement')} className="flex-1 glass-card p-6 md:p-8 h-[240px] cursor-pointer group border-white/10 hover:border-white/20 transition-all flex flex-col">
                   <div className="flex items-center gap-4 mb-4">
                     <PieChartIcon className="w-5 h-5 opacity-40 group-hover:opacity-100 transition-opacity" />
                     <h2 className="text-[10px] font-black tracking-[0.2em] uppercase italic">Efficiency</h2>

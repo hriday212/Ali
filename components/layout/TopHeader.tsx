@@ -39,7 +39,7 @@ export function TopHeader() {
 
         {/* Left: Full Logo */}
         <motion.div
-           className="absolute left-6"
+           className="absolute left-4 md:left-6"
            initial={false}
            animate={{ 
              opacity: isLoginModalOpen ? 0 : 1, 
@@ -55,7 +55,7 @@ export function TopHeader() {
               alt="Clypso"
               width={240}
               height={80}
-              className="object-contain h-20 w-auto drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+              className="object-contain h-12 md:h-20 w-auto drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
               priority
             />
           </Link>
@@ -67,7 +67,7 @@ export function TopHeader() {
              initial={{ scale: 0, opacity: 0 }}
              animate={{ scale: isLoginModalOpen ? 0 : 1, opacity: isLoginModalOpen ? 0 : 1 }}
              transition={isLoginModalOpen ? { duration: 0.2 } : { type: 'spring', stiffness: 300, damping: 20, delay: 2.2 }}
-             className="absolute left-1/2 -translate-x-1/2"
+             className="absolute left-1/2 -translate-x-1/2 hidden md:block"
           >
             <div className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-xs font-black tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(255,255,255,0.1)] ${
                 role === 'admin'

@@ -392,9 +392,10 @@ export default function ForecastPage() {
           </div>
         </div>
 
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={hourlyPattern} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+        <div className="h-[300px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
+          <div className="w-full min-w-[700px] h-full px-2 lg:px-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={hourlyPattern} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
@@ -444,8 +445,9 @@ export default function ForecastPage() {
                 fill="url(#colorPrev)" 
                 animationDuration={2000}
               />
-            </AreaChart>
-          </ResponsiveContainer>
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </motion.div>
         
@@ -476,26 +478,28 @@ export default function ForecastPage() {
             </div>
           </div>
 
-          <div className="h-[320px]">
+          <div className="h-[320px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
             {timeSeriesCurrent.length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Insufficient data — accumulating scan history...</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={timeSeriesCurrent} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
-                    itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
-                    labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
-                  />
-                  <Bar dataKey="current" name="Current" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="previous" name="Previous" fill="#ffffff10" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="min-w-[600px] h-full px-2 lg:px-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={timeSeriesCurrent} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
+                      itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
+                      labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
+                    />
+                    <Bar dataKey="current" name="Current" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="previous" name="Previous" fill="#ffffff10" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
         </motion.div>

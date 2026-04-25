@@ -37,12 +37,12 @@ export default function RootLayout({
             shape="square"
             hoverTrailAmount={2}
           />
-          <div className="flex flex-col min-h-screen">
+          <div className="flex flex-col min-h-[100dvh]">
             <TopHeader />
             <LoginModal />
             <AuthGuard>
-              <main className="flex-1 pt-24 pb-32">
-                <div className="max-w-[1400px] mx-auto px-8">
+              <main className="flex-1 pt-20 md:pt-24 pb-32 overflow-x-hidden">
+                <div className="max-w-[1400px] mx-auto px-4 md:px-8">
                   {children}
                 </div>
               </main>
