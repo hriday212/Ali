@@ -90,6 +90,7 @@ export default function SettingsPage() {
     { label: 'Turbo', value: 10, desc: 'Highest consumption. Active Viral mode.', color: 'text-red-500', bg: 'bg-red-500' },
     { label: 'Standard', value: 30, desc: 'Balanced polling. Default network rate.', color: 'text-blue-500', bg: 'bg-blue-500' },
     { label: 'Economy', value: 360, desc: '6hr intervals. Preserves token limits.', color: 'text-emerald-500', bg: 'bg-emerald-500' },
+    { label: '3 Days', value: 4320, desc: '72hr intervals. Lowest stable mode.', color: 'text-purple-400', bg: 'bg-purple-400' },
     { label: 'Weekly', value: 10080, desc: 'Audits on Sunday only. Maximum dormant.', color: 'text-slate-500', bg: 'bg-slate-500' },
   ];
 

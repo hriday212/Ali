@@ -426,6 +426,8 @@ function restoreState() {
     if (fs.existsSync(STATE_FILE)) {
       const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
       for (const [id, scan] of Object.entries(state)) {
+        // Enforce the current global default interval in case an old massive interval (e.g. 4320) was cached
+        scan.intervalMinutes = Math.min(scan.intervalMinutes || globalDefaultInterval, globalDefaultInterval);
         startScanInternal(scan);
       }
       console.log(`[ScanEngine] Restored ${Object.keys(state).length} active scans from disk.`);
