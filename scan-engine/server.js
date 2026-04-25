@@ -37,6 +37,7 @@ app.use(express.json());
 const DATA_DIR = process.env.DATA_PATH || path.join(os.homedir(), '.forensic-scan-data');
 const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
+const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 
 function readLedger() {
   try {

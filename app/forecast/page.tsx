@@ -137,38 +137,20 @@ export default function ForecastPage() {
   const { start: prevStart, end: prevEnd } = getPreviousPeriod(currentStart, currentEnd);
 
   // Aggregate data across all nodes for both periods
-  const { currentKPIs, prevKPIs, platformDist, timeSeriesCurrent, timeSeriesPrev, hourlyPattern } = useMemo(() => {
+  const { currentKPIs, prevKPIs, platformDist, timeSeries, hourlyPattern } = useMemo(() => {
     let cViews = 0, cLikes = 0, cComments = 0, cShares = 0;
     let pViews = 0, pLikes = 0, pComments = 0, pShares = 0;
     const platViews: Record<string, number> = {};
-    const timeMapCurrent: Record<string, number> = {};
-    const timeMapPrev: Record<string, number> = {};
+    
+    // Arrays representing sequential days in the range
+    const currentDaysMap: number[] = Array(rangeDays).fill(0);
+    const prevDaysMap: number[] = Array(rangeDays).fill(0);
 
     for (const scan of allScans) {
       const history = scan.history || [];
       
-      // Current period
+      // Calculate KPIs for Current Period
       const currentH = filterHistoryByRange(history, currentStart, currentEnd);
-      const tempMapC: Record<string, number> = {};
-      
-      for (let i = 0; i < currentH.length; i++) {
-        const h = currentH[i];
-        const originalIndex = history.indexOf(h);
-        const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
-        
-        // Use full absolute views for the very first baseline record so it shows up in history!
-        const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : (h.totalViews || 0);
-        
-        const dayLabel = new Date(h.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        tempMapC[dayLabel] = (tempMapC[dayLabel] || 0) + delta;
-      }
-
-      // Add deltas to global current map
-      for (const [day, gain] of Object.entries(tempMapC)) {
-        timeMapCurrent[day] = (timeMapCurrent[day] || 0) + gain;
-      }
-
-      // Add absolute maxes to KPIs
       if (currentH.length > 0) {
         const latest = currentH[currentH.length - 1];
         cViews += latest.totalViews || 0;
@@ -177,27 +159,25 @@ export default function ForecastPage() {
         cShares += latest.totalShares || 0;
       }
 
-      // Previous period
-      const prevH = filterHistoryByRange(history, prevStart, prevEnd);
-      const tempMapP: Record<string, number> = {};
-
-      for (let i = 0; i < prevH.length; i++) {
-        const h = prevH[i];
+      // Calculate sequential deltas for Current Period
+      for (let i = 0; i < currentH.length; i++) {
+        const h = currentH[i];
+        const hTime = new Date(h.time).getTime();
         const originalIndex = history.indexOf(h);
-        const prevHData = originalIndex > 0 ? history[originalIndex - 1] : null;
+        const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
         
-        // Use full absolute views for the very first baseline record so it shows up in history!
-        const delta = prevHData ? Math.max(0, (h.totalViews || 0) - (prevHData.totalViews || 0)) : (h.totalViews || 0);
+        // Exact views gained since last scan
+        const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : (h.totalViews || 0);
         
-        const dayLabel = new Date(h.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        tempMapP[dayLabel] = (tempMapP[dayLabel] || 0) + delta;
+        // Map to sequential Day X
+        const dayIndex = Math.floor((hTime - currentStart.getTime()) / (1000 * 60 * 60 * 24));
+        if (dayIndex >= 0 && dayIndex < rangeDays) {
+          currentDaysMap[dayIndex] += delta;
+        }
       }
 
-      // Add deltas to global previous map
-      for (const [day, gain] of Object.entries(tempMapP)) {
-        timeMapPrev[day] = (timeMapPrev[day] || 0) + gain;
-      }
-
+      // Calculate KPIs for Previous Period
+      const prevH = filterHistoryByRange(history, prevStart, prevEnd);
       if (prevH.length > 0) {
         const latest = prevH[prevH.length - 1];
         pViews += latest.totalViews || 0;
@@ -206,7 +186,24 @@ export default function ForecastPage() {
         pShares += latest.totalShares || 0;
       }
 
-      // Platform distribution (use latest views from scan)
+      // Calculate sequential deltas for Previous Period
+      for (let i = 0; i < prevH.length; i++) {
+        const h = prevH[i];
+        const hTime = new Date(h.time).getTime();
+        const originalIndex = history.indexOf(h);
+        const prevHData = originalIndex > 0 ? history[originalIndex - 1] : null;
+        
+        // Exact views gained since last scan
+        const delta = prevHData ? Math.max(0, (h.totalViews || 0) - (prevHData.totalViews || 0)) : (h.totalViews || 0);
+        
+        // Map to sequential Day X
+        const dayIndex = Math.floor((hTime - prevStart.getTime()) / (1000 * 60 * 60 * 24));
+        if (dayIndex >= 0 && dayIndex < rangeDays) {
+          prevDaysMap[dayIndex] += delta;
+        }
+      }
+
+      // Platform distribution
       const plat = scan.platform || 'unknown';
       platViews[plat] = (platViews[plat] || 0) + (scan.lastViews || 0);
     }
@@ -218,22 +215,13 @@ export default function ForecastPage() {
       raw: value,
     }));
 
-    // Build Aligned Time Series (Comparative)
-    // We want to align Day 0 of Current with Day 0 of Previous
-    const currentDays = Array.from(Object.keys(timeMapCurrent)).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-    const prevDays = Array.from(Object.keys(timeMapPrev)).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-    
-    const maxDays = Math.max(currentDays.length, prevDays.length);
+    // Build the perfectly aligned sequential chart data
     const mergedTimeSeries = [];
-    
-    for (let i = 0; i < maxDays; i++) {
-      const cDay = currentDays[i];
-      const pDay = prevDays[i];
+    for (let i = 0; i < rangeDays; i++) {
       mergedTimeSeries.push({
-        // Label by the current period day if available, else generic index
-        day: cDay || (pDay ? `P-${pDay}` : `D-${i}`),
-        current: cDay ? timeMapCurrent[cDay] : 0,
-        previous: pDay ? timeMapPrev[pDay] : 0,
+        day: `Day ${i + 1}`,
+        current: currentDaysMap[i],
+        previous: prevDaysMap[i],
       });
     }
 
@@ -289,11 +277,10 @@ export default function ForecastPage() {
       currentKPIs: { views: cViews, likes: cLikes, comments: cComments, shares: cShares },
       prevKPIs: { views: pViews, likes: pLikes, comments: pComments, shares: pShares },
       platformDist,
-      timeSeriesCurrent: mergedTimeSeries,
-      timeSeriesPrev: mergedTimeSeries,
+      timeSeries: mergedTimeSeries,
       hourlyPattern,
     };
-  }, [allScans, activeRange, customStart, customEnd]);
+  }, [allScans, activeRange, customStart, customEnd, rangeDays]);
 
   const PLATFORM_COLORS: Record<string, string> = {
     Youtube: '#FF0000',
@@ -520,14 +507,14 @@ export default function ForecastPage() {
           </div>
 
           <div className="h-[320px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
-            {timeSeriesCurrent.length === 0 ? (
+            {timeSeries.length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Insufficient data — accumulating scan history...</p>
               </div>
             ) : (
               <div className="min-w-[600px] h-full px-2 lg:px-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={timeSeriesCurrent} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <BarChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                     <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
