@@ -183,7 +183,8 @@ async function scanTikTok(accountId, accountLink) {
     resultsPerPage: 30, // Increased from 20 to 30
   });
   return (items || []).map(item => {
-    const rawThumb = item.covers?.default || item.cover || '';
+    // Broaden cover detection for various scraper versions
+    const rawThumb = item.covers?.default || item.cover || item.videoCover || item.originCover || item.coverUrl || item.videoMeta?.coverUrl || item.dynamicCover || '';
     return {
       id: item.id || item.webVideoUrl || String(Math.random()),
       title: item.text || '',
@@ -207,7 +208,8 @@ async function scanInstagram(accountId, accountLink) {
     resultsType: 'posts',
   });
   return (items || []).map(item => {
-    const rawThumb = item.displayUrl || item.imageUrl || '';
+    // Broaden cover detection for various scraper versions
+    const rawThumb = item.displayUrl || item.imageUrl || item.thumbnailUrl || item.displayResource || (item.displayResources?.length ? item.displayResources[0].src : '');
     return {
       id: item.id || item.shortCode || String(Math.random()),
       title: item.caption || item.alt || '',
