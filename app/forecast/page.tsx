@@ -491,12 +491,13 @@ export default function ForecastPage() {
                     <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                     <Tooltip
+                      cursor={{ fill: 'rgba(255,255,255,0.05)' }} // Subtle, thin cursor
                       contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
                       itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
                       labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
                     />
-                    <Bar dataKey="current" name="Current" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="previous" name="Previous" fill="#ffffff10" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="current" name="Current" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} />
+                    <Bar dataKey="previous" name="Previous" fill="#ffffff10" radius={[4, 4, 0, 0]} barSize={24} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

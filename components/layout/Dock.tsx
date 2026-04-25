@@ -179,7 +179,7 @@ export default function Dock() {
             <DockItem
               key={index}
               href={item.href}
-              className={isActive ? 'border-white bg-white/10 shadow-lg shadow-white/5' : 'border-white/5 hover:border-white/20'}
+              className={isActive ? 'shadow-lg shadow-white/5' : ''} // Only shadow for active, no borders/bg here (handled by CSS)
               mouseX={mouseX}
               spring={spring}
               distance={distance}
@@ -189,7 +189,7 @@ export default function Dock() {
               <DockIcon isActive={isActive}>
                 <item.icon className={isActive ? 'text-white' : 'text-neutral-500'} size={28} strokeWidth={2.5} />
               </DockIcon>
-              <DockLabel className="font-black text-[10px] uppercase tracking-[0.2em] hidden md:block">{item.name}</DockLabel>
+              <DockLabel className="font-black text-[10px] uppercase tracking-[0.2em]">{item.name}</DockLabel>
             </DockItem>
           );
         })}
