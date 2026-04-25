@@ -143,11 +143,34 @@ export default function ForecastPage() {
     const platViews: Record<string, number> = {};
     
     // Arrays representing sequential days in the range
-    const currentDaysMap: number[] = Array(rangeDays).fill(0);
-    const prevDaysMap: number[] = Array(rangeDays).fill(0);
+    const totalDays = rangeDays * 2;
+    const timelineMap: number[] = Array(totalDays).fill(0);
+    const baselineStart = prevStart.getTime();
 
     for (const scan of allScans) {
       const history = scan.history || [];
+      
+      let baselineViews = 0;
+      if (history.length > 0) {
+        for (const h of history) {
+          if (new Date(h.time).getTime() <= baselineStart) {
+            baselineViews = h.totalViews || 0;
+          } else break;
+        }
+        if (baselineViews === 0) baselineViews = history[0].totalViews || 0;
+      }
+
+      for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
+          const targetDayEpoch = baselineStart + (dayOffset * 1000 * 60 * 60 * 24);
+          let latestViews = 0;
+          for (const h of history) {
+              if (new Date(h.time).getTime() <= targetDayEpoch) {
+                  latestViews = h.totalViews || 0;
+              } else break;
+          }
+          const net = latestViews > 0 ? Math.max(0, latestViews - baselineViews) : 0;
+          timelineMap[dayOffset] += net;
+      }
       
       // Calculate KPIs for Current Period
       const currentH = filterHistoryByRange(history, currentStart, currentEnd);
@@ -159,23 +182,6 @@ export default function ForecastPage() {
         cShares += latest.totalShares || 0;
       }
 
-      // Calculate sequential deltas for Current Period
-      for (let i = 0; i < currentH.length; i++) {
-        const h = currentH[i];
-        const hTime = new Date(h.time).getTime();
-        const originalIndex = history.indexOf(h);
-        const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
-        
-        // Exact views gained since last scan
-        const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : 0;
-        
-        // Map to sequential Day X
-        const dayIndex = Math.floor((hTime - currentStart.getTime()) / (1000 * 60 * 60 * 24));
-        if (dayIndex >= 0 && dayIndex < rangeDays) {
-          currentDaysMap[dayIndex] += delta;
-        }
-      }
-
       // Calculate KPIs for Previous Period
       const prevH = filterHistoryByRange(history, prevStart, prevEnd);
       if (prevH.length > 0) {
@@ -184,23 +190,6 @@ export default function ForecastPage() {
         pLikes += latest.totalLikes || 0;
         pComments += latest.totalComments || 0;
         pShares += latest.totalShares || 0;
-      }
-
-      // Calculate sequential deltas for Previous Period
-      for (let i = 0; i < prevH.length; i++) {
-        const h = prevH[i];
-        const hTime = new Date(h.time).getTime();
-        const originalIndex = history.indexOf(h);
-        const prevHData = originalIndex > 0 ? history[originalIndex - 1] : null;
-        
-        // Exact views gained since last scan
-        const delta = prevHData ? Math.max(0, (h.totalViews || 0) - (prevHData.totalViews || 0)) : 0;
-        
-        // Map to sequential Day X
-        const dayIndex = Math.floor((hTime - prevStart.getTime()) / (1000 * 60 * 60 * 24));
-        if (dayIndex >= 0 && dayIndex < rangeDays) {
-          prevDaysMap[dayIndex] += delta;
-        }
       }
 
       // Platform distribution
@@ -215,13 +204,12 @@ export default function ForecastPage() {
       raw: value,
     }));
 
-    // Build the perfectly aligned sequential chart data
+    // Build the contiguous timeline
     const mergedTimeSeries = [];
-    for (let i = 0; i < rangeDays; i++) {
+    for (let i = 0; i < totalDays; i++) {
       mergedTimeSeries.push({
-        day: `Day ${i + 1}`,
-        current: currentDaysMap[i],
-        previous: prevDaysMap[i],
+        day: i < rangeDays ? `P-${i+1}` : `C-${i + 1 - rangeDays}`,
+        views: timelineMap[i]
       });
     }
 
@@ -514,19 +502,40 @@ export default function ForecastPage() {
             ) : (
               <div className="min-w-[600px] h-full px-2 lg:px-0">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="splitGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#475569" />
+                        <stop offset="50%" stopColor="#475569" />
+                        <stop offset="50%" stopColor="#3b82f6" />
+                        <stop offset="100%" stopColor="#3b82f6" />
+                      </linearGradient>
+                      <linearGradient id="fillGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#475569" stopOpacity={0.05} />
+                        <stop offset="50%" stopColor="#475569" stopOpacity={0.05} />
+                        <stop offset="50%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} minTickGap={20} />
                     <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                     <Tooltip
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }} // Subtle, thin cursor
+                      cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }} // Subtle, thin cursor
                       contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
                       itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
                       labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
                     />
-                    <Bar dataKey="current" name="Current" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} isAnimationActive={false} />
-                    <Bar dataKey="previous" name="Previous" fill="#ffffff10" radius={[4, 4, 0, 0]} barSize={24} isAnimationActive={false} />
-                  </BarChart>
+                    <Area 
+                       type="monotone" 
+                       dataKey="views" 
+                       name="Views" 
+                       stroke="url(#splitGradient)" 
+                       strokeWidth={3} 
+                       fill="url(#fillGradient)" 
+                       isAnimationActive={false} 
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             )}
