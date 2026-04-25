@@ -183,19 +183,7 @@ async function scanTikTok(accountId, accountLink) {
     resultsPerPage: 20,
   });
   return (items || []).map(item => {
-    // Aggressive fallback for TikTok thumbnails across various scraper schemas
-    const rawThumb = item.covers?.default || 
-                    item.covers?.origin || 
-                    item.cover || 
-                    item.coverUrl ||
-                    item.videoMeta?.coverUrl || 
-                    item.video?.cover || 
-                    item.video?.coverUrl ||
-                    item.video?.originCover ||
-                    item.videoThumb ||
-                    item.video_cover ||
-                    item.origin_cover ||
-                    '';
+    const rawThumb = item.covers?.default || item.covers?.origin || item.cover || item.videoMeta?.coverUrl || item.video?.cover || '';
     return {
       id: item.id || item.webVideoUrl || String(Math.random()),
       title: item.text || '',
@@ -604,10 +592,7 @@ app.get('/api/apify-usage', async (req, res) => {
     
     await Promise.all(allTokensFromEnv.map(async (token, i) => {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-        const limitsRes = await fetch(`https://api.apify.com/v2/users/me/limits?token=${token}`, { signal: controller.signal });
-        clearTimeout(timeoutId);
+        const limitsRes = await fetch(`https://api.apify.com/v2/users/me/limits?token=${token}`);
         if (!limitsRes.ok) {
           results.push({ key: `TOKEN_${i + 1}`, status: 'error', error: 'Failed to fetch' });
           return;
@@ -674,13 +659,4 @@ app.get('/api/hashtags/scan', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Scan Engine running on http://0.0.0.0:${PORT}`);
   autoStartDefaults().catch(console.error);
-});
-
-// --- Crash Guards: Prevent unhandled errors from killing the server ---
-process.on('uncaughtException', (err) => {
-  console.error('[CRASH GUARD] Uncaught Exception - server will continue:', err.message);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('[CRASH GUARD] Unhandled Promise Rejection - server will continue:', reason);
 });
