@@ -584,7 +584,12 @@ app.get('/api/apify-usage', async (req, res) => {
     
     await Promise.all(allTokensFromEnv.map(async (token, i) => {
       try {
-        const limitsRes = await fetch(`https://api.apify.com/v2/users/me/limits?token=${token}`);
+        // 5s timeout via Promise.race — prevents hanging fetch calls from accumulating
+        const fetchWithTimeout = (url) => Promise.race([
+          fetch(url),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Apify billing timeout')), 5000))
+        ]);
+        const limitsRes = await fetchWithTimeout(`https://api.apify.com/v2/users/me/limits?token=${token}`);
         if (!limitsRes.ok) {
           results.push({ key: `TOKEN_${i + 1}`, status: 'error', error: 'Failed to fetch' });
           return;
@@ -651,4 +656,12 @@ app.get('/api/hashtags/scan', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Scan Engine running on http://0.0.0.0:${PORT}`);
   autoStartDefaults().catch(console.error);
+});
+
+// --- Crash Guards: keep the process alive no matter what ---
+process.on('uncaughtException', (err) => {
+  console.error('[CRASH GUARD] Uncaught Exception:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[CRASH GUARD] Unhandled Rejection:', reason);
 });
