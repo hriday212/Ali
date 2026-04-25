@@ -1058,10 +1058,24 @@ export default function AccountForensicPage() {
                   <div className="p-8 bg-white/[0.02] border border-white/5 rounded-[2.5rem] space-y-6">
                     <div>
                       <p className="text-[9px] font-black opacity-30 uppercase italic mb-4">Interactions</p>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4 mb-4">
                         <div><p className="text-sm font-black italic">{formatNumber(selectedPost.likes)}</p><p className="text-[8px] font-black opacity-20 uppercase">Likes</p></div>
                         <div><p className="text-sm font-black italic">{formatNumber(selectedPost.comments)}</p><p className="text-[8px] font-black opacity-20 uppercase">Comments</p></div>
                       </div>
+                      {(() => {
+                        const v = typeof selectedPost.views === 'number' ? selectedPost.views : parseInt(String(selectedPost.views)) || 0;
+                        const l = typeof selectedPost.likes === 'number' ? selectedPost.likes : parseInt(String(selectedPost.likes)) || 0;
+                        const c = typeof selectedPost.comments === 'number' ? selectedPost.comments : parseInt(String(selectedPost.comments)) || 0;
+                        if (v > 0) {
+                          const er = ((l + c) / v * 100).toFixed(1);
+                          return (
+                            <div className="pt-3 border-t border-white/5">
+                              <p className="text-lg font-black italic text-emerald-400 tracking-tighter">{er}% <span className="text-[8px] font-black text-emerald-400/50 uppercase tracking-widest ml-1 relative group">Engagement<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-2 py-1 bg-black text-white text-[8px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">((Likes + Comments) / Views) * 100</span></span></p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                     <div className="h-px bg-white/5" />
                     <div>
@@ -1071,7 +1085,7 @@ export default function AccountForensicPage() {
                   </div>
                   {selectedPost.link && selectedPost.link !== '#' && (
                     <button onClick={() => window.open(selectedPost.link, '_blank')} className="w-full py-4 bg-white text-black font-black uppercase text-[9px] tracking-widest rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-3">
-                      <ExternalLink className="w-3 h-3" /> Watch on YouTube
+                      <ExternalLink className="w-3 h-3" /> Watch on {selectedPost.platform ? selectedPost.platform.charAt(0).toUpperCase() + selectedPost.platform.slice(1) : 'Platform'}
                     </button>
                   )}
                 </div>
