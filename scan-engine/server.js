@@ -352,17 +352,17 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       
       const multiplier = currentHourlyGain / avgHourlyGain;
       
-      // Instagram Economy Mode defaulting
-      const baseInterval = platform === 'instagram' ? 4320 : 4320; // 3 Days resting baseline
+      // Testing Phase: 6 Hour resting baseline (was 3 days)
+      const baseInterval = 360; 
       
       if (multiplier > 5 || delta > 50000) {
         nextInterval = 180; // 3 Hours (Ultra Viral)
         console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 3h.`);
       } else if (multiplier > 2 || delta > 10000) {
-        nextInterval = 720; // 12 Hours (Viral Traction)
+        nextInterval = 720; // 12 Hours (Viral Traction) // Actually 12h is 720m
         console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 12h.`);
       } else {
-        nextInterval = baseInterval; // 3 Days Resting Stage
+        nextInterval = baseInterval; // 6 Hours Resting Stage
         console.log(`[SmartEngine] 💤 Node ${accountId} resting (M=${multiplier.toFixed(1)}x). Setting to ${nextInterval / 60}h.`);
       }
     }

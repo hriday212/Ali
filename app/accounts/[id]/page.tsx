@@ -1046,8 +1046,8 @@ export default function AccountForensicPage() {
                 {/* Thumbnail + Chart */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                   {selectedPost.thumbnail && (
-                    <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 flex-shrink-0">
-                      <img src={selectedPost.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                    <div className="w-full aspect-[4/5] bg-black rounded-2xl overflow-hidden border border-white/10 flex-shrink-0">
+                      <img src={`https://wsrv.nl/?url=${encodeURIComponent(selectedPost.thumbnail)}&w=600&output=webp`} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                     </div>
                   )}
                   <div className="bg-black/40 border border-white/10 rounded-[2.5rem] p-8 min-h-[250px] flex flex-col flex-1">
