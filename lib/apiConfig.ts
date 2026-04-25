@@ -12,6 +12,7 @@ export const API_ROUTES = {
   FORCE_SYNC: `${BACKEND_URL}/api/settings/force-sync`,
   LATEST_POSTS: `${BACKEND_URL}/api/scans/latest-posts`,
   APIFY_USAGE: `${BACKEND_URL}/api/apify-usage`,
+  APIFY_HISTORY: `${BACKEND_URL}/api/usage/history`,
   // Next.js internal routes
   RESOLVE: '/api/accounts/resolve',
 };

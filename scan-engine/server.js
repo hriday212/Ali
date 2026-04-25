@@ -36,7 +36,7 @@ app.use(express.json());
 // --- Setup Persistence ---
 const DATA_DIR = process.env.DATA_PATH || path.join(os.homedir(), '.forensic-scan-data');
 const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
-const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
+const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 
 function readLedger() {
   try {
@@ -45,6 +45,33 @@ function readLedger() {
   } catch (e) {
     console.error('[Ledger] Read Error:', e);
     return [];
+  }
+}
+
+function readUsageHistory() {
+  try {
+    if (!fs.existsSync(USAGE_FILE)) return [];
+    return JSON.parse(fs.readFileSync(USAGE_FILE, 'utf-8'));
+  } catch (e) {
+    return [];
+  }
+}
+
+function logUsage(tokenLabel, platform, costUsd, status = 'success', error = null) {
+  try {
+    const history = readUsageHistory();
+    history.unshift({
+      timestamp: new Date().toISOString(),
+      tokenLabel,
+      platform,
+      costUsd,
+      status,
+      error
+    });
+    // Keep last 1000 entries
+    fs.writeFileSync(USAGE_FILE, JSON.stringify(history.slice(0, 1000), null, 2));
+  } catch (e) {
+    console.error('[UsageScanner] Log Error:', e);
   }
 }
 
@@ -92,6 +119,27 @@ async function runApifyActor(actorId, input) {
     if (!token) throw new Error('No valid Apify tokens available for runApifyActor');
     
     const url = `https://api.apify.com/v2/acts/${formattedId}/run-sync-get-dataset-items?token=${token}&timeout=180`;
+    
+    // PRE-FLIGHT COST CHECK
+    const estimatedCost = actorId.includes('tiktok') ? 0.20 : 0.10;
+    try {
+      const limitsRes = await fetch(`https://api.apify.com/v2/users/me/limits?token=${token}`);
+      if (limitsRes.ok) {
+        const limits = await limitsRes.json();
+        const currentUsage = limits.data?.current?.monthlyUsageUsd || 0;
+        const maxUsage = limits.data?.limits?.maxMonthlyUsageUsd || 5;
+        const remaining = maxUsage - currentUsage;
+        
+        if (remaining < estimatedCost) {
+          console.log(`[ScanEngine] ⚠️ Pre-flight Skip: Token balance too low ($${remaining.toFixed(4)} < $${estimatedCost}). Trying next...`);
+          attempt++;
+          continue;
+        }
+      }
+    } catch (e) {
+      console.log(`[ScanEngine] Pre-flight check failed (link error), proceeding with caution...`);
+    }
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -100,20 +148,23 @@ async function runApifyActor(actorId, input) {
     
     if (!response.ok) {
       const errText = await response.text();
-      // SMART FALLBACK: Only evict if it's a genuine Apify billing/usage limit
-      if (errText.includes('Monthly usage hard limit exceeded')) {
-        const deadToken = new URL(url).searchParams.get('token');
+      logUsage(`TOKEN_${apifyKeyIdx + 1}`, actorId, 0, 'error', errText);
+      // SMART FALLBACK: Evict token if it has billing/usage hit
+      if (errText.includes('Monthly usage') || errText.includes('not-enough-usage') || errText.includes('exceed your remaining usage')) {
+        const deadToken = token;
         const idx = ALL_APIFY_TOKENS.indexOf(deadToken);
         if (idx > -1) {
           ALL_APIFY_TOKENS.splice(idx, 1);
-          console.log(`[ScanEngine] 🚨 APIFY TOKEN DEAD. Evicted token. Remaining keys: ${ALL_APIFY_TOKENS.length}`);
+          console.log(`[ScanEngine] 🚨 APIFY TOKEN DEPLETED. Evicted. Remaining keys: ${ALL_APIFY_TOKENS.length}`);
         }
         attempt++;
-        console.log(`[ScanEngine] Smart Fallback: Instantly retrying request with backup token...`);
+        console.log(`[ScanEngine] Smart Fallback: Switching to backup token...`);
         continue;
       }
       throw new Error(`Apify error (${formattedId}): ${errText}`);
     }
+    
+    logUsage(`TOKEN_${apifyKeyIdx + 1}`, actorId, estimatedCost, 'success');
     return await response.json();
   }
   throw new Error(`Apify error: All available tokens are completely exhausted for this cycle.`);
@@ -157,7 +208,7 @@ function parseDuration(duration) {
 async function scanYouTube(accountId, accountLink) {
   const channelId = await getChannelIdFromUrl(accountLink);
   if (!channelId) return null;
-  const items = await getChannelVideos(channelId, 50); // Increased from 10 to 50 for max historical reach tracking
+  const items = await getChannelVideos(channelId, 25); // Balanced depth
   return items.map(item => ({
     id: item.id,
     title: item.snippet.title,
@@ -180,11 +231,12 @@ async function scanTikTok(accountId, accountLink) {
   const profile = handleMatch ? handleMatch[1] : cleanLink.replace(/https?:\/\/(www\.)?tiktok\.com\/@/, '').replace(/\//g, '');
   const items = await runApifyActor('clockworks/tiktok-scraper', {
     profiles: [`https://www.tiktok.com/@${profile}`],
-    resultsPerPage: 30, // Increased from 20 to 30
+    resultsPerPage: 10, // Balanced: Good depth without high costs
   });
-  return (items || []).map(item => {
+  return (items || []).map((item, idx) => {
+    if (idx === 0) console.log(`[TikTok Debug] Item fields:`, Object.keys(item));
     // Broaden cover detection for various scraper versions
-    const rawThumb = item.covers?.default || item.cover || item.videoCover || item.originCover || item.coverUrl || item.videoMeta?.coverUrl || item.dynamicCover || '';
+    const rawThumb = item.covers?.default || item.cover || item.videoCover || item.originCover || item.coverUrl || item.videoMeta?.coverUrl || item.dynamicCover || item.videoCoverUrl || '';
     return {
       id: item.id || item.webVideoUrl || String(Math.random()),
       title: item.text || '',
@@ -204,7 +256,7 @@ async function scanTikTok(accountId, accountLink) {
 async function scanInstagram(accountId, accountLink) {
   const items = await runApifyActor('apify/instagram-scraper', {
     directUrls: [accountLink],
-    resultsLimit: 30, // Increased from 20 to 30
+    resultsLimit: 20, // Balanced depth
     resultsType: 'posts',
   });
   return (items || []).map(item => {
@@ -628,6 +680,10 @@ app.get('/api/apify-usage', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/api/usage/history', (req, res) => {
+  res.json({ history: readUsageHistory().slice(0, 50) });
 });
 
 // Real: Payouts Ledger Persistence
