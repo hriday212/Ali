@@ -167,7 +167,7 @@ export default function ForecastPage() {
         const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
         
         // Exact views gained since last scan
-        const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : (h.totalViews || 0);
+        const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : 0;
         
         // Map to sequential Day X
         const dayIndex = Math.floor((hTime - currentStart.getTime()) / (1000 * 60 * 60 * 24));
@@ -194,7 +194,7 @@ export default function ForecastPage() {
         const prevHData = originalIndex > 0 ? history[originalIndex - 1] : null;
         
         // Exact views gained since last scan
-        const delta = prevHData ? Math.max(0, (h.totalViews || 0) - (prevHData.totalViews || 0)) : (h.totalViews || 0);
+        const delta = prevHData ? Math.max(0, (h.totalViews || 0) - (prevHData.totalViews || 0)) : 0;
         
         // Map to sequential Day X
         const dayIndex = Math.floor((hTime - prevStart.getTime()) / (1000 * 60 * 60 * 24));
@@ -524,8 +524,8 @@ export default function ForecastPage() {
                       itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
                       labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
                     />
-                    <Bar dataKey="current" name="Current" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} />
-                    <Bar dataKey="previous" name="Previous" fill="#ffffff10" radius={[4, 4, 0, 0]} barSize={24} />
+                    <Bar dataKey="current" name="Current" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={24} isAnimationActive={false} />
+                    <Bar dataKey="previous" name="Previous" fill="#ffffff10" radius={[4, 4, 0, 0]} barSize={24} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
