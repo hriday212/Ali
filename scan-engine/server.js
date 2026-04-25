@@ -183,7 +183,19 @@ async function scanTikTok(accountId, accountLink) {
     resultsPerPage: 20,
   });
   return (items || []).map(item => {
-    const rawThumb = item.covers?.default || item.covers?.origin || item.cover || item.videoMeta?.coverUrl || item.video?.cover || '';
+    // Aggressive fallback for TikTok thumbnails across various scraper schemas
+    const rawThumb = item.covers?.default || 
+                    item.covers?.origin || 
+                    item.cover || 
+                    item.coverUrl ||
+                    item.videoMeta?.coverUrl || 
+                    item.video?.cover || 
+                    item.video?.coverUrl ||
+                    item.video?.originCover ||
+                    item.videoThumb ||
+                    item.video_cover ||
+                    item.origin_cover ||
+                    '';
     return {
       id: item.id || item.webVideoUrl || String(Math.random()),
       title: item.text || '',

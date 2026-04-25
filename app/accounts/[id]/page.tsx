@@ -493,7 +493,7 @@ export default function AccountForensicPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-3 relative flex-wrap sm:flex-nowrap w-full xl:w-auto">
+          <div className="flex items-center gap-2 md:gap-3 relative flex-wrap lg:flex-nowrap w-full xl:w-auto">
             {/* Auto-Scan Controls */}
             {autoScanActive && (
               <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
@@ -756,8 +756,10 @@ export default function AccountForensicPage() {
                           onClick={() => setSelectedPost(post)}
                           className="bg-white/[0.03] border border-white/5 rounded-xl p-2 cursor-pointer group hover:border-white/20 transition-all flex flex-col gap-2 relative overflow-hidden"
                         >
-                          {/* Real Thumbnail */}
-                          <div className="aspect-video bg-slate-900 border border-white/5 rounded-lg flex items-center justify-center relative overflow-hidden flex-shrink-0">
+                          {/* Real Thumbnail - Dynamic Aspect Ratio for Shorts vs Longform */}
+                          <div className={`w-full bg-slate-900 border border-white/5 rounded-lg flex items-center justify-center relative overflow-hidden flex-shrink-0 ${
+                            post.type === 'short' ? 'aspect-[4/5]' : 'aspect-video'
+                          }`}>
                             {post.thumbnail ? (
                               <img src={post.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                             ) : (
