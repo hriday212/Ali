@@ -9,31 +9,29 @@ import {
   UsersRound, 
   Wallet, 
   LineChart, 
-  Settings2,
-  Trophy,
-  Hash,
-  Film
+  Settings2 
 } from 'lucide-react';
-import { useAuth } from '@/lib/authStore';
+import Image from 'next/image';
 import './Dock.css';
 
 interface DockItemProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-  mouseX: import('framer-motion').MotionValue<number>;
-  spring: import('framer-motion').SpringOptions;
+  mouseX: any;
+  spring: any;
   distance: number;
   magnification: number;
   baseItemSize: number;
   href?: string;
+  imgSrc?: string;
 }
 
-function DockItem({ children, className = '', onClick, mouseX, spring, distance, magnification, baseItemSize, href }: DockItemProps) {
+function DockItem({ children, className = '', onClick, mouseX, spring, distance, magnification, baseItemSize, href, imgSrc }: DockItemProps) {
   const ref = useRef<HTMLDivElement>(null);
   const isHovered = useMotionValue(0);
 
-  const mouseDistance = useTransform(mouseX, (val: number) => {
+  const mouseDistance = useTransform(mouseX, (val: any) => {
     const rect = ref.current?.getBoundingClientRect() ?? {
       x: 0,
       width: baseItemSize
@@ -61,23 +59,20 @@ function DockItem({ children, className = '', onClick, mouseX, spring, distance,
     >
       {href ? (
         <Link href={href} className="w-full h-full flex items-center justify-center">
-           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-           {Children.map(children, (child) => React.isValidElement(child) ? cloneElement(child, { isHovered } as any) : child)}
+           {Children.map(children, (child: any) => cloneElement(child, { isHovered }))}
         </Link>
       ) : (
-        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        Children.map(children, (child) => React.isValidElement(child) ? cloneElement(child, { isHovered } as any) : child)
+        Children.map(children, (child: any) => cloneElement(child, { isHovered }))
       )}
     </motion.div>
   );
 }
 
-function DockLabel({ children, className = '', ...rest }: { children: React.ReactNode; className?: string; isHovered?: import('framer-motion').MotionValue<number> }) {
+function DockLabel({ children, className = '', ...rest }: { children: React.ReactNode; className?: string; isHovered?: any }) {
   const { isHovered } = rest;
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!isHovered) return;
     const unsubscribe = isHovered.on('change', (latest: number) => {
       setIsVisible(latest === 1);
     });
@@ -123,9 +118,9 @@ function DockIcon({ children, className = '', isActive }: { children: React.Reac
 
 export default function Dock() {
   const pathname = usePathname();
-  const { user, role } = useAuth();
   const mouseX = useMotionValue(Infinity);
   const isHoveredIndicator = useMotionValue(0);
+
   // Re-tuned for 'Liquid' Feel
   const spring = { mass: 0.1, stiffness: 150, damping: 15 };
   const magnification = 110;
@@ -134,19 +129,13 @@ export default function Dock() {
   const dockHeight = 220;
   const baseItemSize = 64;
 
-  const allItems = [
-    { name: 'Dashboard', icon: Home, href: '/', adminOnly: false },
-    { name: 'Leaderboard', icon: Trophy, href: '/leaderboard', adminOnly: false },
-    { name: 'Network', icon: UsersRound, href: '/accounts', adminOnly: false },
-    { name: 'Library', icon: Film, href: '/videos', adminOnly: false },
-    { name: 'Ledger', icon: Wallet, href: '/payments', adminOnly: true },
-    { name: 'Forecast', icon: LineChart, href: '/forecast', adminOnly: false },
-    { name: 'Intelligence', icon: Hash, href: '/hashtags', adminOnly: false },
-    { name: 'System', icon: Settings2, href: '/settings', adminOnly: true },
+  const items = [
+    { name: 'Dashboard', icon: Home, href: '/', imgSrc: undefined },
+    { name: 'Network', icon: UsersRound, href: '/accounts', imgSrc: undefined },
+    { name: 'Ledger', icon: Wallet, href: '/payments', imgSrc: undefined },
+    { name: 'Forecast', icon: LineChart, href: '/analytics', imgSrc: undefined },
+    { name: 'System', icon: Settings2, href: '/settings', imgSrc: undefined },
   ];
-
-  // Clients only see non-admin items
-  const items = allItems.filter(item => !item.adminOnly || role === 'admin');
 
   const maxHeight = useMemo(
     () => Math.max(dockHeight, magnification + 30),
@@ -154,8 +143,6 @@ export default function Dock() {
   );
   const heightRow = useTransform(isHoveredIndicator, [0, 1], [panelHeight, maxHeight]);
   const height = useSpring(heightRow, spring);
-
-  if (!user) return null;
 
   return (
     <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">
@@ -168,7 +155,7 @@ export default function Dock() {
           isHoveredIndicator.set(0);
           mouseX.set(Infinity);
         }}
-        className="dock-panel overflow-x-auto hide-scrollbar touch-pan-x min-w-max"
+        className="dock-panel"
         style={{ height: panelHeight }}
         role="toolbar"
         aria-label="Application dock"
@@ -179,6 +166,7 @@ export default function Dock() {
             <DockItem
               key={index}
               href={item.href}
+              imgSrc={item.imgSrc}
               className={isActive ? 'border-white bg-white/10 shadow-lg shadow-white/5' : 'border-white/5 hover:border-white/20'}
               mouseX={mouseX}
               spring={spring}
