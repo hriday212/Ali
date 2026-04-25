@@ -15,6 +15,14 @@ import { getAccounts, saveAccounts, type Account } from '@/lib/accountsStore';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
 
+function formatNumber(n: number | string): string {
+  const num = typeof n === 'string' ? parseInt(n) : n;
+  if (isNaN(num)) return String(n);
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+  return num.toLocaleString();
+}
+
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [search, setSearch] = useState('');
@@ -38,7 +46,7 @@ export default function AccountsPage() {
             name: s.accountId, 
             platform: s.platform,
             link: s.accountLink,
-            followers: '...',
+            followers: formatNumber(s.lastViews || 0),
             status: 'connected',
             hasNew: false,
             avatarUrl: '',
@@ -49,8 +57,17 @@ export default function AccountsPage() {
           const existingIds = new Set(local.map(a => a.id));
           const toAdd = backendAccounts.filter(a => !existingIds.has(a.id));
           
-          if (toAdd.length > 0) {
-            const merged = [...local, ...toAdd];
+          // Even if none to add, update the followers/stats of existing ones
+          const updatedLocal = local.map(acc => {
+            const fresh = backendAccounts.find(b => b.id === acc.id);
+            if (fresh) {
+              return { ...acc, followers: fresh.followers, platform: fresh.platform };
+            }
+            return acc;
+          });
+
+          if (toAdd.length > 0 || JSON.stringify(updatedLocal) !== JSON.stringify(local)) {
+            const merged = [...updatedLocal, ...toAdd];
             setAccounts(merged);
             saveAccounts(merged);
           }
