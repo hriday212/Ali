@@ -149,26 +149,61 @@ export default function ForecastPage() {
       
       // Current period
       const currentH = filterHistoryByRange(history, currentStart, currentEnd);
-      for (const h of currentH) {
-        cViews += h.totalViews || 0;
-        cLikes += h.totalLikes || 0;
-        cComments += h.totalComments || 0;
-        cShares += h.totalShares || 0;
+      const tempMapC: Record<string, number> = {};
+      
+      for (let i = 0; i < currentH.length; i++) {
+        const h = currentH[i];
+        const originalIndex = history.indexOf(h);
+        const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
+        
+        // Calculate the view gain (delta) since the last scan
+        const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : 0;
         
         const dayLabel = new Date(h.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        timeMapCurrent[dayLabel] = (timeMapCurrent[dayLabel] || 0) + (h.totalViews || 0);
+        tempMapC[dayLabel] = (tempMapC[dayLabel] || 0) + delta;
+      }
+
+      // Add deltas to global current map
+      for (const [day, gain] of Object.entries(tempMapC)) {
+        timeMapCurrent[day] = (timeMapCurrent[day] || 0) + gain;
+      }
+
+      // Add absolute maxes to KPIs
+      if (currentH.length > 0) {
+        const latest = currentH[currentH.length - 1];
+        cViews += latest.totalViews || 0;
+        cLikes += latest.totalLikes || 0;
+        cComments += latest.totalComments || 0;
+        cShares += latest.totalShares || 0;
       }
 
       // Previous period
       const prevH = filterHistoryByRange(history, prevStart, prevEnd);
-      for (const h of prevH) {
-        pViews += h.totalViews || 0;
-        pLikes += h.totalLikes || 0;
-        pComments += h.totalComments || 0;
-        pShares += h.totalShares || 0;
+      const tempMapP: Record<string, number> = {};
+
+      for (let i = 0; i < prevH.length; i++) {
+        const h = prevH[i];
+        const originalIndex = history.indexOf(h);
+        const prevHData = originalIndex > 0 ? history[originalIndex - 1] : null;
+        
+        // Calculate the view gain (delta) since the last scan
+        const delta = prevHData ? Math.max(0, (h.totalViews || 0) - (prevHData.totalViews || 0)) : 0;
         
         const dayLabel = new Date(h.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        timeMapPrev[dayLabel] = (timeMapPrev[dayLabel] || 0) + (h.totalViews || 0);
+        tempMapP[dayLabel] = (tempMapP[dayLabel] || 0) + delta;
+      }
+
+      // Add deltas to global previous map
+      for (const [day, gain] of Object.entries(tempMapP)) {
+        timeMapPrev[day] = (timeMapPrev[day] || 0) + gain;
+      }
+
+      if (prevH.length > 0) {
+        const latest = prevH[prevH.length - 1];
+        pViews += latest.totalViews || 0;
+        pLikes += latest.totalLikes || 0;
+        pComments += latest.totalComments || 0;
+        pShares += latest.totalShares || 0;
       }
 
       // Platform distribution (use latest views from scan)
@@ -360,7 +395,100 @@ export default function ForecastPage() {
         <KpiCard label="Network Shares" value={currentKPIs.shares} prevValue={prevKPIs.shares} icon={Share2} color="text-emerald-400" delay={0.25} />
       </div>
 
+      {/* Hourly Activity Pattern (New Premium Chart) */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="glass-card p-8 border border-white/10 overflow-hidden relative"
+      >
+        <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
+          <TrendingUp className="w-48 h-48 text-blue-500" />
+        </div>
 
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+              <TrendingUp className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black italic uppercase text-white tracking-widest leading-none">Hourly Activity Pattern</h3>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-1.5 flex items-center gap-1.5">
+                Scan Velocity Intensity • Grouped by Hour of Day
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+              <span className="text-[9px] font-black uppercase text-slate-400">Current Period</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500 border-dashed animate-pulse" />
+              <span className="text-[9px] font-black uppercase text-slate-400">Previous Period</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-[300px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
+          <div className="w-full min-w-[700px] h-full px-2 lg:px-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={hourlyPattern} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={true} horizontal={true} />
+              <XAxis 
+                dataKey="hour" 
+                tick={{ fill: '#475569', fontSize: 9, fontWeight: 900 }} 
+                axisLine={false} 
+                tickLine={false}
+                interval={1}
+              />
+              <YAxis 
+                tick={{ fill: '#475569', fontSize: 9 }} 
+                axisLine={false} 
+                tickLine={false} 
+                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '16px', padding: '12px' }}
+                itemStyle={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}
+                labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, marginBottom: '8px' }}
+                cursor={{ stroke: '#ffffff10', strokeWidth: 1 }}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="current" 
+                stroke="#3b82f6" 
+                strokeWidth={3}
+                fillOpacity={1} 
+                fill="url(#colorCurrent)" 
+                animationDuration={2000}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="previous" 
+                stroke="#10b981" 
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                fillOpacity={1} 
+                fill="url(#colorPrev)" 
+                animationDuration={2000}
+              />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </motion.div>
         
       {/* Bottom Grid: Bar Chart + Pie Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
