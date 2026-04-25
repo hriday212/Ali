@@ -162,19 +162,22 @@ async function scanTikTok(accountId, accountLink) {
     profiles: [`https://www.tiktok.com/@${profile}`],
     resultsPerPage: 20,
   });
-  return (items || []).map(item => ({
-    id: item.id || item.webVideoUrl || String(Math.random()),
-    title: item.text || '',
-    thumbnail: item.covers?.default || item.cover || '',
-    views: item.playCount || item.stats?.playCount || 0,
-    likes: item.diggCount || item.stats?.diggCount || 0,
-    comments: item.commentCount || item.stats?.commentCount || 0,
-    shares: item.shareCount || item.stats?.shareCount || 0,
-    link: item.webVideoUrl || accountLink,
-    date: item.createTime ? new Date(item.createTime * 1000).toISOString() : new Date().toISOString(),
-    type: 'video',
-    platform: 'tiktok',
-  }));
+  return (items || []).map(item => {
+    const rawThumb = item.covers?.default || item.cover || '';
+    return {
+      id: item.id || item.webVideoUrl || String(Math.random()),
+      title: item.text || '',
+      thumbnail: rawThumb ? `https://wsrv.nl/?url=${encodeURIComponent(rawThumb)}` : '',
+      views: item.playCount || item.stats?.playCount || 0,
+      likes: item.diggCount || item.stats?.diggCount || 0,
+      comments: item.commentCount || item.stats?.commentCount || 0,
+      shares: item.shareCount || item.stats?.shareCount || 0,
+      link: item.webVideoUrl || accountLink,
+      date: item.createTime ? new Date(item.createTime * 1000).toISOString() : new Date().toISOString(),
+      type: 'video',
+      platform: 'tiktok',
+    };
+  });
 }
 
 async function scanInstagram(accountId, accountLink) {
@@ -183,20 +186,23 @@ async function scanInstagram(accountId, accountLink) {
     resultsLimit: 20,
     resultsType: 'posts',
   });
-  return (items || []).map(item => ({
-    id: item.id || item.shortCode || String(Math.random()),
-    title: item.caption || item.alt || '',
-    thumbnail: item.displayUrl || item.imageUrl || '',
-    // Fallback: If it's a photo post, use likes as a proxy for 'reach/views' for the pie chart
-    views: item.videoViewCount || item.videoPlayCount || ( (item.likesCount || item.likes || 0) * 5 ),
-    likes: item.likesCount || item.likes || 0,
-    comments: item.commentsCount || item.comments || 0,
-    shares: 0,
-    link: item.url || `https://instagram.com/p/${item.shortCode}`,
-    date: item.timestamp || new Date().toISOString(),
-    type: item.type === 'Video' ? 'video' : 'post',
-    platform: 'instagram',
-  }));
+  return (items || []).map(item => {
+    const rawThumb = item.displayUrl || item.imageUrl || '';
+    return {
+      id: item.id || item.shortCode || String(Math.random()),
+      title: item.caption || item.alt || '',
+      thumbnail: rawThumb ? `https://wsrv.nl/?url=${encodeURIComponent(rawThumb)}` : '',
+      // Fallback: If it's a photo post, use likes as a proxy for 'reach/views' for the pie chart
+      views: item.videoViewCount || item.videoPlayCount || ( (item.likesCount || item.likes || 0) * 5 ),
+      likes: item.likesCount || item.likes || 0,
+      comments: item.commentsCount || item.comments || 0,
+      shares: 0,
+      link: item.url || `https://instagram.com/p/${item.shortCode}`,
+      date: item.timestamp || new Date().toISOString(),
+      type: item.type === 'Video' ? 'video' : 'post',
+      platform: 'instagram',
+    };
+  });
 }
 
 async function scanHashtag(tag, platform = 'instagram') {
@@ -306,34 +312,38 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     scan.scanCount++;
     scan.lastScanTime = new Date().toISOString();
 
-    // Smart Engine: Optimize API tokens based on momentum and recency (200 Node Scale)
-    let nextInterval = scan.intervalMinutes || 30;
+    // --- Smart Engine: Relative Pulse Algorithm (Phase 7) ---
+    // Default fallback interval
+    let nextInterval = scan.intervalMinutes || globalDefaultInterval;
     
-    // Calculate Days Since Last Post
-    let daysSinceLastPost = 0;
-    if (posts && posts.length > 0) {
-      const latestPostDate = new Date(Math.max(...posts.map(p => new Date(p.date).getTime())));
-      daysSinceLastPost = (Date.now() - latestPostDate) / (1000 * 60 * 60 * 24);
-    }
-
-    if (data.history && data.history.length > 1) {
+    if (smartEngineEnabled && data.history && data.history.length > 1) {
       const latest = data.history[data.history.length - 1].totalViews;
       const previous = data.history[data.history.length - 2].totalViews;
+      const delta = Math.max(0, latest - previous);
       
-      if (latest > previous + 100 && smartEngineEnabled) {
-        // High view activity -> Accelerate to 10m minimum
-        nextInterval = Math.min(10, scan.intervalMinutes);
-        console.log(`[SmartEngine] 🚀 High activity on ${accountId}. Escalating tracking to ${nextInterval}m.`);
-      } else if (latest === previous && scan.scanCount > 2 && smartEngineEnabled) {
-        // Dormancy logic -> Slow down drastically based on post age
-        const oldInterval = scan.currentInterval || scan.intervalMinutes;
-        
-        let maxThrottle = 360; // 6 hours default cap
-        if (daysSinceLastPost > 30) maxThrottle = 10080; // 1 week cap if dead account
-        else if (daysSinceLastPost > 7) maxThrottle = 1440; // 24 hours cap if no posts in a week
-        
-        nextInterval = Math.min(oldInterval * 3, maxThrottle);
-        console.log(`[SmartEngine] 💤 Node ${accountId} dormant (${daysSinceLastPost.toFixed(1)}d since post). Throttling to ${nextInterval}m.`);
+      const timeOld = new Date(data.history[data.history.length - 2].time).getTime();
+      const timeNew = new Date(data.history[data.history.length - 1].time).getTime();
+      const hoursElapsed = Math.max(0.1, (timeNew - timeOld) / (1000 * 60 * 60));
+      const currentHourlyGain = delta / hoursElapsed;
+      
+      const firstRecord = data.history[0];
+      const totalHours = Math.max(1, (timeNew - new Date(firstRecord.time).getTime()) / (1000 * 60 * 60));
+      const avgHourlyGain = Math.max(1, (latest - firstRecord.totalViews) / totalHours);
+      
+      const multiplier = currentHourlyGain / avgHourlyGain;
+      
+      // Instagram Economy Mode defaulting
+      const baseInterval = platform === 'instagram' ? 4320 : 4320; // 3 Days resting baseline
+      
+      if (multiplier > 5 || delta > 50000) {
+        nextInterval = 180; // 3 Hours (Ultra Viral)
+        console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 3h.`);
+      } else if (multiplier > 2 || delta > 10000) {
+        nextInterval = 720; // 12 Hours (Viral Traction)
+        console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 12h.`);
+      } else {
+        nextInterval = baseInterval; // 3 Days Resting Stage
+        console.log(`[SmartEngine] 💤 Node ${accountId} resting (M=${multiplier.toFixed(1)}x). Setting to ${nextInterval / 60}h.`);
       }
     }
     
@@ -410,8 +420,8 @@ async function autoStartDefaults() {
 }
 
 // --- API Routes ---
-let globalDefaultInterval = 360;
-let smartEngineEnabled = false; // SmartEngine auto-escalation disabled by default for credit safety
+let globalDefaultInterval = 4320; // 3 Days resting baseline
+let smartEngineEnabled = true; // Enabled to allow viral acceleration override
 
 app.post('/api/start', async (req, res) => {
   const { accountId, accountLink, intervalMinutes, platform } = req.body;

@@ -127,7 +127,9 @@ export default function Home() {
           totalAtTs += lastViews;
         }
         return {
+          timestamp: ts,
           time: new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          fullDateTime: new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
           views: totalAtTs
         };
       });

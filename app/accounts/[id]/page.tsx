@@ -139,6 +139,9 @@ export default function AccountForensicPage() {
   const [scanHistory, setScanHistory] = React.useState<Array<{ time: string; totalViews: number; totalLikes: number; totalComments: number }>>([]);
   const [videoHistoryMap, setVideoHistoryMap] = React.useState<Record<string, Array<{ time: string; views: number }>>>({});
 
+  // Chart Timeframe State
+  const [timeframe, setTimeframe] = React.useState('ALL');
+
 
   // Load account from persistent store
   const [account, setAccount] = React.useState<Account | null>(null);
@@ -261,21 +264,36 @@ export default function AccountForensicPage() {
   const chartData = React.useMemo(() => {
     if (scanHistory.length === 0) return CHART_PLACEHOLDER;
 
-    const points = scanHistory.map((s) => ({
+    const now = Date.now();
+    let cutoff = 0;
+    if (timeframe === '6h') cutoff = now - 6 * 3600000;
+    if (timeframe === '12h') cutoff = now - 12 * 3600000;
+    if (timeframe === '24h') cutoff = now - 24 * 3600000;
+    if (timeframe === '7d') cutoff = now - 7 * 24 * 3600000;
+
+    const filteredHistory = scanHistory.filter((s) => new Date(s.time).getTime() >= cutoff);
+    const dataToUse = filteredHistory.length > 0 ? filteredHistory : [scanHistory[scanHistory.length - 1]];
+
+    const points = dataToUse.map((s) => ({
       time: new Date(s.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       fullDateTime: new Date(s.time).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
       views: s.totalViews,
     }));
 
-    // Add origin "0 views" point before first scan
-    const firstScanTime = new Date(scanHistory[0].time);
-    const originTime = new Date(firstScanTime.getTime() - 60000);
-    return [{
-      time: originTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      fullDateTime: originTime.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      views: 0,
-    }, ...points];
-  }, [scanHistory]);
+    // Add origin "0 views" point before first scan if applicable
+    const firstScanTime = new Date(dataToUse[0].time).getTime();
+    const originTime = new Date(firstScanTime - 60000);
+    
+    if (timeframe === 'ALL' || originTime.getTime() >= cutoff) {
+      return [{
+        time: originTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        fullDateTime: originTime.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        views: 0,
+      }, ...points];
+    }
+    
+    return points;
+  }, [scanHistory, timeframe]);
 
   // --- Start Auto-Scan (delegates to SERVER ScanManager) ---
   const startAutoScan = async (minutes: number) => {
@@ -526,6 +544,17 @@ export default function AccountForensicPage() {
                     <h2 className="text-xs font-black uppercase tracking-[0.2em] italic">Forensic Performance Analysis</h2>
                   </div>
                   <div className="flex items-center gap-3">
+                    <div className="flex items-center bg-white/[0.03] border border-white/5 rounded-full p-1 mr-4 hidden sm:flex">
+                      {['6h', '12h', '24h', '7d', 'ALL'].map((tf) => (
+                        <button
+                          key={tf}
+                          onClick={(e) => { e.stopPropagation(); setTimeframe(tf); }}
+                          className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${timeframe === tf ? 'bg-white text-black' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                          {tf}
+                        </button>
+                      ))}
+                    </div>
                     {hasScanned && <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{scanHistory.length} Scans | {allPosts.length} Assets</span>}
                     <div className={`px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest italic ${autoScanActive ? 'animate-pulse' : 'opacity-50'}`}>{autoScanActive ? 'Auto-Scanning' : hasScanned ? 'Scan Data' : 'Awaiting Scan'}</div>
                   </div>

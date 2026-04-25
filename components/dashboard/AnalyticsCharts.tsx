@@ -35,7 +35,7 @@ export function AnalyticsCharts({
   description = "Real-time performance tracking" 
 }: AnalyticsChartsProps) {
   const [mounted, setMounted] = React.useState(false);
-  const [interval, setInterval] = useState<'6h' | '12h' | '24h'>('24h');
+  const [interval, setInterval] = useState<'6h' | '12h' | '24h' | '7d' | 'ALL'>('ALL');
 
   React.useEffect(() => {
     setMounted(true);
@@ -45,10 +45,26 @@ export function AnalyticsCharts({
     return <div className="h-[400px] w-full flex items-center justify-center bg-slate-900/20 rounded-2xl border border-slate-800/50 animate-pulse text-slate-500 font-medium italic">Initializing Charts...</div>;
   }
 
-  // Filter data based on interval (simplified for mock/sync)
-  const chartData = interval === '6h' ? data.slice(-3) : 
-                    interval === '12h' ? data.slice(-6) : 
-                    data;
+  // Filter data based on interval using real timestamps
+  const chartData = React.useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
+    const now = Date.now();
+    let cutoff = 0;
+    if (interval === '6h') cutoff = now - 6 * 3600000;
+    if (interval === '12h') cutoff = now - 12 * 3600000;
+    if (interval === '24h') cutoff = now - 24 * 3600000;
+    if (interval === '7d') cutoff = now - 7 * 24 * 3600000;
+
+    let filtered = cutoff > 0 && data[0].timestamp 
+      ? data.filter(d => d.timestamp >= cutoff)
+      : data;
+      
+    if (filtered.length === 0 && data.length > 0) {
+      filtered = [data[data.length - 1]];
+    }
+    return filtered;
+  }, [data, interval]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -64,7 +80,7 @@ export function AnalyticsCharts({
             <p className="text-slate-400 text-sm">{description}</p>
           </div>
           <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-            {(['6h', '12h', '24h'] as const).map((int) => (
+            {(['6h', '12h', '24h', '7d', 'ALL'] as const).map((int) => (
               <button
                 key={int}
                 onClick={() => setInterval(int)}
