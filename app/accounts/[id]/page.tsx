@@ -169,7 +169,12 @@ export default function AccountForensicPage() {
       } catch (err) {
         // Silently ignore storage errors
       }
-      setPayouts(getPayoutsForAccount(found.id));
+      // Initial Ledger Pull
+      safeFetchJson(API_ROUTES.PAYOUTS).then((res) => {
+        if (res && res.payouts) {
+          setPayouts(res.payouts.filter((p: any) => p.accountId === found.id));
+        }
+      });
     }
   }, [params.id]);
 
@@ -178,11 +183,19 @@ export default function AccountForensicPage() {
     if (!account) return;
 
     const pollStatus = async () => {
-      // Sync Payouts first
-      setPayouts(getPayoutsForAccount(account.id));
-
       try {
         const statusResult = await safeFetchJson(`${API_ROUTES.STATUS}?accountId=${account.id}`);
+        
+        // Sync Latest Ledger
+        try {
+          const ledgerResult = await safeFetchJson(API_ROUTES.PAYOUTS);
+          if (ledgerResult && ledgerResult.payouts) {
+            setPayouts(ledgerResult.payouts.filter((p: any) => p.accountId === account.id));
+          }
+        } catch (e) {
+          // Ignore polling ledger errors
+        }
+
         if (statusResult) {
           if (statusResult.active) {
             const s = statusResult.status;

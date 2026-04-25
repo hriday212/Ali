@@ -36,6 +36,26 @@ app.use(express.json());
 // --- Setup Persistence ---
 const DATA_DIR = process.env.DATA_PATH || path.join(os.homedir(), '.forensic-scan-data');
 const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
+const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
+
+function readLedger() {
+  try {
+    if (!fs.existsSync(LEDGER_FILE)) return [];
+    return JSON.parse(fs.readFileSync(LEDGER_FILE, 'utf-8'));
+  } catch (e) {
+    console.error('[Ledger] Read Error:', e);
+    return [];
+  }
+}
+
+function writeLedger(data) {
+  ensureDataDir();
+  try {
+    fs.writeFileSync(LEDGER_FILE, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error('[Ledger] Write Error:', e);
+  }
+}
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -601,10 +621,18 @@ app.get('/api/apify-usage', async (req, res) => {
   }
 });
 
-// Mock: Payouts Ledger
+// Real: Payouts Ledger Persistence
 app.get('/api/payouts', (req, res) => {
-  // In a real app, this would read from a ledger DB
-  res.json({ payouts: [] }); 
+  res.json({ payouts: readLedger() }); 
+});
+
+app.post('/api/payouts', (req, res) => {
+  const payout = req.body;
+  if (!payout) return res.status(400).json({ error: 'Payout data required' });
+  const ledger = readLedger();
+  ledger.unshift(payout);
+  writeLedger(ledger);
+  res.json({ success: true, payouts: ledger });
 });
 
 // New: Hashtag Intelligence

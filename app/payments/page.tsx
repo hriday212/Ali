@@ -24,13 +24,27 @@ export default function PayoutsPage() {
   const [nodes, setNodes] = useState<PayoutNode[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Temporary local state for clearing payouts without a DB
-  const [clearedNodes, setClearedNodes] = useState<Record<string, number>>({});
+  // Stores real payouts fetched from backend ledger
+  const [payoutsDb, setPayoutsDb] = useState<any[]>([]);
+
+  // Custom Overrides
+  const [customRates, setCustomRates] = useState<Record<string, number>>({});
+  const [customAmounts, setCustomAmounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     async function fetchLedger() {
       setLoading(true);
       try {
+        // Fetch Real Ledger
+        let historyPayouts = [];
+        try {
+          const ledgerRes = await safeFetchJson(API_ROUTES.PAYOUTS);
+          historyPayouts = ledgerRes?.payouts || [];
+        } catch (e) {
+          console.warn('Ledger fetch error, assuming empty.');
+        }
+        setPayoutsDb(historyPayouts);
+
         const { scans } = await safeFetchJson(API_ROUTES.SCANS);
         if (!scans) return;
 
@@ -41,14 +55,13 @@ export default function PayoutsPage() {
           const latest = data.history[data.history.length - 1];
           const totalViews = latest?.totalViews || 0;
           
-          // Normally `lastPaidViews` would come from a DB. 
-          // For this tool, we simulate that they were last paid at ~80% of their current views if we haven't cleared them locally yet.
-          const basePaidViews = Math.floor(totalViews * 0.8);
-          const lastPaid = clearedNodes[scan.accountId] || basePaidViews;
+          // Fetch real lastPaidViews from DB (max viewsAtPayment for this node)
+          const nodeHistory = historyPayouts.filter((p: any) => p.accountId === scan.accountId);
+          const lastPaid = nodeHistory.reduce((max: number, p: any) => Math.max(max, p.viewsAtPayment || 0), 0);
           
           const unpaid = Math.max(0, totalViews - lastPaid);
-          const yieldRate = scan.platform === 'tiktok' ? 0.30 : scan.platform === 'youtube' ? 1.50 : 0.80; // Example CPMs
-          const due = (unpaid / 1000) * yieldRate;
+          const defaultCPM = scan.platform === 'tiktok' ? 0.30 : scan.platform === 'youtube' ? 1.50 : 0.80; // Example CPMs
+          const due = (unpaid / 1000) * defaultCPM;
 
           return {
             id: scan.accountId,
@@ -56,7 +69,7 @@ export default function PayoutsPage() {
             totalViews: totalViews,
             lastPaidViews: lastPaid,
             unpaidViews: unpaid,
-            yieldRate,
+            yieldRate: defaultCPM,
             amountDue: due,
             status: due > 0 ? 'pending' : 'cleared'
           } as PayoutNode;
@@ -70,7 +83,7 @@ export default function PayoutsPage() {
       }
     }
     fetchLedger();
-  }, [clearedNodes]);
+  }, []);
 
   if (!isAdmin) {
     return (
@@ -82,12 +95,49 @@ export default function PayoutsPage() {
     );
   }
 
-  const handleSettleAccount = (id: string, currentTotal: number) => {
-    setClearedNodes(prev => ({ ...prev, [id]: currentTotal }));
+  const handleSettleAccount = async (node: PayoutNode) => {
+    // Optimistic UI update
+    setNodes(prev => prev.map(n => n.id === node.id ? { ...n, amountDue: 0, lastPaidViews: node.totalViews, unpaidViews: 0, status: 'cleared' } : n));
+    
+    // Compute the actual due with overrides
+    const actualCPM = customRates[node.id] !== undefined ? customRates[node.id] : node.yieldRate;
+    const actualDue = customAmounts[node.id] !== undefined ? customAmounts[node.id] : node.amountDue;
+
+    // Send Real Settlement to Ledger
+    const newPayout = {
+      id: Date.now().toString(),
+      accountId: node.id,
+      videoTitle: `Node Settlement (${node.unpaidViews.toLocaleString()} views)`,
+      platform: node.platform,
+      amount: actualDue,
+      viewsAtPayment: node.totalViews,
+      paidAt: new Date().toISOString()
+    };
+    
+    try {
+      await safeFetchJson(API_ROUTES.PAYOUTS, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(newPayout) 
+      });
+    } catch (e) {
+      console.warn('Failed to save to ledger', e);
+    }
+    
+    // Clear Custom overrides
+    setCustomRates(prev => { const n = {...prev}; delete n[node.id]; return n; });
+    setCustomAmounts(prev => { const n = {...prev}; delete n[node.id]; return n; });
   };
 
-  const totalLiability = nodes.reduce((acc, node) => acc + node.amountDue, 0);
-  const totalUnpaidViews = nodes.reduce((acc, node) => acc + node.unpaidViews, 0);
+  const displayNodes = nodes.map(node => {
+     const yieldRate = customRates[node.id] !== undefined ? customRates[node.id] : node.yieldRate;
+     let due = (node.unpaidViews / 1000) * yieldRate;
+     if (customAmounts[node.id] !== undefined) due = customAmounts[node.id];
+     return { ...node, yieldRate, amountDue: due, status: due > 0 ? 'pending' : 'cleared' } as PayoutNode;
+  });
+
+  const totalLiability = displayNodes.reduce((acc, node) => acc + node.amountDue, 0);
+  const totalUnpaidViews = displayNodes.reduce((acc, node) => acc + node.unpaidViews, 0);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-32">
@@ -158,7 +208,7 @@ export default function PayoutsPage() {
               </thead>
               <tbody>
                 <AnimatePresence>
-                  {nodes.map((node, idx) => (
+                  {displayNodes.map((node, idx) => (
                     <motion.tr 
                       key={node.id} 
                       initial={{ opacity: 0, y: 10 }}
@@ -175,14 +225,59 @@ export default function PayoutsPage() {
                       <td className="p-6 font-black text-slate-300">{node.totalViews.toLocaleString()}</td>
                       <td className="p-6 text-[11px] font-black tracking-widest text-slate-500">{node.lastPaidViews.toLocaleString()}</td>
                       <td className="p-6 text-right">
-                        <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-white/5 rounded-md border border-white/5">
-                          ${node.yieldRate.toFixed(2)} CPM
-                        </span>
+                        {node.status === 'pending' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-slate-500 font-black italic">$</span>
+                            <input 
+                              type="number" 
+                              step="0.01"
+                              value={customRates[node.id] !== undefined ? customRates[node.id] : node.yieldRate} 
+                              onChange={(e) => {
+                                 const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                 if (val !== undefined) {
+                                  setCustomRates({...customRates, [node.id]: val});
+                                  // Recalculate amount dynamically
+                                  const cAmounts = {...customAmounts};
+                                  delete cAmounts[node.id];
+                                  setCustomAmounts(cAmounts);
+                                 } else {
+                                  // Clear
+                                  const cRates = {...customRates};
+                                  delete cRates[node.id];
+                                  setCustomRates(cRates);
+                                 }
+                              }}
+                              className="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-[10px] font-black uppercase tracking-widest text-right focus:border-white/30 outline-none"
+                            />
+                            <span className="text-[8px] font-black text-slate-500 ml-1 uppercase">CPM</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-white/5 rounded-md border border-white/5">
+                            ${node.yieldRate.toFixed(2)} CPM
+                          </span>
+                        )}
                       </td>
                       <td className="p-6 text-right">
                         {node.amountDue > 0 ? (
                           <div className="flex flex-col items-end">
-                            <span className="text-lg font-black italic text-indigo-400">${node.amountDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-indigo-500 font-black italic">$</span>
+                              <input 
+                                type="number" 
+                                step="0.01"
+                                value={customAmounts[node.id] !== undefined ? customAmounts[node.id] : node.amountDue.toFixed(2)} 
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                  if (val !== undefined) setCustomAmounts({...customAmounts, [node.id]: val});
+                                  else {
+                                    const cAmounts = {...customAmounts};
+                                    delete cAmounts[node.id];
+                                    setCustomAmounts(cAmounts);
+                                  }
+                                }}
+                                className="w-20 bg-white/5 border border-indigo-500/30 rounded px-2 py-1 text-sm font-black italic text-indigo-400 text-right focus:border-indigo-500 outline-none"
+                              />
+                            </div>
                             <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">FOR {node.unpaidViews.toLocaleString()} VIEWS</span>
                           </div>
                         ) : (
@@ -192,7 +287,7 @@ export default function PayoutsPage() {
                       <td className="p-6 text-center">
                         {node.amountDue > 0 ? (
                           <button 
-                            onClick={() => handleSettleAccount(node.id, node.totalViews)}
+                            onClick={() => handleSettleAccount(node)}
                             className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-lg text-indigo-400 text-[9px] font-black uppercase tracking-widest transition-all"
                           >
                              Settle <ArrowRight className="w-3 h-3" />
