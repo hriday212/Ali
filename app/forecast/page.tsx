@@ -183,20 +183,24 @@ export default function ForecastPage() {
       raw: value,
     }));
 
-    // Build matched time-series arrays for the bar chart
-    const allDays = new Set([...Object.keys(timeMapCurrent), ...Object.keys(timeMapPrev)]);
-    const timeSeriesCurrent = Array.from(allDays).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-      .map(day => ({ day, views: timeMapCurrent[day] || 0 }));
-    const timeSeriesPrev = Array.from(allDays).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-      .map(day => ({ day, views: timeMapPrev[day] || 0 }));
-
-    // Merge for comparative bar chart
-    const mergedTimeSeries = Array.from(allDays).sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-      .map(day => ({
-        day,
-        current: timeMapCurrent[day] || 0,
-        previous: timeMapPrev[day] || 0,
-      }));
+    // Build Aligned Time Series (Comparative)
+    // We want to align Day 0 of Current with Day 0 of Previous
+    const currentDays = Array.from(Object.keys(timeMapCurrent)).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    const prevDays = Array.from(Object.keys(timeMapPrev)).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    
+    const maxDays = Math.max(currentDays.length, prevDays.length);
+    const mergedTimeSeries = [];
+    
+    for (let i = 0; i < maxDays; i++) {
+      const cDay = currentDays[i];
+      const pDay = prevDays[i];
+      mergedTimeSeries.push({
+        // Label by the current period day if available, else generic index
+        day: cDay || (pDay ? `P-${pDay}` : `D-${i}`),
+        current: cDay ? timeMapCurrent[cDay] : 0,
+        previous: pDay ? timeMapPrev[pDay] : 0,
+      });
+    }
 
     // Hourly activity pattern (Show GAINS/DELTAS per hour instead of totals)
     const hourMapCurrent: Record<string, number> = {};

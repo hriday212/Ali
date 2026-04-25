@@ -179,7 +179,7 @@ export default function Dock() {
             <DockItem
               key={index}
               href={item.href}
-              className={isActive ? 'shadow-lg shadow-white/5' : ''} // Only shadow for active, no borders/bg here (handled by CSS)
+              className="" // Pure icons only, no shadows or boxes
               mouseX={mouseX}
               spring={spring}
               distance={distance}
