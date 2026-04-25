@@ -380,10 +380,18 @@ function saveAllState() {
 function scheduleNextScan(scan, overrideMinutes = null) {
   if (scan.timer) clearTimeout(scan.timer);
   const mins = overrideMinutes || scan.intervalMinutes;
-  scan.nextScanAt = new Date(Date.now() + mins * 60 * 1000).toISOString();
+  let msRemaining = mins * 60 * 1000;
+
+  // Preserve the countdown across server restarts
+  if (scan.lastScanTime) {
+    const msSinceLastScan = Date.now() - new Date(scan.lastScanTime).getTime();
+    msRemaining = Math.max(0, (mins * 60 * 1000) - msSinceLastScan);
+  }
+
+  scan.nextScanAt = new Date(Date.now() + msRemaining).toISOString();
   scan.timer = setTimeout(async () => {
     await executeScan(scan.accountId, scan.accountLink, scan.platform || 'youtube');
-  }, mins * 60 * 1000);
+  }, msRemaining);
 }
 
 function startScanInternal(scan) {
@@ -420,7 +428,7 @@ async function autoStartDefaults() {
 }
 
 // --- API Routes ---
-let globalDefaultInterval = 4320; // 3 Days resting baseline
+let globalDefaultInterval = 360; // Back to 6h for Testing Phase
 let smartEngineEnabled = true; // Enabled to allow viral acceleration override
 
 app.post('/api/start', async (req, res) => {
