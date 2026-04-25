@@ -125,6 +125,7 @@ export default function AccountForensicPage() {
 
   // Auto-scan state (synced from global ScanManager)
   const [autoScanActive, setAutoScanActive] = React.useState(false);
+  const [isScraping, setIsScraping] = React.useState(false);
   const [nextScanIn, setNextScanIn] = React.useState(0);
   const [scanCount, setScanCount] = React.useState(0);
   const [lastScanTime, setLastScanTime] = React.useState<string | null>(null);
@@ -136,7 +137,7 @@ export default function AccountForensicPage() {
   const [customMinutes, setCustomMinutes] = React.useState('');
 
   // Scan history
-  const [scanHistory, setScanHistory] = React.useState<Array<{ time: string; totalViews: number; totalLikes: number; totalComments: number }>>([]);
+  const [scanHistory, setScanHistory] = React.useState<Array<{ time: string; totalViews: number; totalLikes: number; totalComments: number; totalShares: number }>>([]);
   const [videoHistoryMap, setVideoHistoryMap] = React.useState<Record<string, Array<{ time: string; views: number }>>>({});
 
   // Chart Timeframe State
@@ -200,6 +201,7 @@ export default function AccountForensicPage() {
           if (statusResult.active) {
             const s = statusResult.status;
             setAutoScanActive(true);
+            setIsScraping(!!s.isScraping);
             setNextScanIn(s.secondsRemaining);
             setScanCount(s.scanCount);
             setLastScanTime(s.lastScanTime);
@@ -291,6 +293,7 @@ export default function AccountForensicPage() {
       time: new Date(s.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       fullDateTime: new Date(s.time).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
       views: s.totalViews,
+      shares: s.totalShares || 0,
     }));
 
     // Add origin "0 views" point before first scan if applicable
@@ -302,6 +305,7 @@ export default function AccountForensicPage() {
         time: originTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         fullDateTime: originTime.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
         views: 0,
+        shares: 0,
       }, ...points];
     }
     
@@ -569,7 +573,9 @@ export default function AccountForensicPage() {
                       ))}
                     </div>
                     {hasScanned && <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">{scanHistory.length} Scans | {allPosts.length} Assets</span>}
-                    <div className={`px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest italic ${autoScanActive ? 'animate-pulse' : 'opacity-50'}`}>{autoScanActive ? 'Auto-Scanning' : hasScanned ? 'Scan Data' : 'Awaiting Scan'}</div>
+                    <div className={`px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest italic ${isScraping ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]' : autoScanActive ? 'animate-pulse' : 'opacity-50'}`}>
+                      {isScraping ? 'Engine Scraping...' : autoScanActive ? 'Auto-Scanning' : hasScanned ? 'Scan Data' : 'Awaiting Scan'}
+                    </div>
                   </div>
                 </div>
                 <div className="absolute inset-0 top-24 bottom-8 left-8 right-8 pointer-events-none">
@@ -577,11 +583,14 @@ export default function AccountForensicPage() {
                     <AreaChart data={chartData}>
                       <defs>
                         <linearGradient id="vG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ffffff" stopOpacity={0.12} /><stop offset="95%" stopColor="#ffffff" stopOpacity={0} /></linearGradient>
+                        <linearGradient id="sG" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.12} /><stop offset="95%" stopColor="#f59e0b" stopOpacity={0} /></linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
                       <XAxis dataKey="time" stroke="#334155" fontSize={8} tickLine={false} axisLine={false} tick={{ fontWeight: 'black' }} />
-                      <YAxis stroke="#334155" fontSize={8} tickLine={false} axisLine={false} tickFormatter={(val) => `${val / 1000}k`} tick={{ fontWeight: 'black' }} />
-                      <Area type="monotone" dataKey="views" stroke="#ffffff" strokeWidth={2.5} fill="url(#vG)" />
+                      <YAxis yAxisId="left" stroke="#334155" fontSize={8} tickLine={false} axisLine={false} tickFormatter={(val) => `${(val / 1000).toFixed(1)}k`} tick={{ fontWeight: 'black' }} />
+                      <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" fontSize={8} tickLine={false} axisLine={false} tickFormatter={(val) => val.toLocaleString()} tick={{ fontWeight: 'black' }} />
+                      <Area yAxisId="left" type="monotone" dataKey="views" stroke="#ffffff" strokeWidth={2.5} fill="url(#vG)" />
+                      <Area yAxisId="right" type="monotone" dataKey="shares" stroke="#f59e0b" strokeWidth={2} fill="url(#sG)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -797,7 +806,7 @@ export default function AccountForensicPage() {
         {/* Compact Footer */}
         <footer className="mt-auto border-t border-white/5 pt-6 flex items-center justify-between opacity-30 hover:opacity-100 transition-opacity pb-8 flex-shrink-0 bg-slate-950 relative z-20">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2.5"><div className={`w-1.5 h-1.5 rounded-full ${autoScanActive ? 'bg-white shadow-[0_0_10px_white] animate-pulse' : 'bg-slate-700'}`} /><p className="text-[8px] font-black uppercase tracking-[0.5em] italic">{autoScanActive ? 'Auto-Scan Active' : hasScanned ? 'Scan Complete' : 'Standby'}</p></div>
+            <div className="flex items-center gap-2.5"><div className={`w-1.5 h-1.5 rounded-full ${isScraping ? 'bg-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-pulse' : autoScanActive ? 'bg-white shadow-[0_0_10px_white] animate-pulse' : 'bg-slate-700'}`} /><p className="text-[8px] font-black uppercase tracking-[0.5em] italic">{isScraping ? 'Extracting New Post Data...' : autoScanActive ? 'Auto-Scan Active' : hasScanned ? 'Scan Complete' : 'Standby'}</p></div>
             <div className="w-px h-4 bg-white/10" />
             {lastScanTime && <p className="text-[8px] font-black uppercase tracking-[0.4em] text-slate-800 italic">Last Scan: {timeAgo(lastScanTime)}</p>}
             {!lastScanTime && <p className="text-[8px] font-black uppercase tracking-[0.4em] text-slate-800 italic">NODE_{account.id}_IDLE</p>}

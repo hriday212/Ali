@@ -10,6 +10,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { useAuth } from '@/lib/authStore';
 import { ContentPulse } from '@/components/dashboard/ContentPulse';
 import { ViralRadar } from '@/components/dashboard/ViralRadar';
+import { ApiPulse } from '@/components/dashboard/ApiPulse';
 
 const AnalyticsCharts = dynamic(() => import('@/components/dashboard/AnalyticsCharts').then(mod => mod.AnalyticsCharts), {
   ssr: false,
@@ -284,6 +285,7 @@ export default function Home() {
       {/* Actionable Intelligence / Viral Radar */}
       {isAdmin && (
         <section className="space-y-6">
+          <ApiPulse />
           <ViralRadar />
         </section>
       )}

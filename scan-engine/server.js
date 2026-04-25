@@ -183,7 +183,7 @@ async function scanTikTok(accountId, accountLink) {
     resultsPerPage: 20,
   });
   return (items || []).map(item => {
-    const rawThumb = item.covers?.default || item.cover || '';
+    const rawThumb = item.covers?.default || item.covers?.origin || item.cover || item.videoMeta?.coverUrl || item.video?.cover || '';
     return {
       id: item.id || item.webVideoUrl || String(Math.random()),
       title: item.text || '',
@@ -285,8 +285,13 @@ function applyHighWaterMark(data, posts) {
 const activeScans = new Map();
 
 async function executeScan(accountId, accountLink, platform, isManual = false) {
-  const scan = activeScans.get(accountId);
-  if (!scan) return;
+  let scan = activeScans.get(accountId);
+  if (!scan && isManual) {
+    scan = { accountId, accountLink, platform, isScraping: true };
+    activeScans.set(accountId, scan);
+  } else if (!scan) return;
+  
+  scan.isScraping = true;
   console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId} (${platform})...`);
   try {
     let posts = [];
@@ -384,6 +389,9 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       scan.lastErrorTime = new Date().toISOString();
       scheduleNextScan(scan, scan.intervalMinutes);
     }
+  } finally {
+    const freshScan = activeScans.get(accountId);
+    if (freshScan) freshScan.isScraping = false;
   }
 }
 
