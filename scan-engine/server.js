@@ -187,14 +187,14 @@ async function scanTikTok(accountId, accountLink) {
     return {
       id: item.id || item.webVideoUrl || String(Math.random()),
       title: item.text || '',
-      thumbnail: rawThumb ? `https://wsrv.nl/?url=${encodeURIComponent(rawThumb)}` : '',
+      thumbnail: rawThumb || '',
       views: item.playCount || item.stats?.playCount || 0,
       likes: item.diggCount || item.stats?.diggCount || 0,
       comments: item.commentCount || item.stats?.commentCount || 0,
       shares: item.shareCount || item.stats?.shareCount || 0,
       link: item.webVideoUrl || accountLink,
       date: item.createTime ? new Date(item.createTime * 1000).toISOString() : new Date().toISOString(),
-      type: 'video',
+      type: 'short', // TikTok is always vertical/short format
       platform: 'tiktok',
     };
   });
@@ -211,7 +211,7 @@ async function scanInstagram(accountId, accountLink) {
     return {
       id: item.id || item.shortCode || String(Math.random()),
       title: item.caption || item.alt || '',
-      thumbnail: rawThumb ? `https://wsrv.nl/?url=${encodeURIComponent(rawThumb)}` : '',
+      thumbnail: rawThumb || '',
       // Fallback: If it's a photo post, use likes as a proxy for 'reach/views' for the pie chart
       views: item.videoViewCount || item.videoPlayCount || ( (item.likesCount || item.likes || 0) * 5 ),
       likes: item.likesCount || item.likes || 0,
@@ -219,7 +219,7 @@ async function scanInstagram(accountId, accountLink) {
       shares: 0,
       link: item.url || `https://instagram.com/p/${item.shortCode}`,
       date: item.timestamp || new Date().toISOString(),
-      type: item.type === 'Video' ? 'video' : 'post',
+      type: item.type === 'Video' ? 'short' : 'post', // Reels are vertical/short format
       platform: 'instagram',
     };
   });

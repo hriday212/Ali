@@ -656,7 +656,7 @@ export default function AccountForensicPage() {
                     <div key={payout.id} className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-white/20 transition-all">
                       <div className="flex items-center gap-5 min-w-0">
                         {payout.thumbnail ? (
-                          <img src={payout.thumbnail} alt="" referrerPolicy="no-referrer" className="w-10 h-7 rounded-lg object-cover flex-shrink-0 border border-white/5" />
+                          <img src={`https://wsrv.nl/?url=${encodeURIComponent(payout.thumbnail)}&w=100&output=webp`} alt="" referrerPolicy="no-referrer" className="w-10 h-7 rounded-lg object-cover flex-shrink-0 border border-white/5" />
                         ) : (
                           <Calendar className="w-5 h-5 text-slate-700 flex-shrink-0" />
                         )}
@@ -685,7 +685,7 @@ export default function AccountForensicPage() {
                     <div key={post.id} onClick={() => hasScanned ? setSelectedPost(post as PostData) : null} className={`flex items-center justify-between p-4 bg-white/[0.03] border border-white/10 rounded-2xl transition-all group ${hasScanned ? 'hover:bg-white/[0.08] cursor-pointer' : 'opacity-40'}`}>
                       <div className="flex items-center gap-4 min-w-0">
                         {(post as PostData).thumbnail ? (
-                          <img src={(post as PostData).thumbnail} alt="" referrerPolicy="no-referrer" className="w-12 h-8 rounded-lg object-cover flex-shrink-0 border border-white/5" />
+                          <img src={`https://wsrv.nl/?url=${encodeURIComponent((post as PostData).thumbnail)}&w=100&output=webp`} alt="" referrerPolicy="no-referrer" className="w-12 h-8 rounded-lg object-cover flex-shrink-0 border border-white/5" />
                         ) : (
                           <div className="w-12 h-8 bg-black border border-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
                             <Film className="w-3 h-3 text-slate-700" />
@@ -770,7 +770,7 @@ export default function AccountForensicPage() {
                             post.type === 'short' ? 'aspect-[4/5]' : 'aspect-video'
                           }`}>
                             {post.thumbnail ? (
-                              <img src={post.thumbnail} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                              <img src={`https://wsrv.nl/?url=${encodeURIComponent(post.thumbnail)}&w=400&output=webp`} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                             ) : (
                               <Film className="w-4 h-4 text-slate-800" />
                             )}
