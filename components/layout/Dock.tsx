@@ -158,7 +158,7 @@ export default function Dock() {
   if (!user) return null;
 
   return (
-    <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer w-full max-w-full overflow-x-auto overflow-y-hidden px-4 md:px-0 scroll-smooth">
+    <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">
       <motion.div
         onMouseMove={({ pageX }) => {
           isHoveredIndicator.set(1);
@@ -168,7 +168,7 @@ export default function Dock() {
           isHoveredIndicator.set(0);
           mouseX.set(Infinity);
         }}
-        className="dock-panel min-w-max md:min-w-0 mx-auto"
+        className="dock-panel overflow-x-auto hide-scrollbar touch-pan-x min-w-max"
         style={{ height: panelHeight }}
         role="toolbar"
         aria-label="Application dock"
