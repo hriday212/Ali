@@ -157,7 +157,7 @@ function parseDuration(duration) {
 async function scanYouTube(accountId, accountLink) {
   const channelId = await getChannelIdFromUrl(accountLink);
   if (!channelId) return null;
-  const items = await getChannelVideos(channelId, 10);
+  const items = await getChannelVideos(channelId, 50); // Increased from 10 to 50 for max historical reach tracking
   return items.map(item => ({
     id: item.id,
     title: item.snippet.title,
@@ -180,7 +180,7 @@ async function scanTikTok(accountId, accountLink) {
   const profile = handleMatch ? handleMatch[1] : cleanLink.replace(/https?:\/\/(www\.)?tiktok\.com\/@/, '').replace(/\//g, '');
   const items = await runApifyActor('clockworks/tiktok-scraper', {
     profiles: [`https://www.tiktok.com/@${profile}`],
-    resultsPerPage: 20,
+    resultsPerPage: 30, // Increased from 20 to 30
   });
   return (items || []).map(item => {
     const rawThumb = item.covers?.default || item.cover || '';
@@ -203,7 +203,7 @@ async function scanTikTok(accountId, accountLink) {
 async function scanInstagram(accountId, accountLink) {
   const items = await runApifyActor('apify/instagram-scraper', {
     directUrls: [accountLink],
-    resultsLimit: 20,
+    resultsLimit: 30, // Increased from 20 to 30
     resultsType: 'posts',
   });
   return (items || []).map(item => {
