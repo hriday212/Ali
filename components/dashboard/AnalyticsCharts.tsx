@@ -41,10 +41,6 @@ export function AnalyticsCharts({
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return <div className="h-[400px] w-full flex items-center justify-center bg-slate-900/20 rounded-2xl border border-slate-800/50 animate-pulse text-slate-500 font-medium italic">Initializing Charts...</div>;
-  }
-
   // Filter data based on interval using real timestamps
   const chartData = React.useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -65,6 +61,10 @@ export function AnalyticsCharts({
     }
     return filtered;
   }, [data, interval]);
+
+  if (!mounted) {
+    return <div className="h-[400px] w-full flex items-center justify-center bg-slate-900/20 rounded-2xl border border-slate-800/50 animate-pulse text-slate-500 font-medium italic">Initializing Charts...</div>;
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
