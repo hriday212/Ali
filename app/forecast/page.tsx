@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, Calendar, TrendingUp, TrendingDown, Eye, Heart, MessageCircle, 
   Share2, ArrowUpRight, ArrowDownRight, Minus, Loader2, ChevronDown, ChevronUp,
-  Youtube, Music2, Instagram, X
+  Youtube, Music2, Instagram, X, Globe
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -93,6 +93,7 @@ function KpiCard({ label, value, prevValue, icon: Icon, color, delay }: {
 // ── Main Forecast Page ──
 export default function ForecastPage() {
   const [activeRange, setActiveRange] = useState<RangeKey>('7d');
+  const [activeGlobalPlatform, setActiveGlobalPlatform] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [allScans, setAllScans] = useState<any[]>([]);
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
@@ -142,7 +143,11 @@ export default function ForecastPage() {
     const timelineMap: number[] = Array(totalDays).fill(0);
     const baselineStart = prevStart.getTime();
 
-    for (const scan of allScans) {
+    const filteredScans = activeGlobalPlatform !== 'all' 
+      ? allScans.filter((s: any) => s.platform === activeGlobalPlatform)
+      : allScans;
+
+    for (const scan of filteredScans) {
       const history = scan.history || [];
       
       let baselineViews = 0;
@@ -294,33 +299,85 @@ export default function ForecastPage() {
           <p className="text-slate-400 text-sm mt-2">Cross-platform performance intelligence with period comparison.</p>
         </div>
 
-        {/* DateRange Controller */}
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5">
-            {RANGE_OPTIONS.map((opt) => (
+        {/* Controllers */}
+        <div className="flex flex-col items-end gap-3 flex-wrap">
+          <div className="flex items-center gap-3 w-full justify-end">
+            
+            {/* Global Platform Filter */}
+            <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5 overflow-x-auto hide-scrollbar">
               <button
-                key={opt.key}
-                onClick={() => { setActiveRange(opt.key); setShowCustomPicker(false); }}
-                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  activeRange === opt.key
+                onClick={() => setActiveGlobalPlatform('all')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                  activeGlobalPlatform === 'all'
                     ? 'bg-white text-black shadow-lg shadow-white/10'
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                {opt.label}
+                <Globe className="w-3 h-3" />
+                ALL
               </button>
-            ))}
-            <button
-              onClick={() => { setActiveRange('custom'); setShowCustomPicker(true); }}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
-                activeRange === 'custom'
-                  ? 'bg-white text-black shadow-lg shadow-white/10'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Calendar className="w-3 h-3" />
-              Custom
-            </button>
+              <button
+                onClick={() => setActiveGlobalPlatform('youtube')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                  activeGlobalPlatform === 'youtube'
+                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Youtube className="w-3 h-3" />
+                YT
+              </button>
+              <button
+                onClick={() => setActiveGlobalPlatform('tiktok')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                  activeGlobalPlatform === 'tiktok'
+                    ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Music2 className="w-3 h-3" />
+                TT
+              </button>
+              <button
+                onClick={() => setActiveGlobalPlatform('instagram')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                  activeGlobalPlatform === 'instagram'
+                    ? 'bg-pink-500 text-white shadow-lg shadow-pink-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Instagram className="w-3 h-3" />
+                IG
+              </button>
+            </div>
+
+            {/* DateRange Controller */}
+            <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5 overflow-x-auto hide-scrollbar">
+              {RANGE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => { setActiveRange(opt.key); setShowCustomPicker(false); }}
+                  className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    activeRange === opt.key
+                      ? 'bg-white text-black shadow-lg shadow-white/10'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <button
+                onClick={() => { setActiveRange('custom'); setShowCustomPicker(true); }}
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                  activeRange === 'custom'
+                    ? 'bg-white text-black shadow-lg shadow-white/10'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Calendar className="w-3 h-3" />
+                Custom
+              </button>
+            </div>
           </div>
 
           {/* Custom Date Picker */}
