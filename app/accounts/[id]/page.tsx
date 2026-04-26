@@ -501,6 +501,21 @@ export default function AccountForensicPage() {
     );
   }
 
+  const handleManualSync = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isScraping) return;
+    setIsScraping(true);
+    try {
+      // @ts-ignore
+      const url = typeof API_ROUTES.SYNC_ACCOUNT === 'function' ? API_ROUTES.SYNC_ACCOUNT(account.id) : '';
+      await fetch(url, { method: 'POST' });
+    } catch (err) {
+      console.error('Manual sync failed', err);
+    } finally {
+      setTimeout(() => setIsScraping(false), 2000);
+    }
+  };
+
   if (!account) {
     return (
       <div className="h-screen bg-slate-950 text-white flex items-center justify-center">
@@ -545,10 +560,24 @@ export default function AccountForensicPage() {
           <div className="flex items-center gap-2 md:gap-3 relative flex-wrap lg:flex-nowrap w-full xl:w-auto">
             {/* Auto-Scan Controls */}
             {autoScanActive && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
-                <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-[0_0_8px_white]" />
-                <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Next: {formatCountdown(nextScanIn)}</span>
-                <span className="text-[7px] font-black uppercase text-white/20">({intervalMinutes}m)</span>
+              <div className="flex items-center gap-4 px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-[0_0_8px_white]" />
+                  <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Next: {formatCountdown(nextScanIn)}</span>
+                  <span className="text-[7px] font-black uppercase text-white/20">({intervalMinutes}m)</span>
+                </div>
+                
+                {/* Instant Sync Button */}
+                <motion.button
+                  whileHover={{ scale: 1.1, color: '#10b981' }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleManualSync}
+                  disabled={isScraping}
+                  className="p-1 hover:bg-white/5 rounded-lg transition-colors border border-white/5"
+                  title="Manual Sync (Does not affect timer)"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isScraping ? 'animate-spin text-emerald-400' : 'text-white/40'}`} />
+                </motion.button>
               </div>
             )}
             {autoScanActive ? (
@@ -567,7 +596,6 @@ export default function AccountForensicPage() {
                 {isScanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Scan className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />}
                 {isScanning ? 'Scanning...' : hasScanned ? 'Re-Scan' : 'Initialize Scan'}
               </button>
-
             )}
             {scanCount > 0 && (
               <span className="text-[7px] font-black uppercase tracking-widest text-slate-700 italic">Scan #{scanCount}</span>

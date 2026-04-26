@@ -122,14 +122,15 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
         </p>
       </div>
 
-      {/* Action Suite (Revealed on Hover) */}
+      {/* Action Suite (Optimized Visibility) */}
       <div className="mt-8 flex items-center justify-center w-full gap-2 z-20">
         <motion.button 
           whileHover={{ scale: 1.1, backgroundColor: 'rgba(52, 211, 153, 0.15)' }}
           whileTap={{ scale: 0.9 }}
           onClick={handleManualSync}
           disabled={isSyncing}
-          className={`p-3 bg-white/5 ${isSyncing ? 'text-emerald-500' : 'text-slate-500 hover:text-emerald-400'} rounded-2xl transition-all opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 shadow-xl`}
+          className={`p-3 bg-white/5 ${isSyncing ? 'text-emerald-500 opacity-100' : 'text-slate-500 hover:text-emerald-400 opacity-30 group-hover:opacity-100'} rounded-2xl transition-all duration-300 shadow-xl`}
+          title="Instant Sync"
         >
           <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
         </motion.button>
@@ -141,7 +142,7 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
             e.stopPropagation();
             onDelete(account.id);
           }}
-          className="p-3 bg-white/5 text-slate-500 hover:text-pink-400 rounded-2xl transition-all opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 shadow-xl"
+          className="p-3 bg-white/5 text-slate-500 hover:text-pink-400 rounded-2xl transition-all opacity-30 group-hover:opacity-100 duration-300 shadow-xl"
         >
           <Trash2 className="w-5 h-5" />
         </motion.button>
@@ -149,7 +150,7 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
         <motion.div 
           onClick={() => router.push(`/accounts/${account.id}`)}
           whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
-          className="p-3 bg-white/10 text-white rounded-2xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 shadow-2xl"
+          className="p-3 bg-white/10 text-white rounded-2xl opacity-30 group-hover:opacity-100 duration-300 shadow-2xl"
         >
           <ChevronRight className="w-5 h-5" />
         </motion.div>
