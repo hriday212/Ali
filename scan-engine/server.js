@@ -58,6 +58,39 @@ function readUsageHistory() {
   }
 }
 
+// --- YouTube Quota Tracker ---
+const YT_USAGE_FILE = path.join(DATA_DIR, 'youtube-usage.json');
+
+function trackYoutubeQuota(points) {
+    try {
+        ensureDataDir();
+        const today = new Date().toISOString().split('T')[0];
+        let usage = { date: today, used: 0 };
+        if (fs.existsSync(YT_USAGE_FILE)) {
+            usage = JSON.parse(fs.readFileSync(YT_USAGE_FILE, 'utf-8'));
+            if (usage.date !== today) {
+                usage = { date: today, used: 0 }; // Reset for new day
+            }
+        }
+        usage.used += points;
+        fs.writeFileSync(YT_USAGE_FILE, JSON.stringify(usage, null, 2));
+    } catch(e) {
+        console.error('[YouTube Scanner] Log Error:', e.message);
+    }
+}
+
+function getYoutubeQuota() {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        if (fs.existsSync(YT_USAGE_FILE)) {
+            const usage = JSON.parse(fs.readFileSync(YT_USAGE_FILE, 'utf-8'));
+            if (usage.date === today) return usage.used;
+        }
+    } catch(e) {}
+    return 0;
+}
+// -----------------------------
+
 function logUsage(tokenLabel, platform, costUsd, status = 'success', error = null) {
   try {
     const history = readUsageHistory();
@@ -178,6 +211,7 @@ async function getChannelIdFromUrl(url) {
     if (channelIdMatch) return channelIdMatch[1];
     const handleMatch = url.match(/@([a-zA-Z0-9._-]+)/);
     if (handleMatch) {
+        trackYoutubeQuota(1);
         const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${handleMatch[1]}&key=${getYouTubeKey()}`);
         const data = await res.json();
         if (data.items?.[0]) return data.items[0].id;
@@ -186,6 +220,7 @@ async function getChannelIdFromUrl(url) {
 }
 
 async function getChannelVideos(channelId, maxResults = 50) {
+    trackYoutubeQuota(1);
     const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${getYouTubeKey()}`);
     const channelData = await channelRes.json();
     if (!channelData.items?.[0]) return [];
@@ -200,6 +235,7 @@ async function getChannelVideos(channelId, maxResults = 50) {
         const url = `https://api.apify.com/v2/acts/streamers~youtube-scraper/run-sync-get-dataset-items?token=${getApifyToken()}`; // wait, why apify?
         // Ah, the existing code was using direct fetch to google!
         const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${pageSize}&pageToken=${nextPageToken}&key=${getYouTubeKey()}`;
+        trackYoutubeQuota(1);
         const playlistRes = await fetch(playlistUrl);
         const playlistData = await playlistRes.json();
         
@@ -214,6 +250,7 @@ async function getChannelVideos(channelId, maxResults = 50) {
     const videos = [];
     for (let i = 0; i < allVideoIds.length; i += 50) {
         const chunk = allVideoIds.slice(i, i + 50);
+        trackYoutubeQuota(1);
         const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${chunk.join(',')}&key=${getYouTubeKey()}`);
         const vData = await vRes.json();
         if (vData.items) videos.push(...vData.items);
@@ -767,6 +804,11 @@ app.get('/api/apify-usage', async (req, res) => {
       totalUsedUsd: +totalUsed.toFixed(2),
       totalLimitUsd: +totalLimit.toFixed(2),
       totalPct: totalLimit > 0 ? +((totalUsed / totalLimit) * 100).toFixed(1) : 0,
+      youtube: {
+        quotaUsed: getYoutubeQuota(),
+        quotaLimit: 10000 * Math.max(1, ALL_YOUTUBE_KEYS.length),
+        activeTokenCount: ALL_YOUTUBE_KEYS.length
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

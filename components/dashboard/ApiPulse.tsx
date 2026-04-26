@@ -21,6 +21,11 @@ interface UsageData {
   totalUsedUsd: number;
   totalLimitUsd: number;
   totalPct: number;
+  youtube?: {
+    quotaUsed: number;
+    quotaLimit: number;
+    activeTokenCount: number;
+  };
 }
 
 export function ApiPulse() {
@@ -144,13 +149,39 @@ export function ApiPulse() {
           ))}
 
           {/* YouTube Status */}
-          <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/5">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">YouTube v3 API</span>
-            <span className="flex items-center gap-1 text-emerald-400">
-              <CheckCircle2 className="w-2.5 h-2.5" />
-              <span className="text-[7px] font-black uppercase tracking-widest">Free Tier • Unlimited</span>
-            </span>
-          </div>
+          {data.youtube ? (
+            <div className="flex items-center gap-3 p-3 bg-white/[0.02] rounded-lg border border-white/5 mt-4">
+              <div className="w-16 shrink-0">
+                <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 text-center">YOUTUBE</p>
+                <p className="text-[7px] font-black uppercase tracking-widest text-emerald-400 text-center mt-0.5">{data.youtube.activeTokenCount} KEYS</p>
+              </div>
+              <div className="flex-1">
+                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((data.youtube.quotaUsed / data.youtube.quotaLimit) * 100, 100)}%` }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className={`h-full rounded-full ${getBarColor((data.youtube.quotaUsed / data.youtube.quotaLimit) * 100, 'active')}`}
+                  />
+                </div>
+              </div>
+              <div className="w-20 text-right shrink-0">
+                <span className="text-[9px] font-black italic text-white">{data.youtube.quotaUsed.toLocaleString()}</span>
+                <span className="text-[9px] text-slate-600"> / {data.youtube.quotaLimit.toLocaleString()}</span>
+              </div>
+              <div className="w-12 shrink-0 text-right flex justify-end">
+                {getStatusBadge('active')}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-white/[0.02] rounded-lg border border-white/5 mt-4">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">YouTube v3 API</span>
+              <span className="flex items-center gap-1 text-emerald-400">
+                <CheckCircle2 className="w-2.5 h-2.5" />
+                <span className="text-[7px] font-black uppercase tracking-widest">Free Tier • Unlimited</span>
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
