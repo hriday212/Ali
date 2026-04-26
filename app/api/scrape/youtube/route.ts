@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         if (!channelId) {
             return NextResponse.json({ message: 'Could not find YouTube channel ID for this URL.' }, { status: 404 });
         }
-        items = await getChannelVideos(channelId, Math.min(limit, 50));
+        items = await getChannelVideos(channelId, Math.min(limit, 200));
     }
 
     if (!items || items.length === 0) {

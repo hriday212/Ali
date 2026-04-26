@@ -27,8 +27,8 @@ async function runApifyActorSync(actorId: string, input: Record<string, unknown>
 export async function runYouTubeScraper(url: string) {
     const input = {
         "startUrls": [{ "url": url }],
-        "maxResults": 100,
-        "maxShorts": 100,
+        "maxResults": 200,
+        "maxShorts": 200,
         "downloadShorts": true,
         "maxComments": 0
     };
@@ -38,7 +38,7 @@ export async function runYouTubeScraper(url: string) {
 export async function runInstagramScraper(url: string) {
     const input = {
         "directUrls": [url],
-        "resultsLimit": 100,
+        "resultsLimit": 200,
         "resultsType": "posts"
     };
     return await runApifyActorSync("apify/instagram-scraper", input);
@@ -47,7 +47,7 @@ export async function runInstagramScraper(url: string) {
 export async function runTikTokScraper(url: string) {
     const input = {
         "profiles": [url],
-        "resultsPerPage": 30
+        "resultsPerPage": 200
     };
     return await runApifyActorSync("GdWCkxBtKWOsKjdchBvGIgVaZLIUUY", input);
 }

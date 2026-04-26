@@ -185,18 +185,41 @@ async function getChannelIdFromUrl(url) {
     return null;
 }
 
-async function getChannelVideos(channelId, maxResults = 10) {
+async function getChannelVideos(channelId, maxResults = 50) {
     const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${getYouTubeKey()}`);
     const channelData = await channelRes.json();
     if (!channelData.items?.[0]) return [];
+    
     const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
-    const playlistRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${maxResults}&key=${getYouTubeKey()}`);
-    const playlistData = await playlistRes.json();
-    if (!playlistData.items) return [];
-    const videoIds = playlistData.items.map(item => item.contentDetails.videoId);
-    const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${videoIds.join(',')}&key=${getYouTubeKey()}`);
-    const vData = await vRes.json();
-    return vData.items || [];
+    let allVideoIds = [];
+    let nextPageToken = '';
+    
+    // Google API caps at 50 per request, so we loop if we need more
+    while (allVideoIds.length < maxResults) {
+        const pageSize = Math.min(50, maxResults - allVideoIds.length);
+        const url = `https://api.apify.com/v2/acts/streamers~youtube-scraper/run-sync-get-dataset-items?token=${getApifyToken()}`; // wait, why apify?
+        // Ah, the existing code was using direct fetch to google!
+        const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${pageSize}&pageToken=${nextPageToken}&key=${getYouTubeKey()}`;
+        const playlistRes = await fetch(playlistUrl);
+        const playlistData = await playlistRes.json();
+        
+        if (!playlistData.items || playlistData.items.length === 0) break;
+        
+        playlistData.items.forEach(item => allVideoIds.push(item.contentDetails.videoId));
+        nextPageToken = playlistData.nextPageToken;
+        if (!nextPageToken) break;
+    }
+
+    // Now fetch full stats for those IDs (Videos API also caps at 50 IDs per request)
+    const videos = [];
+    for (let i = 0; i < allVideoIds.length; i += 50) {
+        const chunk = allVideoIds.slice(i, i + 50);
+        const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${chunk.join(',')}&key=${getYouTubeKey()}`);
+        const vData = await vRes.json();
+        if (vData.items) videos.push(...vData.items);
+    }
+    
+    return videos;
 }
 
 function parseDuration(duration) {
@@ -209,7 +232,7 @@ function parseDuration(duration) {
 async function scanYouTube(accountId, accountLink) {
   const channelId = await getChannelIdFromUrl(accountLink);
   if (!channelId) return null;
-  const items = await getChannelVideos(channelId, 25); // Balanced depth
+  const items = await getChannelVideos(channelId, 200); // High depth for retainer tracking
   return items.map(item => ({
     id: item.id,
     title: item.snippet.title,
@@ -232,7 +255,7 @@ async function scanTikTok(accountId, accountLink) {
   const profile = handleMatch ? handleMatch[1] : cleanLink.replace(/https?:\/\/(www\.)?tiktok\.com\/@/, '').replace(/\//g, '');
   const items = await runApifyActor('clockworks/tiktok-scraper', {
     profiles: [`https://www.tiktok.com/@${profile}`],
-    resultsPerPage: 10, // Balanced: Good depth without high costs
+    resultsPerPage: 200, // Tracking deep history for retainers
   });
   return (items || []).map((item, idx) => {
     if (idx === 0) console.log(`[TikTok Debug] Item fields:`, Object.keys(item));
@@ -257,7 +280,7 @@ async function scanTikTok(accountId, accountLink) {
 async function scanInstagram(accountId, accountLink) {
   const items = await runApifyActor('apify/instagram-scraper', {
     directUrls: [accountLink],
-    resultsLimit: 20, // Balanced depth
+    resultsLimit: 200, // Tracking deep history for retainers
     resultsType: 'posts',
   });
   return (items || []).map(item => {
@@ -285,7 +308,7 @@ async function scanHashtag(tag, platform = 'instagram') {
   if (platform === 'instagram') {
     const items = await runApifyActor('apify/instagram-hashtag-scraper', {
       hashtags: [cleanTag],
-      resultsLimit: 20
+      resultsLimit: 200
     });
     return (items || []).map(item => ({
       id: item.id || item.shortCode,
@@ -301,7 +324,7 @@ async function scanHashtag(tag, platform = 'instagram') {
   } else if (platform === 'tiktok') {
     const items = await runApifyActor('clockworks/tiktok-scraper', {
       hashtags: [cleanTag],
-      resultsPerPage: 20
+      resultsPerPage: 200
     });
     return (items || []).map(item => ({
       id: item.id,
@@ -563,7 +586,7 @@ app.get('/api/scans', (req, res) => {
       lastComments: lastHistory.totalComments || 0,
       lastShares: lastHistory.totalShares || 0,
       history: diskData.history || [],
-      posts: (diskData.posts || []).slice(0, 20),
+      posts: (diskData.posts || []).slice(0, 200),
       platform: v.platform || diskData.platform || 'youtube',
     });
   });
