@@ -400,7 +400,7 @@ export default function ForecastPage() {
 
         <div className="h-[300px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
           <div className="w-full min-w-[700px] h-full px-2 lg:px-0">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <AreaChart data={hourlyPattern} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
@@ -486,7 +486,7 @@ export default function ForecastPage() {
               </div>
             ) : (
               <div className="min-w-[600px] h-full px-2 lg:px-0">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height="100%">
                   <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                     <defs>
                       <linearGradient id="splitGradient" x1="0" y1="0" x2="1" y2="0">
@@ -538,7 +538,7 @@ export default function ForecastPage() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">No platform data</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="99%" height="100%">
                 <PieChart>
                   <Pie
                     data={platformDist}
@@ -589,6 +589,7 @@ export default function ForecastPage() {
               </button>
             ))}
           </div>
+        </div>
       </div>
 
       {/* Platform Drill-Down Panel */}
