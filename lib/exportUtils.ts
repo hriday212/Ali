@@ -17,20 +17,40 @@ export async function generatePDFReport(config: ExportConfig, onProgress?: (msg:
     const element = document.getElementById('forecast-report');
     if (!element) throw new Error('Report container not found');
 
-    // Prepare styles for capture
+    // Prepare styles for capture based on theme
     const originalStyle = element.style.cssText;
-    element.style.background = '#020617';
+    const isLight = config.theme === 'light';
+    const bgColor = isLight ? '#ffffff' : '#020617';
+    const textColor = isLight ? '#0f172a' : '#ffffff';
+    
+    element.style.background = bgColor;
+    element.style.color = textColor;
     element.style.padding = '40px';
 
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
-      backgroundColor: '#020617',
+      backgroundColor: bgColor,
       logging: false,
       onclone: (clonedDoc) => {
         const clonedEl = clonedDoc.getElementById('forecast-report');
         if (clonedEl) {
+          if (isLight) {
+            // Force light mode styles for all cards and text in the clone
+            clonedEl.querySelectorAll('.glass-card').forEach((card: any) => {
+              card.style.background = '#f8fafc';
+              card.style.borderColor = '#e2e8f0';
+              card.style.color = '#0f172a';
+              card.style.boxShadow = 'none';
+            });
+            clonedEl.querySelectorAll('p, h1, h2, h3, span, div').forEach((text: any) => {
+              const el = text as HTMLElement;
+              if (!el.classList.contains('bg-white')) { // Keep some accents
+                 el.style.color = '#0f172a';
+              }
+            });
+          }
           // Hide elements based on config
           if (!config.includeKPIs) {
             const kpi = clonedEl.querySelector('[data-export-id="kpi-cards"]');

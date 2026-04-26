@@ -140,17 +140,30 @@ export default function AccountsPage() {
   };
 
   const handleBulkImport = async () => {
-    const urls = bulkList.split('\n').map(u => u.trim()).filter(u => u !== '');
+    const urls = bulkList.split('\n')
+      .map(u => u.trim())
+      .filter(u => u !== '');
+    
     if (urls.length === 0) return;
 
+    // Deduplicate against already added account links
+    const existingLinks = new Set(accounts.map(a => a.link.toLowerCase()));
+    const uniqueUrls = urls.filter(u => !existingLinks.has(u.toLowerCase()));
+
+    if (uniqueUrls.length === 0) {
+      setBulkStatus({ current: 0, total: 0, msg: 'All accounts in list are already connected.' });
+      setTimeout(() => setBulkStatus(null), 3000);
+      return;
+    }
+
     setIsAdding(true);
-    setBulkStatus({ current: 0, total: urls.length, msg: 'Initializing bulk sync...' });
+    setBulkStatus({ current: 0, total: uniqueUrls.length, msg: 'Initializing batch...' });
     
     const newAccounts: Account[] = [];
     
-    for (let i = 0; i < urls.length; i++) {
-       const url = urls[i];
-       setBulkStatus({ current: i + 1, total: urls.length, msg: `Resolving ${url}...` });
+    for (let i = 0; i < uniqueUrls.length; i++) {
+       const url = uniqueUrls[i];
+       setBulkStatus({ current: i + 1, total: uniqueUrls.length, msg: `Resolving ${url}...` });
        
        try {
          const res = await fetch('/api/accounts/resolve', {
