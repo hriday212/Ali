@@ -364,6 +364,109 @@ const activeScans = new Map();
 let globalDefaultInterval = 360; // Back to 6h for Testing Phase
 let smartEngineEnabled = true; // Enabled to allow viral acceleration override
 
+async function executeScan(accountId, accountLink, platform, isManual = false) {
+  const scan = activeScans.get(accountId);
+  if (!scan) return;
+  console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId} (${platform})...`);
+  try {
+    let posts = [];
+    if (platform === 'youtube') posts = await scanYouTube(accountId, accountLink);
+    else if (platform === 'tiktok') posts = await scanTikTok(accountId, accountLink);
+    else if (platform === 'instagram') posts = await scanInstagram(accountId, accountLink);
+
+    if (!posts || posts.length === 0) {
+      console.log(`[ScanEngine] No posts returned for ${accountId}`);
+      scan.lastError = "No posts returned - possible rate limit or empty profile.";
+      scan.lastErrorTime = new Date().toISOString();
+      return;
+    }
+
+    // Success - clear errors
+    scan.lastError = null;
+    scan.lastErrorTime = null;
+
+    const data = readScanData(accountId);
+    data.posts = posts;
+    data.platform = platform;
+
+    const { peakTotalViews, peakTotalLikes, peakTotalComments, peakTotalShares } = applyHighWaterMark(data, posts);
+
+    data.history = [...(data.history || []), {
+      time: new Date().toISOString(),
+      totalViews: peakTotalViews,
+      totalLikes: peakTotalLikes,
+      totalComments: peakTotalComments,
+      totalShares: peakTotalShares,
+    }].slice(-50);
+
+    if (!data.videoHistory) data.videoHistory = {};
+    posts.forEach(p => {
+      if (!data.videoHistory[p.id]) data.videoHistory[p.id] = [];
+      data.videoHistory[p.id] = [...data.videoHistory[p.id], {
+        time: new Date().toISOString(),
+        views: p.views,
+      }].slice(-50);
+    });
+
+    writeScanData(accountId, data);
+    scan.scanCount++;
+    scan.lastScanTime = new Date().toISOString();
+
+    // --- Smart Engine: Relative Pulse Algorithm (Phase 7) ---
+    // Default fallback interval
+    let nextInterval = scan.intervalMinutes || globalDefaultInterval;
+    
+    if (smartEngineEnabled && data.history && data.history.length > 1) {
+      const latest = data.history[data.history.length - 1].totalViews;
+      const previous = data.history[data.history.length - 2].totalViews;
+      const delta = Math.max(0, latest - previous);
+      
+      const timeOld = new Date(data.history[data.history.length - 2].time).getTime();
+      const timeNew = new Date(data.history[data.history.length - 1].time).getTime();
+      const hoursElapsed = Math.max(0.1, (timeNew - timeOld) / (1000 * 60 * 60));
+      const currentHourlyGain = delta / hoursElapsed;
+      
+      const firstRecord = data.history[0];
+      const totalHours = Math.max(1, (timeNew - new Date(firstRecord.time).getTime()) / (1000 * 60 * 60));
+      const avgHourlyGain = Math.max(1, (latest - firstRecord.totalViews) / totalHours);
+      
+      const multiplier = currentHourlyGain / avgHourlyGain;
+      
+      // Testing Phase: 6 Hour resting baseline (was 3 days)
+      const baseInterval = 360; 
+      
+      if (multiplier > 5 || delta > 50000) {
+        nextInterval = 180; // 3 Hours (Ultra Viral)
+        console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 3h.`);
+      } else if (multiplier > 2 || delta > 10000) {
+        nextInterval = 720; // 12 Hours (Viral Traction)
+        console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 12h.`);
+      } else {
+        nextInterval = baseInterval; // 6 Hours Resting Stage
+        console.log(`[SmartEngine] 💤 Node ${accountId} resting (M=${multiplier.toFixed(1)}x). Setting to ${nextInterval / 60}h.`);
+      }
+    }
+    
+    scan.currentInterval = nextInterval;
+    
+    // Only reschedule if this isn't a manual "instant refresh"
+    if (!isManual) {
+      scheduleNextScan(scan, nextInterval);
+    }
+
+    saveAllState();
+    console.log(`[ScanEngine] ✓ ${accountId}: ${posts.length} posts, ${peakTotalViews.toLocaleString()} total views`);
+  } catch (e) {
+    console.error(`[ScanEngine] Error scanning ${accountId}:`, e.message);
+    const scan = activeScans.get(accountId);
+    if(scan) {
+      scan.lastError = e.message;
+      scan.lastErrorTime = new Date().toISOString();
+      scheduleNextScan(scan, scan.intervalMinutes);
+    }
+  }
+}
+
 function saveAllState() {
   ensureDataDir();
   const scansRoot = {};
