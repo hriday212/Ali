@@ -40,6 +40,27 @@ function formatNumber(n: number | string): string {
   return num.toLocaleString();
 }
 
+function getNodeDisplayName(nodeId: string, link: string): string {
+  if (nodeId && !nodeId.match(/^\d+$/)) return nodeId;
+  if (!link) return nodeId;
+  try {
+    const url = new URL(link);
+    if (url.hostname.includes('tiktok.com')) {
+      const parts = url.pathname.split('/').filter(Boolean);
+      const handle = parts.find(p => p.startsWith('@'));
+      if (handle) return handle.replace('@', '');
+    }
+    if (url.hostname.includes('youtube.com')) {
+      const parts = url.pathname.split('/').filter(Boolean);
+      if (parts[0] === '@') return parts[1];
+      if (parts[0]?.startsWith('@')) return parts[0].replace('@', '');
+    }
+    return nodeId;
+  } catch(e) {
+    return nodeId;
+  }
+}
+
 export default function GlobalVideosPage() {
   const [posts, setPosts] = useState<PostData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,6 +205,7 @@ export default function GlobalVideosPage() {
                 const likesNum = typeof post.likes === 'string' ? parseInt(post.likes) : post.likes;
                 const commentsNum = typeof post.comments === 'string' ? parseInt(post.comments) : post.comments;
                 const engRate = viewsNum > 0 ? (((likesNum + commentsNum) / viewsNum) * 100).toFixed(1) : '0';
+                const displayNodeName = getNodeDisplayName(post.nodeId || '', post.link);
 
                 return (
                   <motion.div
@@ -234,10 +256,10 @@ export default function GlobalVideosPage() {
                         {/* Text Overlay on Image */}
                         <div className="absolute bottom-2 left-2 right-2 z-10">
                           <h3 className="text-[10px] font-black uppercase italic tracking-tighter text-white leading-tight line-clamp-2 drop-shadow-md mb-1 group-hover/card:text-emerald-400 transition-colors">
-                            {post.title || 'UNTITLED ASSET'}
+                            {post.title && post.title !== 'UNTITLED ASSET' ? post.title : 'Syncing Intelligence...'}
                           </h3>
                           <span className="text-[7px] font-black text-emerald-400/80 uppercase tracking-widest inline-flex items-center gap-1 bg-emerald-500/10 px-1 py-0.5 rounded backdrop-blur border border-emerald-500/20">
-                            {post.nodeId}
+                            {displayNodeName}
                           </span>
                         </div>
                       </div>
@@ -285,3 +307,4 @@ export default function GlobalVideosPage() {
     </div>
   );
 }
+
