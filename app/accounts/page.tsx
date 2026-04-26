@@ -7,13 +7,16 @@ import {
   RefreshCw,
   Search,
   Loader2,
-  Plus
+  Plus,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AccountCard from '@/components/dashboard/AccountCard';
 import { getAccounts, saveAccounts, type Account } from '@/lib/accountsStore';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
+import { generatePDFReport } from '@/lib/exportUtils';
+import { ExportModal } from '@/components/dashboard/ExportModal';
 
 function formatNumber(n: number | string): string {
   const num = typeof n === 'string' ? parseInt(n) : n;
@@ -30,6 +33,7 @@ export default function AccountsPage() {
   const [newUrl, setNewUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Load accounts from localStorage on mount AND sync with backend
   useEffect(() => {
@@ -140,7 +144,7 @@ export default function AccountsPage() {
   return (
     <div className="space-y-8 pb-24 pt-24">
       {/* 1. Connection Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6" data-export-id="kpi-cards">
         {/* Card 1: API HUD */}
         <div className="glass-card p-5 relative overflow-hidden group">
           <div className="flex items-start justify-between">
@@ -225,6 +229,12 @@ export default function AccountsPage() {
               />
             </div>
             <button 
+              onClick={() => setIsExportModalOpen(true)}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full transition-all flex items-center gap-2"
+            >
+              <FileDown className="w-3.5 h-3.5" /> Export
+            </button>
+            <button 
               onClick={() => setIsAddModalOpen(true)}
               className="px-8 py-3 bg-white hover:bg-slate-200 text-black text-[10px] font-black uppercase tracking-[0.2em] rounded-full transition-all active:scale-95 shadow-xl shadow-white/5 whitespace-nowrap"
             >
@@ -234,7 +244,7 @@ export default function AccountsPage() {
         </div>
 
         {/* The Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 relative z-10" data-export-id="node-table">
           <AnimatePresence mode="popLayout">
             {filteredAccounts.length > 0 ? (
               filteredAccounts.map((account) => (
@@ -339,6 +349,15 @@ export default function AccountsPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <ExportModal 
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        currentPlatform="ALL"
+        onExport={async (config) => {
+          await generatePDFReport({ ...config, title: 'Network Infrastructure Report' });
+        }}
+      />
     </div>
   );
 }

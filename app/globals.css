@@ -85,3 +85,42 @@
 .recharts-default-tooltip {
   @apply !bg-slate-900 !border-slate-800 !rounded-xl !shadow-2xl !backdrop-blur-md !p-3 !text-slate-200 !text-sm;
 }
+
+/* Print Engine Global Overrides */
+@media print {
+  /* Hide UI Tooling & Modals */
+  .fixed, nav, button, [role="navigation"] { display: none !important; }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  main, .pb-24, .pt-24 {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .glass-card {
+    background: transparent !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  
+  .text-white { color: black !important; }
+  .text-slate-300 { color: #334155 !important; }
+  .text-slate-400 { color: #475569 !important; }
+  .text-slate-500 { color: #64748b !important; }
+  
+  /* Checklist Toggle Visibility */
+  body.print-exclude-kpis [data-export-id="kpi-cards"] { display: none !important; }
+  body.print-exclude-charts [data-export-id="hourly-chart"],
+  body.print-exclude-charts [data-export-id="comparison-charts"] { display: none !important; }
+  body.print-exclude-nodes [data-export-id="node-table"] { display: none !important; }
+
+  /* Magic Color Inversion for Light Print Mode on Recharts */
+  body.print-theme-light .glass-card {
+    filter: invert(1) hue-rotate(180deg);
+  }
+}
