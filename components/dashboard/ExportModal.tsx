@@ -45,7 +45,7 @@ export function ExportModal({ isOpen, onClose, onExport, currentPlatform }: Expo
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
         {/* Backdrop */}
         <motion.div 
           initial={{ opacity: 0 }}
@@ -60,10 +60,10 @@ export function ExportModal({ isOpen, onClose, onExport, currentPlatform }: Expo
           initial={{ y: 20, scale: 0.95, opacity: 0 }}
           animate={{ y: 0, scale: 1, opacity: 1 }}
           exit={{ y: 10, scale: 0.95, opacity: 0 }}
-          className="relative w-full max-w-lg glass-card border border-white/10 shadow-2xl overflow-hidden pointer-events-auto"
+          className="relative w-full max-w-lg max-h-[85vh] flex flex-col glass-card border border-white/10 shadow-2xl overflow-hidden pointer-events-auto"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex-none flex items-center justify-between p-6 border-b border-white/5 bg-white/[0.02]">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
                 <FileDown className="w-5 h-5 text-blue-400" />
@@ -80,7 +80,7 @@ export function ExportModal({ isOpen, onClose, onExport, currentPlatform }: Expo
             )}
           </div>
 
-          <div className="p-6 space-y-8">
+          <div className="flex-1 p-6 space-y-8 overflow-y-auto hide-scrollbar">
             {/* Report Title */}
             <div className="space-y-2">
               <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
@@ -152,7 +152,7 @@ export function ExportModal({ isOpen, onClose, onExport, currentPlatform }: Expo
             </p>
           </div>
 
-          <div className="p-6 border-t border-white/5 flex flex-col gap-3 relative">
+          <div className="flex-none p-6 border-t border-white/5 flex flex-col gap-3 relative">
             {isGenerating ? (
               <div className="w-full flex flex-col items-center justify-center gap-3 py-3">
                 <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />

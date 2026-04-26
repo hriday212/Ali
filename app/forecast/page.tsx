@@ -17,12 +17,13 @@ import { ExportModal } from '@/components/dashboard/ExportModal';
 import { generatePDFReport } from '@/lib/exportUtils';
 
 // ── DateRange Presets ──
-type RangeKey = 'today' | '7d' | '14d' | '30d' | 'custom';
+type RangeKey = 'today' | '7d' | '14d' | '30d' | 'all' | 'custom';
 const RANGE_OPTIONS: { key: RangeKey; label: string; days: number }[] = [
   { key: 'today', label: 'Today', days: 1 },
   { key: '7d', label: '7D', days: 7 },
   { key: '14d', label: '14D', days: 14 },
   { key: '30d', label: '30D', days: 30 },
+  { key: 'all', label: 'ALL', days: 3650 }, // 10 years approximation for 'All Time'
 ];
 
 function getDateRange(rangeKey: RangeKey, days: number): { start: Date; end: Date } {
@@ -178,21 +179,41 @@ export default function ForecastPage() {
       // Calculate KPIs for Current Period
       const currentH = filterHistoryByRange(history, currentStart, currentEnd);
       if (currentH.length > 0) {
+        // If it's a new video within this period, assume starting value is 0. If it existed before, get the first available scan.
+        const startH = history.find((h: any) => new Date(h.time).getTime() >= currentStart.getTime());
+        const first = startH || currentH[0];
         const latest = currentH[currentH.length - 1];
-        cViews += latest.totalViews || 0;
-        cLikes += latest.totalLikes || 0;
-        cComments += latest.totalComments || 0;
-        cShares += latest.totalShares || 0;
+        
+        // If the very first scan of the entire video is within this timeframe, we consider its entire absolute value as a 'gain'.
+        const isNewVideo = history[0] === first;
+        const baselineViews = isNewVideo ? 0 : (first.totalViews || 0);
+        const baselineLikes = isNewVideo ? 0 : (first.totalLikes || 0);
+        const baselineComments = isNewVideo ? 0 : (first.totalComments || 0);
+        const baselineShares = isNewVideo ? 0 : (first.totalShares || 0);
+
+        cViews += Math.max(0, (latest.totalViews || 0) - baselineViews);
+        cLikes += Math.max(0, (latest.totalLikes || 0) - baselineLikes);
+        cComments += Math.max(0, (latest.totalComments || 0) - baselineComments);
+        cShares += Math.max(0, (latest.totalShares || 0) - baselineShares);
       }
 
       // Calculate KPIs for Previous Period
       const prevH = filterHistoryByRange(history, prevStart, prevEnd);
       if (prevH.length > 0) {
+        const startH = history.find((h: any) => new Date(h.time).getTime() >= prevStart.getTime());
+        const first = startH || prevH[0];
         const latest = prevH[prevH.length - 1];
-        pViews += latest.totalViews || 0;
-        pLikes += latest.totalLikes || 0;
-        pComments += latest.totalComments || 0;
-        pShares += latest.totalShares || 0;
+        
+        const isNewVideo = history[0] === first;
+        const baselineViews = isNewVideo ? 0 : (first.totalViews || 0);
+        const baselineLikes = isNewVideo ? 0 : (first.totalLikes || 0);
+        const baselineComments = isNewVideo ? 0 : (first.totalComments || 0);
+        const baselineShares = isNewVideo ? 0 : (first.totalShares || 0);
+
+        pViews += Math.max(0, (latest.totalViews || 0) - baselineViews);
+        pLikes += Math.max(0, (latest.totalLikes || 0) - baselineLikes);
+        pComments += Math.max(0, (latest.totalComments || 0) - baselineComments);
+        pShares += Math.max(0, (latest.totalShares || 0) - baselineShares);
       }
 
       // Platform distribution
