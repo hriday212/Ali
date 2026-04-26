@@ -36,6 +36,19 @@ const PlatformIcon = ({ platform }: { platform: string }) => {
 export default function AccountCard({ account, onDelete }: AccountCardProps) {
   const router = useRouter();
 
+  const displayName = React.useMemo(() => {
+    if (account.name && account.name !== 'New Account' && !account.name.includes('?')) return account.name;
+    if (!account.link) return account.name;
+    try {
+      const url = new URL(account.link);
+      let slug = url.pathname.split('/').filter(Boolean).pop() || '';
+      slug = slug.replace('@', '');
+      return slug || account.name;
+    } catch(e) {
+      return account.name;
+    }
+  }, [account.name, account.link]);
+
   return (
     <motion.div
       layout
@@ -67,7 +80,7 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
            {account.avatarUrl ? (
              <img 
                src={account.avatarUrl} 
-               alt={account.name} 
+               alt={displayName} 
                className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500"
              />
            ) : (
@@ -83,7 +96,7 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
 
       <div className="space-y-1 z-10">
         <h3 className="font-black text-white text-lg tracking-tight italic group-hover:text-white transition-colors uppercase">
-          {account.name}
+          {displayName}
         </h3>
         <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-slate-300 transition-colors">
           {account.followers} <span className="text-[10px] text-slate-600 italic">Network Reach</span>
