@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, Calendar, TrendingUp, TrendingDown, Eye, Heart, MessageCircle, 
   Share2, ArrowUpRight, ArrowDownRight, Minus, Loader2, ChevronDown, ChevronUp,
-  Youtube, Music2, Instagram, X, Globe
+  Youtube, Music2, Instagram, X, Globe, FileDown
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -13,6 +13,8 @@ import {
 } from 'recharts';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
+import { ExportModal } from '@/components/dashboard/ExportModal';
+import { generatePDFReport } from '@/lib/exportUtils';
 
 // ── DateRange Presets ──
 type RangeKey = 'today' | '7d' | '14d' | '30d' | 'custom';
@@ -95,6 +97,7 @@ export default function ForecastPage() {
   const [activeRange, setActiveRange] = useState<RangeKey>('7d');
   const [activeGlobalPlatform, setActiveGlobalPlatform] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [allScans, setAllScans] = useState<any[]>([]);
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
   const [customStart, setCustomStart] = useState<string>('');
@@ -268,7 +271,7 @@ export default function ForecastPage() {
       timeSeries: mergedTimeSeries,
       hourlyPattern,
     };
-  }, [allScans, activeRange, customStart, customEnd, rangeDays]);
+  }, [allScans, activeRange, customStart, customEnd, rangeDays, activeGlobalPlatform]);
 
   const PLATFORM_COLORS: Record<string, string> = {
     Youtube: '#FF0000',
@@ -293,7 +296,7 @@ export default function ForecastPage() {
         <div>
           <div className="flex items-center gap-2 text-blue-400 mb-3">
             <BarChart3 className="w-5 h-5" />
-            <span className="text-[10px] font-black uppercase tracking-[0.4em]">Predictive Analytics</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em]">Forecast Trends</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-black italic text-white tracking-tighter uppercase">Forecast</h1>
           <p className="text-slate-400 text-sm mt-2">Cross-platform performance intelligence with period comparison.</p>
@@ -302,6 +305,15 @@ export default function ForecastPage() {
         {/* Controllers */}
         <div className="flex flex-col items-end gap-3 flex-wrap">
           <div className="flex items-center gap-3 w-full justify-end">
+            
+            {/* Export Trigger */}
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="p-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-all shadow-[0_0_15px_rgba(59,130,246,0.15)] group relative"
+              title="Export Report"
+            >
+              <FileDown className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
+            </button>
             
             {/* Global Platform Filter */}
             <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5 overflow-x-auto hide-scrollbar">
@@ -417,15 +429,15 @@ export default function ForecastPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-export-id="kpi-cards">
         <KpiCard label="Total Views" value={currentKPIs.views} prevValue={prevKPIs.views} icon={Eye} color="text-blue-400" delay={0.1} />
-        <KpiCard label="Interaction Index" value={currentKPIs.likes} prevValue={prevKPIs.likes} icon={Heart} color="text-pink-400" delay={0.15} />
-        <KpiCard label="Conversation Yield" value={currentKPIs.comments} prevValue={prevKPIs.comments} icon={MessageCircle} color="text-amber-400" delay={0.2} />
-        <KpiCard label="Network Shares" value={currentKPIs.shares} prevValue={prevKPIs.shares} icon={Share2} color="text-emerald-400" delay={0.25} />
+        <KpiCard label="Total Likes" value={currentKPIs.likes} prevValue={prevKPIs.likes} icon={Heart} color="text-pink-400" delay={0.15} />
+        <KpiCard label="Total Comments" value={currentKPIs.comments} prevValue={prevKPIs.comments} icon={MessageCircle} color="text-amber-400" delay={0.2} />
+        <KpiCard label="Total Shares" value={currentKPIs.shares} prevValue={prevKPIs.shares} icon={Share2} color="text-emerald-400" delay={0.25} />
       </div>
 
       {/* Hourly Activity Pattern (New Premium Chart) */}
-      <div className="glass-card p-8 border border-white/10 overflow-hidden relative">
+      <div className="glass-card p-8 border border-white/10 overflow-hidden relative" data-export-id="hourly-chart">
         <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
           <TrendingUp className="w-48 h-48 text-blue-500" />
         </div>
@@ -436,9 +448,9 @@ export default function ForecastPage() {
               <TrendingUp className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <h3 className="text-xl font-black italic uppercase text-white tracking-widest leading-none">Hourly Activity Pattern</h3>
+              <h3 className="text-xl font-black italic uppercase text-white tracking-widest leading-none">Activity by Hour</h3>
               <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-1.5 flex items-center gap-1.5">
-                Scan Velocity Intensity • Grouped by Hour of Day
+                View Volume • Grouped by Hour of Day
               </p>
             </div>
           </div>
@@ -515,7 +527,7 @@ export default function ForecastPage() {
       </div>
         
       {/* Bottom Grid: Bar Chart + Pie Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-export-id="comparison-charts">
         
         {/* Comparative Bar Chart */}
         <div className="lg:col-span-2 glass-card p-8 border border-white/10">
@@ -655,7 +667,7 @@ export default function ForecastPage() {
             key={activePlatform}
             className="overflow-hidden"
           >
-            <div className="glass-card p-8 border border-white/10" style={{ borderColor: (PLATFORM_COLORS[(activePlatform as string).charAt(0).toUpperCase() + (activePlatform as string).slice(1)] || '#64748b') + '30' }}>
+            <div data-export-id="node-table" className="glass-card p-8 border border-white/10" style={{ borderColor: (PLATFORM_COLORS[(activePlatform as string).charAt(0).toUpperCase() + (activePlatform as string).slice(1)] || '#64748b') + '30' }}>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   {activePlatform === 'youtube' && <Youtube className="w-5 h-5 text-red-500" />}
@@ -665,7 +677,7 @@ export default function ForecastPage() {
                     <h3 className="text-xl font-black italic uppercase text-white tracking-widest">
                       {(activePlatform as string).charAt(0).toUpperCase() + (activePlatform as string).slice(1)} Intelligence
                     </h3>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">Per-Node Breakdown</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">Per-Account Breakdown</p>
                   </div>
                 </div>
                 <button
@@ -749,6 +761,13 @@ export default function ForecastPage() {
             </div>
           </div>
         )}
+        
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={generatePDFReport}
+        currentPlatform={activeGlobalPlatform}
+      />
     </div>
   );
 }

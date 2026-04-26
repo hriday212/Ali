@@ -40,7 +40,7 @@ export function EcosystemGravity() {
        <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 italic">Ecosystem Gravity</h3>
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 italic">Total Audience</h3>
             <div title="Visualizes Cross-Platform Attrition. Calculated from aggregate view velocity distributed by index platform.">
                <Info className="w-3.5 h-3.5 text-emerald-400 cursor-help" />
             </div>
@@ -95,7 +95,7 @@ export function AudienceForensics() {
        <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 italic">Audience Forensics</h3>
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 italic">Audience Stats</h3>
             <div title="Geographic estimation based on viewer language metadata, active timezone indexing, and content tags.">
                <Info className="w-3.5 h-3.5 text-emerald-400 cursor-help" />
             </div>

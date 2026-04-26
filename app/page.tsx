@@ -216,7 +216,7 @@ export default function Home() {
             </h2>
             
             <p className="text-slate-400 text-sm md:text-base font-bold uppercase tracking-[0.2em] max-w-2xl opacity-80 mt-6 leading-relaxed mx-auto">
-              Log in to access the Neural Dashboard, monitor LinkMe nodes, and visualize network liquidity across all platforms in real-time.
+              Log in to access the Overview, monitor accounts, and visualize network statistics across all platforms in real-time.
             </p>
           </motion.div>
         </div>
@@ -259,21 +259,21 @@ export default function Home() {
              variant="silver"
            />
            <StatsCard 
-             title="Interaction Index" 
+             title="Total Likes" 
              value={liveStats.totalLikes} 
              growth={growthStats.likesGrowth} 
              icon={Heart} 
              variant="silver"
            />
            <StatsCard 
-             title="Conversation Yield" 
+             title="Total Comments"
              value={liveStats.totalComments} 
              growth={growthStats.commentsGrowth} 
              icon={MessageCircle} 
              variant="silver"
            />
            <StatsCard 
-             title="Network Shares" 
+             title="Total Shares" 
              value={liveStats.totalShares} 
              growth={0} 
              icon={TrendingUp} 
