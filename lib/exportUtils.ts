@@ -1,3 +1,6 @@
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+
 export interface ExportConfig {
   includeKPIs: boolean;
   includeCharts: boolean;
@@ -7,32 +10,65 @@ export interface ExportConfig {
   platform?: string;
 }
 
-/**
- * A robust native utility to snapshot React DOM elements natively using the browser's high-res PDF engine.
- */
 export async function generatePDFReport(config: ExportConfig, onProgress?: (msg: string) => void) {
   try {
-    if (onProgress) onProgress('Routing to Print Engine...');
+    if (onProgress) onProgress('Capturing High-Res Snapshot...');
 
-    // Toggle global CSS classes based on user preferences
-    if (!config.includeKPIs) document.body.classList.add('print-exclude-kpis');
-    if (!config.includeCharts) document.body.classList.add('print-exclude-charts');
-    if (!config.includeNodes) document.body.classList.add('print-exclude-nodes');
-    if (config.theme === 'light') document.body.classList.add('print-theme-light');
+    const element = document.getElementById('forecast-report');
+    if (!element) throw new Error('Report container not found');
 
-    // Slight delay to ensure DOM repaints the exclusions before capturing
-    await new Promise(r => setTimeout(r, 300));
+    // Prepare styles for capture
+    const originalStyle = element.style.cssText;
+    element.style.background = '#020617';
+    element.style.padding = '40px';
 
-    window.print();
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#020617',
+      logging: false,
+      onclone: (clonedDoc) => {
+        const clonedEl = clonedDoc.getElementById('forecast-report');
+        if (clonedEl) {
+          // Hide elements based on config
+          if (!config.includeKPIs) {
+            const kpi = clonedEl.querySelector('[data-export-id="kpi-cards"]');
+            if (kpi) (kpi as HTMLElement).style.display = 'none';
+          }
+          if (!config.includeCharts) {
+            const charts = clonedEl.querySelector('[data-export-id="comparison-charts"]');
+            const hChart = clonedEl.querySelector('[data-export-id="hourly-chart"]');
+            if (charts) (charts as HTMLElement).style.display = 'none';
+            if (hChart) (hChart as HTMLElement).style.display = 'none';
+          }
+          if (!config.includeNodes) {
+            const nodes = clonedEl.querySelector('[data-export-id="node-table"]');
+            if (nodes) (nodes as HTMLElement).style.display = 'none';
+          }
+        }
+      }
+    });
 
-    // Cleanup exclusions to restore dashboard to standard state
-    document.body.classList.remove('print-exclude-kpis');
-    document.body.classList.remove('print-exclude-charts');
-    document.body.classList.remove('print-exclude-nodes');
-    document.body.classList.remove('print-theme-light');
+    if (onProgress) onProgress('Generating Document...');
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'px',
+      format: [canvas.width / 2, canvas.height / 2]
+    });
+
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+    pdf.save(`Clypso_Intelligence_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+
+    // Restore original styles
+    element.style.cssText = originalStyle;
+    
+    if (onProgress) onProgress('Export Complete');
     
   } catch (error) {
-    console.error('PDF Native Routing Failed:', error);
+    console.error('PDF Snap Routing Failed:', error);
     throw error;
   }
 }

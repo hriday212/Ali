@@ -311,7 +311,7 @@ export default function ForecastPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-24">
+    <div id="forecast-report" className="max-w-7xl mx-auto space-y-8 pb-24">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>

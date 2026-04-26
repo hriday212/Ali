@@ -21,7 +21,8 @@ import {
   Loader2,
   AlertCircle,
   Scan,
-  Download
+  Download,
+  Zap
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -39,7 +40,9 @@ import {
   ComposedChart,
   Line,
   ReferenceLine,
-  Brush
+  ReferenceDot,
+  Brush,
+  Label
 } from 'recharts';
 import {
   HookDecayChart,
@@ -142,6 +145,9 @@ export default function AccountForensicPage() {
 
   // Chart Timeframe State
   const [timeframe, setTimeframe] = React.useState('ALL');
+  const [isAdmin, setIsAdmin] = React.useState(true); // Mock admin session for dev
+  const [isSettling, setIsSettling] = React.useState(false);
+  const [settleAmount, setSettleAmount] = React.useState('50');
 
 
   // Load account from persistent store
@@ -344,7 +350,41 @@ export default function AccountForensicPage() {
     }
   };
 
-  // --- Stop Auto-Scan (stops on SERVER) ---
+  // --- Settlement Engine ---
+
+  const handleSettle = async () => {
+    if (!account) return;
+    const currentViews = totalViews;
+    const amount = parseFloat(settleAmount) || 0;
+    
+    const newSettlement = {
+      date: new Date().toISOString(),
+      viewLevel: currentViews,
+      amount: amount
+    };
+
+    const updatedAccount = {
+      ...account,
+      settlements: [...(account.settlements || []), newSettlement]
+    };
+
+    setAccount(updatedAccount);
+    const allAccs = getAccountById(account.id); // Get current state
+    const accounts = JSON.parse(localStorage.getItem('command_center_accounts_v1') || '[]');
+    const finalAccs = accounts.map((a: any) => a.id === account.id ? updatedAccount : a);
+    localStorage.setItem('command_center_accounts_v1', JSON.stringify(finalAccs));
+    
+    setIsSettling(false);
+  };   
+
+  const lastSettlement = account?.settlements && account.settlements.length > 0 
+    ? account.settlements[account.settlements.length - 1] 
+    : null;
+
+  const unpaidViews = lastSettlement 
+    ? Math.max(0, totalViews - lastSettlement.viewLevel) 
+    : totalViews;
+
   const handleStopAutoScan = async () => {
     if (!account) return;
     setAutoScanActive(false);
@@ -605,6 +645,25 @@ export default function AccountForensicPage() {
                       <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" fontSize={8} tickLine={false} axisLine={false} tickFormatter={(val) => val.toLocaleString()} tick={{ fontWeight: 'black' }} />
                       <Area yAxisId="left" type="monotone" dataKey="views" stroke="#ffffff" strokeWidth={2.5} fill="url(#vG)" />
                       <Area yAxisId="right" type="monotone" dataKey="shares" stroke="#f59e0b" strokeWidth={2} fill="url(#sG)" />
+                      
+                      {isAdmin && account?.settlements?.map((s, idx) => {
+                         // Find closest point in chartData to place the dot
+                         const dotTime = new Date(s.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                         return (
+                           <ReferenceDot 
+                            key={`settle-${idx}`}
+                            yAxisId="left"
+                            x={dotTime} 
+                            y={s.viewLevel} 
+                            r={6} 
+                            fill="#22c55e" 
+                            stroke="#fff" 
+                            strokeWidth={2}
+                           >
+                             <Label value={`$${s.amount} Paid`} position="top" fill="#22c55e" fontSize={10} fontWeight="900" />
+                           </ReferenceDot>
+                         );
+                      })}
                     </AreaChart>
                   </ResponsiveContainer>
                   </div>
@@ -648,10 +707,57 @@ export default function AccountForensicPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[400px]">
               <div className="glass-card p-8 flex flex-col border-white/10 overflow-hidden">
                 <div className="flex items-center justify-between mb-8 flex-shrink-0">
-                  <div className="flex items-center gap-4"><DollarSign className="w-5 h-5" /><h2 className="text-[10px] font-black tracking-[0.2em] uppercase italic">Payout Ledger</h2></div>
-                  <span className="text-[7px] font-black text-slate-700 uppercase italic">{payouts.length} Records</span>
+                  <div className="flex items-center gap-4">
+                    <DollarSign className="w-5 h-5 text-emerald-400" />
+                    <h2 className="text-[10px] font-black tracking-[0.2em] uppercase italic">Payout Ledger</h2>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {isAdmin && (
+                      <button 
+                        onClick={() => setIsSettling(true)}
+                        className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase rounded-full hover:bg-emerald-500/20 transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                      >
+                        Add Settlement
+                      </button>
+                    )}
+                    <span className="text-[7px] font-black text-slate-700 uppercase italic">{payouts.length + (account?.settlements?.length || 0)} Records</span>
+                  </div>
                 </div>
+
+                {isAdmin && (
+                  <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-6 mb-6">
+                    <div className="flex justify-between items-center mb-4">
+                       <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Unpaid View Liability</span>
+                       <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-md">Growth Audit</span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                       <span className="text-3xl font-black italic text-white tracking-tighter">{formatNumber(unpaidViews)}</span>
+                       <span className="text-[10px] font-bold text-slate-600 uppercase">New Views</span>
+                    </div>
+                    {lastSettlement && (
+                      <p className="text-[8px] font-bold text-slate-700 uppercase mt-2 italic">Since last payout on {new Date(lastSettlement.date).toLocaleDateString()}</p>
+                    )}
+                  </div>
+                )}
                 <div className="flex-1 space-y-3 overflow-y-auto custom-scrollbar pr-3">
+                  {/* Settlement Timeline Markers */}
+                  {isAdmin && account?.settlements?.map((s, idx) => (
+                     <div key={`settle-row-${idx}`} className="flex items-center justify-between p-5 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl group hover:border-emerald-500/20 transition-all">
+                        <div className="flex items-center gap-5">
+                           <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center">
+                              <Zap className="w-5 h-5 text-emerald-400" />
+                           </div>
+                           <div>
+                              <p className="text-[10px] font-black uppercase italic text-emerald-400 leading-none">Settlement Verified</p>
+                              <p className="text-[7px] font-black text-slate-700 uppercase tracking-widest mt-1 italic">
+                                Settle @ {formatNumber(s.viewLevel)} Views · {new Date(s.date).toLocaleDateString()}
+                              </p>
+                           </div>
+                        </div>
+                        <p className="text-xl font-black italic tracking-tighter text-white">${s.amount}</p>
+                     </div>
+                  ))}
+
                   {payouts.length > 0 ? payouts.map((payout) => (
                     <div key={payout.id} className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-white/20 transition-all">
                       <div className="flex items-center gap-5 min-w-0">

@@ -116,7 +116,7 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
       </div>
 
       <div className="mt-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.4em] group-hover:opacity-0 transition-opacity z-10 italic">
-        Node Static
+        Connection Idle
       </div>
 
       {/* Gloss Overlay */}

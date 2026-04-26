@@ -202,7 +202,42 @@ export default function SettingsPage() {
           <ApiPulse />
         </div>
 
+        {/* Infrastructure Management (Phase 19 Placeholder) */}
+        <div className="md:col-span-2 glass-card p-8 border border-white/5 bg-white/[0.01]">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                <Database className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black italic uppercase text-white tracking-widest">Client Infrastructure</h2>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Manage Client Portals & Node Permissions</p>
+              </div>
+            </div>
+            <div className="px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-full">
+              <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400">Phase 19 Beta</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 opacity-40 grayscale pointer-events-none">
+             <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center text-center">
+                <Globe className="w-8 h-8 mb-4 text-slate-600" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white mb-2">Create Client</h3>
+                <p className="text-[8px] font-bold text-slate-500 uppercase">Invite non-admin users to views</p>
+             </div>
+             <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center text-center">
+                <KeySquare className="w-8 h-8 mb-4 text-slate-600" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white mb-2">Node Access</h3>
+                <p className="text-[8px] font-bold text-slate-500 uppercase">Map specific nodes to clients</p>
+             </div>
+             <div className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex flex-col items-center text-center">
+                <Shield className="w-8 h-8 mb-4 text-slate-600" />
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white mb-2">Role Auditor</h3>
+                <p className="text-[8px] font-bold text-slate-500 uppercase">Verify visibility restrictions</p>
+          </div>
+        </div>
       </div>
+    </div>
 
       {/* ═══════════ COMPREHENSIVE WARNINGS & TOKEN GUIDE ═══════════ */}
       <div className="glass-card border border-red-500/20 bg-gradient-to-br from-red-900/5 to-transparent overflow-hidden">

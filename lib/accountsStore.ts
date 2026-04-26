@@ -12,6 +12,11 @@ export interface Account {
   avatarUrl?: string;
   channelId?: string; // YouTube channel ID for API calls
   addedAt: string;
+  settlements?: {
+    date: string;
+    viewLevel: number;
+    amount: number;
+  }[];
 }
 
 const STORAGE_KEY = 'command_center_accounts_v1';

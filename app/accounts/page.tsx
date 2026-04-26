@@ -34,6 +34,9 @@ export default function AccountsPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkList, setBulkList] = useState('');
+  const [bulkStatus, setBulkStatus] = useState<{current: number, total: number, msg: string} | null>(null);
 
   // Load accounts from localStorage on mount AND sync with backend
   useEffect(() => {
@@ -136,6 +139,55 @@ export default function AccountsPage() {
     }
   };
 
+  const handleBulkImport = async () => {
+    const urls = bulkList.split('\n').map(u => u.trim()).filter(u => u !== '');
+    if (urls.length === 0) return;
+
+    setIsAdding(true);
+    setBulkStatus({ current: 0, total: urls.length, msg: 'Initializing bulk sync...' });
+    
+    const newAccounts: Account[] = [];
+    
+    for (let i = 0; i < urls.length; i++) {
+       const url = urls[i];
+       setBulkStatus({ current: i + 1, total: urls.length, msg: `Resolving ${url}...` });
+       
+       try {
+         const res = await fetch('/api/accounts/resolve', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ url }),
+         });
+
+         if (res.ok) {
+           const data = await res.json();
+           newAccounts.push({
+             id: (Date.now() + i).toString(),
+             name: data.name || url.split('/').pop()?.replace('@', '') || 'New Account',
+             platform: data.platform || 'youtube',
+             link: url,
+             followers: data.followers || '0',
+             status: 'connected',
+             hasNew: false,
+             avatarUrl: data.avatarUrl || '',
+             channelId: data.channelId || '',
+             addedAt: new Date().toISOString(),
+           });
+         }
+       } catch (err) {
+         console.error(`Skip failing record ${url}:`, err);
+       }
+    }
+
+    const updated = [...newAccounts, ...accounts];
+    setAccounts(updated);
+    saveAccounts(updated);
+    setBulkList('');
+    setIsBulkModalOpen(false);
+    setBulkStatus(null);
+    setIsAdding(false);
+  };
+
   const filteredAccounts = accounts.filter(a =>
     a.name.toLowerCase().includes(search.toLowerCase()) ||
     a.platform.toLowerCase().includes(search.toLowerCase())
@@ -218,6 +270,12 @@ export default function AccountsPage() {
           </div>
 
           <div className="flex items-center gap-4 w-full sm:w-auto">
+            <button 
+              onClick={() => setIsBulkModalOpen(true)}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full transition-all flex items-center gap-2"
+            >
+              <Zap className="w-3.5 h-3.5 text-yellow-400" /> Bulk Add
+            </button>
             <div className="relative flex-1 sm:w-64 group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-hover:text-white transition-colors" />
               <input 
@@ -345,6 +403,81 @@ export default function AccountsPage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Import Modal */}
+      <AnimatePresence>
+        {isBulkModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/90 backdrop-blur-md"
+              onClick={() => !isAdding && setIsBulkModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.9 }}
+              className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute -top-10 -right-10 w-48 h-48 bg-indigo-500/10 blur-[80px] rounded-full" />
+
+              <h2 className="text-3xl font-black text-white italic tracking-tight uppercase mb-2">Bulk Onboarding</h2>
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-8">Paste multiple URLs (one per line) to process all 27+ nodes</p>
+
+              <div className="space-y-6">
+                <textarea
+                  placeholder="https://youtube.com/@channel1&#10;https://tiktok.com/@user2&#10;..."
+                  className="w-full h-64 bg-slate-950 border border-slate-800 focus:border-white/30 rounded-2xl py-4 px-6 text-white placeholder:text-slate-800 outline-none transition-all font-bold resize-none font-mono text-sm"
+                  value={bulkList}
+                  onChange={(e) => setBulkList(e.target.value)}
+                  disabled={isAdding}
+                />
+
+                {bulkStatus && (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                    <div className="flex justify-between items-center mb-2">
+                       <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Processing Node {bulkStatus.current} of {bulkStatus.total}</p>
+                       <p className="text-[10px] font-black text-indigo-400">{Math.round((bulkStatus.current / bulkStatus.total) * 100)}%</p>
+                    </div>
+                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                       <motion.div 
+                        className="h-full bg-white shadow-[0_0_10px_white]"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(bulkStatus.current / bulkStatus.total) * 100}%` }}
+                       />
+                    </div>
+                    <p className="mt-3 text-[9px] font-bold text-slate-500 uppercase tracking-tighter truncate italic">{bulkStatus.msg}</p>
+                  </div>
+                )}
+
+                <div className="pt-6 flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkModalOpen(false)}
+                    className="flex-1 px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-2xl transition-all uppercase text-xs tracking-widest"
+                    disabled={isAdding}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkImport}
+                    disabled={isAdding || !bulkList}
+                    className="flex-[2] px-8 py-4 bg-white hover:bg-slate-200 text-black font-black rounded-2xl shadow-lg shadow-white/10 transition-all uppercase text-xs tracking-[0.2em] disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    {isAdding ? (
+                       <><Loader2 className="w-4 h-4 animate-spin" /> Batch Processing...</>
+                    ) : (
+                      'Trigger Bulk Launch'
+                    )}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
