@@ -221,10 +221,15 @@ async function getChannelIdFromUrl(url) {
 
 async function getChannelVideos(channelId, maxResults = 50) {
     trackYoutubeQuota(1);
-    const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${getYouTubeKey()}`);
+    const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&id=${channelId}&key=${getYouTubeKey()}`);
     const channelData = await channelRes.json();
-    if (!channelData.items?.[0]) return [];
+    if (!channelData.items?.[0]) return { videos: [], profile: null };
     
+    const profile = {
+        name: channelData.items[0].snippet.title,
+        avatarUrl: channelData.items[0].snippet.thumbnails?.high?.url || channelData.items[0].snippet.thumbnails?.default?.url
+    };
+
     const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
     let allVideoIds = [];
     let nextPageToken = '';
@@ -256,7 +261,7 @@ async function getChannelVideos(channelId, maxResults = 50) {
         if (vData.items) videos.push(...vData.items);
     }
     
-    return videos;
+    return { videos, profile };
 }
 
 function parseDuration(duration) {
@@ -269,8 +274,8 @@ function parseDuration(duration) {
 async function scanYouTube(accountId, accountLink) {
   const channelId = await getChannelIdFromUrl(accountLink);
   if (!channelId) return null;
-  const items = await getChannelVideos(channelId, 200); // High depth for retainer tracking
-  return items.map(item => ({
+  const { videos, profile } = await getChannelVideos(channelId, 200); 
+  const posts = videos.map(item => ({
     id: item.id,
     title: item.snippet.title,
     thumbnail: item.snippet.thumbnails?.high?.url || '',
@@ -283,6 +288,8 @@ async function scanYouTube(accountId, accountLink) {
     type: parseDuration(item.contentDetails?.duration || '') < 65 ? 'short' : 'video',
     platform: 'youtube',
   })).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  return { posts, profile };
 }
 
 async function scanTikTok(accountId, accountLink) {
@@ -294,7 +301,14 @@ async function scanTikTok(accountId, accountLink) {
     profiles: [`https://www.tiktok.com/@${profile}`],
     resultsPerPage: 200, // Tracking deep history for retainers
   });
-  return (items || []).map((item, idx) => {
+
+  const first = items?.[0];
+  const profileMetadata = first ? {
+    name: first.authorMeta?.nickname || first.authorMeta?.name || profile,
+    avatarUrl: first.authorMeta?.avatar || ''
+  } : null;
+
+  const posts = (items || []).map((item, idx) => {
     if (idx === 0) console.log(`[TikTok Debug] Item fields:`, Object.keys(item));
     // Broaden cover detection for various scraper versions
     const rawThumb = item.covers?.default || item.cover || item.videoCover || item.originCover || item.coverUrl || item.videoMeta?.coverUrl || item.dynamicCover || item.videoCoverUrl || '';
@@ -312,6 +326,8 @@ async function scanTikTok(accountId, accountLink) {
       platform: 'tiktok',
     };
   });
+
+  return { posts, profile: profileMetadata };
 }
 
 async function scanInstagram(accountId, accountLink) {
@@ -320,7 +336,14 @@ async function scanInstagram(accountId, accountLink) {
     resultsLimit: 200, // Tracking deep history for retainers
     resultsType: 'posts',
   });
-  return (items || []).map(item => {
+
+  const first = items?.[0];
+  const profileMetadata = first ? {
+    name: first.ownerUsername || first.ownerFullName || accountLink.split('/').filter(Boolean).pop(),
+    avatarUrl: first.ownerProfilePicUrl || ''
+  } : null;
+
+  const posts = (items || []).map(item => {
     // Broaden cover detection for various scraper versions
     const rawThumb = item.displayUrl || item.imageUrl || item.thumbnailUrl || item.displayResource || (item.displayResources?.length ? item.displayResources[0].src : '');
     return {
@@ -338,6 +361,8 @@ async function scanInstagram(accountId, accountLink) {
       platform: 'instagram',
     };
   });
+
+  return { posts, profile: profileMetadata };
 }
 
 async function scanHashtag(tag, platform = 'instagram') {
@@ -406,10 +431,13 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
   if (!scan) return;
   console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId} (${platform})...`);
   try {
-    let posts = [];
-    if (platform === 'youtube') posts = await scanYouTube(accountId, accountLink);
-    else if (platform === 'tiktok') posts = await scanTikTok(accountId, accountLink);
-    else if (platform === 'instagram') posts = await scanInstagram(accountId, accountLink);
+    let result = { posts: [] };
+    if (platform === 'youtube') result = await scanYouTube(accountId, accountLink);
+    else if (platform === 'tiktok') result = await scanTikTok(accountId, accountLink);
+    else if (platform === 'instagram') result = await scanInstagram(accountId, accountLink);
+
+    const posts = result?.posts || [];
+    const profile = result?.profile;
 
     if (!posts || posts.length === 0) {
       console.log(`[ScanEngine] No posts returned for ${accountId}`);
@@ -418,7 +446,11 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       return;
     }
 
-    // Success - clear errors
+    // Success - update metadata
+    if (profile) {
+      if (profile.name) scan.name = profile.name;
+      if (profile.avatarUrl) scan.avatarUrl = profile.avatarUrl;
+    }
     scan.lastError = null;
     scan.lastErrorTime = null;
 
