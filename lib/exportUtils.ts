@@ -57,25 +57,7 @@ export async function generatePDFReport(config: ExportConfig, onProgress?: (msg:
       element.style.setProperty('width', `${element.offsetWidth}px`, 'important');
       element.style.setProperty('overflow', 'visible', 'important');
 
-      // Create a wrapper if light mode is selected to use the invert trick
-      let captureTarget = element;
-      let wrapper: HTMLElement | null = null;
-      
-      if (config.theme === 'light') {
-        wrapper = document.createElement('div');
-        wrapper.style.backgroundColor = '#ffffff';
-        wrapper.style.position = 'absolute';
-        wrapper.style.left = '-9999px';
-        wrapper.style.top = '0';
-        wrapper.style.width = `${element.offsetWidth}px`;
-        
-        // The magic light-mode trick: Invert & Hue-Rotate!
-        const clone = element.cloneNode(true) as HTMLElement;
-        clone.style.filter = 'invert(1) hue-rotate(180deg)';
-        wrapper.appendChild(clone);
-        document.body.appendChild(wrapper);
-        captureTarget = wrapper;
-      }
+      const captureTarget = element;
 
       const canvas = await html2canvas(captureTarget, {
         scale: 2, // High-res
@@ -84,11 +66,32 @@ export async function generatePDFReport(config: ExportConfig, onProgress?: (msg:
         backgroundColor: config.theme === 'light' ? '#ffffff' : '#020617',
       });
 
-      // Cleanup
-      element.setAttribute('style', originalStyle);
-      if (wrapper && wrapper.parentNode) {
-        wrapper.parentNode.removeChild(wrapper);
+      // Pure Canvas pixel manipulation for Light Mode (Avoids DOM cloning freezes)
+      if (config.theme === 'light') {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Fill pure white background first if transparent
+          ctx.globalCompositeOperation = 'destination-over';
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.globalCompositeOperation = 'source-over';
+
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
+          
+          for (let i = 0; i < data.length; i += 4) {
+             // Invert colors to simulate light mode
+             data[i] = 255 - data[i];       // red
+             data[i+1] = 255 - data[i+1];   // green
+             data[i+2] = 255 - data[i+2];   // blue
+             // Keep alpha channel intact
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
       }
+
+      // Cleanup CSS fix
+      element.setAttribute('style', originalStyle);
 
       return {
         imgData: canvas.toDataURL('image/jpeg', 0.95),

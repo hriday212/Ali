@@ -201,7 +201,7 @@ export default function PayoutsPage() {
                   <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">Network Node</th>
                   <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">Gross Impressions</th>
                   <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">Last Payout Mark</th>
-                  <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Yield Var</th>
+
                   <th className="p-6 text-[10px] font-black uppercase tracking-widest text-indigo-400 text-right">Liability Due</th>
                   <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Action</th>
                 </tr>
@@ -224,39 +224,7 @@ export default function PayoutsPage() {
                       </td>
                       <td className="p-6 font-black text-slate-300">{node.totalViews.toLocaleString()}</td>
                       <td className="p-6 text-[11px] font-black tracking-widest text-slate-500">{node.lastPaidViews.toLocaleString()}</td>
-                      <td className="p-6 text-right">
-                        {node.status === 'pending' ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-slate-500 font-black italic">$</span>
-                            <input 
-                              type="number" 
-                              step="0.01"
-                              value={customRates[node.id] !== undefined ? customRates[node.id] : node.yieldRate} 
-                              onChange={(e) => {
-                                 const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                 if (val !== undefined) {
-                                  setCustomRates({...customRates, [node.id]: val});
-                                  // Recalculate amount dynamically
-                                  const cAmounts = {...customAmounts};
-                                  delete cAmounts[node.id];
-                                  setCustomAmounts(cAmounts);
-                                 } else {
-                                  // Clear
-                                  const cRates = {...customRates};
-                                  delete cRates[node.id];
-                                  setCustomRates(cRates);
-                                 }
-                              }}
-                              className="w-16 bg-white/5 border border-white/10 rounded px-2 py-1 text-[10px] font-black uppercase tracking-widest text-right focus:border-white/30 outline-none"
-                            />
-                            <span className="text-[8px] font-black text-slate-500 ml-1 uppercase">CPM</span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-white/5 rounded-md border border-white/5">
-                            ${node.yieldRate.toFixed(2)} CPM
-                          </span>
-                        )}
-                      </td>
+
                       <td className="p-6 text-right">
                         {node.amountDue > 0 ? (
                           <div className="flex flex-col items-end">
