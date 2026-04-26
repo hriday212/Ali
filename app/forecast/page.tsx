@@ -60,12 +60,7 @@ function KpiCard({ label, value, prevValue, icon: Icon, color, delay }: {
   };
 
   return (
-    <motion.div
-      initial={{ y: 20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ delay }}
-      className="glass-card p-6 border border-white/10 hover:border-white/20 transition-all relative overflow-hidden group"
-    >
+    <div className="glass-card p-6 border border-white/10 hover:border-white/20 transition-all relative overflow-hidden group">
       <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
         <Icon className={`w-20 h-20 ${color}`} />
       </div>
@@ -91,7 +86,7 @@ function KpiCard({ label, value, prevValue, icon: Icon, color, delay }: {
           {isFlat ? '0%' : `${isUp ? '+' : ''}${pctChange.toFixed(1)}%`}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -106,19 +101,19 @@ export default function ForecastPage() {
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
+    async function loadData(isInitial: boolean) {
+      if (isInitial) setLoading(true);
       try {
         const data = await safeFetchJson(API_ROUTES.SCANS);
         if (data?.scans) setAllScans(data.scans);
       } catch (e) {
         console.error('Failed to load forecast data:', e);
       } finally {
-        setLoading(false);
+        if (isInitial) setLoading(false);
       }
     }
-    loadData();
-    const interval = setInterval(loadData, 60000);
+    loadData(true);
+    const interval = setInterval(() => loadData(false), 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -373,12 +368,7 @@ export default function ForecastPage() {
       </div>
 
       {/* Hourly Activity Pattern (New Premium Chart) */}
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="glass-card p-8 border border-white/10 overflow-hidden relative"
-      >
+      <div className="glass-card p-8 border border-white/10 overflow-hidden relative">
         <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
           <TrendingUp className="w-48 h-48 text-blue-500" />
         </div>
@@ -449,7 +439,7 @@ export default function ForecastPage() {
                 strokeWidth={3}
                 fillOpacity={1} 
                 fill="url(#colorCurrent)" 
-                animationDuration={2000}
+                isAnimationActive={false}
               />
               <Area 
                 type="monotone" 
@@ -459,24 +449,19 @@ export default function ForecastPage() {
                 strokeDasharray="5 5"
                 fillOpacity={1} 
                 fill="url(#colorPrev)" 
-                animationDuration={2000}
+                isAnimationActive={false}
               />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </motion.div>
+      </div>
         
       {/* Bottom Grid: Bar Chart + Pie Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Comparative Bar Chart */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="lg:col-span-2 glass-card p-8 border border-white/10"
-        >
+        <div className="lg:col-span-2 glass-card p-8 border border-white/10">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-black italic uppercase text-white tracking-widest">Period Comparison</h3>
@@ -540,15 +525,10 @@ export default function ForecastPage() {
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
 
         {/* Cross-Platform Pie Chart */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="glass-card p-8 border border-white/10"
-        >
+        <div className="glass-card p-8 border border-white/10">
           <h3 className="text-lg font-black italic uppercase text-white tracking-widest mb-1">Platform Split</h3>
           <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-6">View Distribution by Platform</p>
 
@@ -609,18 +589,12 @@ export default function ForecastPage() {
               </button>
             ))}
           </div>
-        </motion.div>
       </div>
 
       {/* Platform Drill-Down Panel */}
-      <AnimatePresence>
         {activePlatform && (
-          <motion.div
+          <div
             key={activePlatform}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
             <div className="glass-card p-8 border border-white/10" style={{ borderColor: (PLATFORM_COLORS[(activePlatform as string).charAt(0).toUpperCase() + (activePlatform as string).slice(1)] || '#64748b') + '30' }}>
@@ -715,9 +689,8 @@ export default function ForecastPage() {
                 );
               })()}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
