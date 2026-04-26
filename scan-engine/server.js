@@ -361,117 +361,25 @@ function applyHighWaterMark(data, posts) {
 
 // --- Scan Engine State ---
 const activeScans = new Map();
-
-async function executeScan(accountId, accountLink, platform, isManual = false) {
-  const scan = activeScans.get(accountId);
-  if (!scan) return;
-  console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId} (${platform})...`);
-  try {
-    let posts = [];
-    if (platform === 'youtube') posts = await scanYouTube(accountId, accountLink);
-    else if (platform === 'tiktok') posts = await scanTikTok(accountId, accountLink);
-    else if (platform === 'instagram') posts = await scanInstagram(accountId, accountLink);
-
-    if (!posts || posts.length === 0) {
-      console.log(`[ScanEngine] No posts returned for ${accountId}`);
-      scan.lastError = "No posts returned - possible rate limit or empty profile.";
-      scan.lastErrorTime = new Date().toISOString();
-      return;
-    }
-
-    // Success - clear errors
-    scan.lastError = null;
-    scan.lastErrorTime = null;
-
-    const data = readScanData(accountId);
-    data.posts = posts;
-    data.platform = platform;
-
-    const { peakTotalViews, peakTotalLikes, peakTotalComments, peakTotalShares } = applyHighWaterMark(data, posts);
-
-    data.history = [...(data.history || []), {
-      time: new Date().toISOString(),
-      totalViews: peakTotalViews,
-      totalLikes: peakTotalLikes,
-      totalComments: peakTotalComments,
-      totalShares: peakTotalShares,
-    }].slice(-50);
-
-    if (!data.videoHistory) data.videoHistory = {};
-    posts.forEach(p => {
-      if (!data.videoHistory[p.id]) data.videoHistory[p.id] = [];
-      data.videoHistory[p.id] = [...data.videoHistory[p.id], {
-        time: new Date().toISOString(),
-        views: p.views,
-      }].slice(-50);
-    });
-
-    writeScanData(accountId, data);
-    scan.scanCount++;
-    scan.lastScanTime = new Date().toISOString();
-
-    // --- Smart Engine: Relative Pulse Algorithm (Phase 7) ---
-    // Default fallback interval
-    let nextInterval = scan.intervalMinutes || globalDefaultInterval;
-    
-    if (smartEngineEnabled && data.history && data.history.length > 1) {
-      const latest = data.history[data.history.length - 1].totalViews;
-      const previous = data.history[data.history.length - 2].totalViews;
-      const delta = Math.max(0, latest - previous);
-      
-      const timeOld = new Date(data.history[data.history.length - 2].time).getTime();
-      const timeNew = new Date(data.history[data.history.length - 1].time).getTime();
-      const hoursElapsed = Math.max(0.1, (timeNew - timeOld) / (1000 * 60 * 60));
-      const currentHourlyGain = delta / hoursElapsed;
-      
-      const firstRecord = data.history[0];
-      const totalHours = Math.max(1, (timeNew - new Date(firstRecord.time).getTime()) / (1000 * 60 * 60));
-      const avgHourlyGain = Math.max(1, (latest - firstRecord.totalViews) / totalHours);
-      
-      const multiplier = currentHourlyGain / avgHourlyGain;
-      
-      // Testing Phase: 6 Hour resting baseline (was 3 days)
-      const baseInterval = 360; 
-      
-      if (multiplier > 5 || delta > 50000) {
-        nextInterval = 180; // 3 Hours (Ultra Viral)
-        console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 3h.`);
-      } else if (multiplier > 2 || delta > 10000) {
-        nextInterval = 720; // 12 Hours (Viral Traction)
-        console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 12h.`);
-      } else {
-        nextInterval = baseInterval; // 6 Hours Resting Stage
-        console.log(`[SmartEngine] 💤 Node ${accountId} resting (M=${multiplier.toFixed(1)}x). Setting to ${nextInterval / 60}h.`);
-      }
-    }
-    
-    scan.currentInterval = nextInterval;
-    
-    // Only reschedule if this isn't a manual "instant refresh"
-    if (!isManual) {
-      scheduleNextScan(scan, nextInterval);
-    }
-
-    saveAllState();
-    console.log(`[ScanEngine] ✓ ${accountId}: ${posts.length} posts, ${peakTotalViews.toLocaleString()} total views`);
-  } catch (e) {
-    console.error(`[ScanEngine] Error scanning ${accountId}:`, e.message);
-    const scan = activeScans.get(accountId);
-    if(scan) {
-      scan.lastError = e.message;
-      scan.lastErrorTime = new Date().toISOString();
-      scheduleNextScan(scan, scan.intervalMinutes);
-    }
-  }
-}
+let globalDefaultInterval = 360; // Back to 6h for Testing Phase
+let smartEngineEnabled = true; // Enabled to allow viral acceleration override
 
 function saveAllState() {
   ensureDataDir();
-  const state = {};
+  const scansRoot = {};
   activeScans.forEach((v, k) => {
     const { timer, ...clean } = v;
-    state[k] = clean;
+    scansRoot[k] = clean;
   });
+  
+  const state = {
+    settings: {
+      globalDefaultInterval,
+      smartEngineEnabled
+    },
+    scans: scansRoot
+  };
+  
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
@@ -502,14 +410,27 @@ function startScanInternal(scan) {
 function restoreState() {
   try {
     if (fs.existsSync(STATE_FILE)) {
-      const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
-      for (const [id, scan] of Object.entries(state)) {
+      const raw = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+      
+      let scansToLoad = {};
+      
+      // Handle Migration from Legacy flat map to Nested object
+      if (raw.scans && raw.settings) {
+         scansToLoad = raw.scans;
+         globalDefaultInterval = raw.settings.globalDefaultInterval || globalDefaultInterval;
+         smartEngineEnabled = raw.settings.smartEngineEnabled !== undefined ? raw.settings.smartEngineEnabled : smartEngineEnabled;
+      } else {
+         // Legacy mode
+         scansToLoad = raw;
+      }
+
+      for (const [id, scan] of Object.entries(scansToLoad)) {
         // Enforce the current global default interval in case an old massive interval (e.g. 4320) was cached
         scan.intervalMinutes = Math.min(scan.intervalMinutes || globalDefaultInterval, globalDefaultInterval);
         startScanInternal(scan);
       }
-      console.log(`[ScanEngine] Restored ${Object.keys(state).length} active scans from disk.`);
-      return Object.keys(state).length;
+      console.log(`[ScanEngine] Restored ${Object.keys(scansToLoad).length} scans. Settings: [Interval: ${globalDefaultInterval}m, SmartEngine: ${smartEngineEnabled}]`);
+      return Object.keys(scansToLoad).length;
     }
   } catch (e) { console.error('Failed to restore state:', e); }
   return 0;
@@ -528,8 +449,6 @@ async function autoStartDefaults() {
 }
 
 // --- API Routes ---
-let globalDefaultInterval = 360; // Back to 6h for Testing Phase
-let smartEngineEnabled = true; // Enabled to allow viral acceleration override
 
 app.post('/api/start', async (req, res) => {
   const { accountId, accountLink, intervalMinutes, platform } = req.body;
@@ -540,7 +459,6 @@ app.post('/api/start', async (req, res) => {
   const scan = { accountId, accountLink, intervalMinutes: selectedInterval, platform: normPlatform, scanCount: 0, lastScanTime: null, nextScanAt: null, currentInterval: selectedInterval };
   startScanInternal(scan);
   
-  // FIXED: Save state IMMEDIATELY so interval isn't lost if the first scan fails
   saveAllState();
   
   await executeScan(accountId, accountLink, scan.platform);
@@ -597,6 +515,7 @@ app.get('/api/scans', (req, res) => {
 app.post('/api/settings/smart-engine', (req, res) => {
   const { enabled } = req.body;
   smartEngineEnabled = !!enabled;
+  saveAllState(); // Persist setting
   console.log(`[ScanEngine] ⚙️ SmartEngine auto-escalation ${smartEngineEnabled ? 'ENABLED' : 'DISABLED'} by Admin.`);
   res.json({ success: true, smartEngineEnabled });
 });
@@ -615,6 +534,51 @@ app.post('/api/settings/global-interval', (req, res) => {
   saveAllState();
   console.log(`[ScanEngine] ⚙️ Admin changed Global Cadence to ${globalDefaultInterval}m for all ${activeScans.size} nodes.`);
   res.json({ success: true, newInterval: globalDefaultInterval });
+});
+
+app.post('/api/settings/force-sync', async (req, res) => {
+  console.log(`[ScanEngine] ⚡ Admin initiated FORCE GLOBAL SYNC. Scraping ${activeScans.size} nodes immediately.`);
+  activeScans.forEach((scan, accountId) => {
+    executeScan(accountId, scan.accountLink, scan.platform, true); 
+  });
+  res.json({ success: true });
+});
+
+// NEW: Per-Account Sync
+app.post('/api/scans/:accountId/sync', async (req, res) => {
+  const { accountId } = req.params;
+  const scan = activeScans.get(accountId);
+  if (!scan) return res.status(404).json({ error: 'Node not found' });
+  
+  console.log(`[ScanEngine] ⚡ Admin initiated INDIVIDUAL SYNC for ${accountId}.`);
+  executeScan(accountId, scan.accountLink, scan.platform, true);
+  res.json({ success: true });
+});
+
+// NEW: Video Payment Settlement
+app.post('/api/scans/:accountId/videos/:videoId/toggle-payment', (req, res) => {
+  const { accountId, videoId } = req.params;
+  const { paid } = req.body;
+  
+  const data = readScanData(accountId);
+  if (!data.posts) return res.status(404).json({ error: 'No data for node' });
+  
+  const post = data.posts.find(p => p.id === videoId);
+  if (!post) {
+      // Check peakViews if not in current posts
+      if (data.peakViews && data.peakViews[videoId]) {
+          data.peakViews[videoId].paid = !!paid;
+      } else {
+          return res.status(404).json({ error: 'Video not found' });
+      }
+  } else {
+      post.paid = !!paid;
+      if (!data.peakViews) data.peakViews = {};
+      if (data.peakViews[videoId]) data.peakViews[videoId].paid = !!paid;
+  }
+  
+  writeScanData(accountId, data);
+  res.json({ success: true, paid: !!paid });
 });
 
 app.post('/api/settings/force-sync', async (req, res) => {

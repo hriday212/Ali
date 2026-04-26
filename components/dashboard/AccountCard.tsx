@@ -9,8 +9,11 @@ import {
   Music2,
   Trash2,
   ChevronRight,
-  User
+  User,
+  RefreshCw
 } from 'lucide-react';
+import { API_ROUTES } from '@/lib/apiConfig';
+import { safeFetchJson } from '@/lib/fetchUtils';
 
 interface AccountCardProps {
   account: {
@@ -35,6 +38,7 @@ const PlatformIcon = ({ platform }: { platform: string }) => {
 
 export default function AccountCard({ account, onDelete }: AccountCardProps) {
   const router = useRouter();
+  const [isSyncing, setIsSyncing] = React.useState(false);
 
   const displayName = React.useMemo(() => {
     if (account.name && account.name !== 'New Account' && !account.name.includes('?')) return account.name;
@@ -48,6 +52,21 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
       return account.name;
     }
   }, [account.name, account.link]);
+
+  const handleManualSync = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      // @ts-ignore
+      const url = typeof API_ROUTES.SYNC_ACCOUNT === 'function' ? API_ROUTES.SYNC_ACCOUNT(account.id) : '';
+      await fetch(url, { method: 'POST' });
+    } catch (err) {
+      console.error('Manual sync failed', err);
+    } finally {
+      setTimeout(() => setIsSyncing(false), 2000);
+    }
+  };
 
   return (
     <motion.div
@@ -104,7 +123,17 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
       </div>
 
       {/* Action Suite (Revealed on Hover) */}
-      <div className="mt-8 flex items-center justify-center w-full gap-4 z-20">
+      <div className="mt-8 flex items-center justify-center w-full gap-2 z-20">
+        <motion.button 
+          whileHover={{ scale: 1.1, backgroundColor: 'rgba(52, 211, 153, 0.15)' }}
+          whileTap={{ scale: 0.9 }}
+          onClick={handleManualSync}
+          disabled={isSyncing}
+          className={`p-3 bg-white/5 ${isSyncing ? 'text-emerald-500' : 'text-slate-500 hover:text-emerald-400'} rounded-2xl transition-all opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 shadow-xl`}
+        >
+          <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
+        </motion.button>
+
         <motion.button 
           whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
           whileTap={{ scale: 0.9 }}
@@ -112,17 +141,15 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
             e.stopPropagation();
             onDelete(account.id);
           }}
-          className="p-3 bg-white/5 text-slate-500 hover:text-white rounded-2xl transition-all opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 shadow-xl"
+          className="p-3 bg-white/5 text-slate-500 hover:text-pink-400 rounded-2xl transition-all opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 shadow-xl"
         >
           <Trash2 className="w-5 h-5" />
         </motion.button>
         
-        <div className="flex-1 max-w-[60px] h-[1px] bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-
         <motion.div 
           onClick={() => router.push(`/accounts/${account.id}`)}
           whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
-          className="p-3 bg-white/10 text-white rounded-2xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 delay-75 shadow-2xl"
+          className="p-3 bg-white/10 text-white rounded-2xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300 shadow-2xl"
         >
           <ChevronRight className="w-5 h-5" />
         </motion.div>

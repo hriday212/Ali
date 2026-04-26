@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Film, Play, Search, Loader2, ArrowUpRight, TrendingUp, Youtube, Instagram, Music2, Eye, Filter } from 'lucide-react';
+import { Film, Play, Search, Loader2, ArrowUpRight, TrendingUp, Youtube, Instagram, Music2, Eye, Filter, HandCoins } from 'lucide-react';
+import { useAuth } from '@/lib/authStore';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
 
@@ -18,6 +19,7 @@ interface PostData {
   type?: string;
   platform?: string;
   nodeId?: string;
+  paid?: boolean;
 }
 
 function timeAgo(dateStr?: string): string {
@@ -62,6 +64,8 @@ function getNodeDisplayName(nodeId: string, link: string): string {
 }
 
 export default function GlobalVideosPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [posts, setPosts] = useState<PostData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,6 +94,25 @@ export default function GlobalVideosPage() {
     }
     loadLatest();
   }, []);
+
+  const handleTogglePaid = async (e: React.MouseEvent, post: PostData) => {
+    e.stopPropagation();
+    if (!isAdmin) return;
+    const newState = !post.paid;
+    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, paid: newState } : p));
+    
+    try {
+      // @ts-ignore
+      const url = typeof API_ROUTES.TOGGLE_VIDEO_PAYMENT === 'function' ? API_ROUTES.TOGGLE_VIDEO_PAYMENT(post.nodeId || '', post.id) : '';
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paid: newState })
+      });
+    } catch (err) {
+      console.error('Failed to toggle payout status', err);
+    }
+  };
 
   let filteredPosts = posts.filter(post => {
     if (searchQuery && !post.title.toLowerCase().includes(searchQuery.toLowerCase()) && !post.nodeId?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -155,8 +178,8 @@ export default function GlobalVideosPage() {
       </div>
 
       {/* Type Filters */}
-      <div className="flex items-center gap-2 pb-6 border-b border-white/5">
-        <Filter className="w-4 h-4 text-slate-600 mr-2" />
+      <div className="flex items-center gap-2 pb-6 border-b border-white/5 overflow-x-auto whitespace-nowrap scrollbar-hide">
+        <Filter className="w-4 h-4 text-slate-600 mr-2 flex-shrink-0" />
         <button
           onClick={() => setActiveType('all')}
           className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${activeType === 'all' ? 'bg-white/10 text-white border-white/20' : 'bg-transparent text-slate-500 border-white/5 hover:border-white/10'}`}
@@ -237,6 +260,15 @@ export default function GlobalVideosPage() {
                             #{i + 1}
                           </div>
                         )}
+
+                        {/* PAID Badge */}
+                        {post.paid && (
+                          <div className="absolute top-10 left-2 z-20 flex">
+                            <div className="px-2 py-1 bg-emerald-500 text-black text-[8px] font-black uppercase italic rounded-md shadow-lg border border-emerald-400">
+                               PAID
+                            </div>
+                          </div>
+                        )}
                         
                         {/* Status Badges */}
                         <div className={`absolute top-2 ${activeType === 'viral' ? 'left-10' : 'left-2'} flex items-center gap-2 z-10`}>
@@ -252,6 +284,23 @@ export default function GlobalVideosPage() {
                             {isShort ? 'SHORT' : 'VID'}
                           </div>
                         </div>
+
+                        {/* Admin Settlement Button (Revealed on Hover) */}
+                        {isAdmin && (
+                          <div className="absolute inset-0 flex items-center justify-center z-30 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                             <motion.button
+                               whileHover={{ scale: 1.1 }}
+                               whileTap={{ scale: 0.9 }}
+                               onClick={(e) => handleTogglePaid(e, post)}
+                               className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] shadow-2xl transition-all ${post.paid ? 'bg-pink-500/20 text-pink-100 border border-pink-500/40' : 'bg-emerald-500 text-black border border-emerald-400'}`}
+                             >
+                               <div className="flex items-center gap-2">
+                                 <HandCoins className="w-3 h-3" />
+                                 {post.paid ? 'Undo Payment' : 'Mark Paid'}
+                               </div>
+                             </motion.button>
+                          </div>
+                        )}
 
                         {/* Text Overlay on Image */}
                         <div className="absolute bottom-2 left-2 right-2 z-10">

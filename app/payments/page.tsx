@@ -133,7 +133,10 @@ export default function PayoutsPage() {
      const yieldRate = customRates[node.id] !== undefined ? customRates[node.id] : node.yieldRate;
      let due = (node.unpaidViews / 1000) * yieldRate;
      if (customAmounts[node.id] !== undefined) due = customAmounts[node.id];
-     return { ...node, yieldRate, amountDue: due, status: due > 0 ? 'pending' : 'cleared' } as PayoutNode;
+     
+     // Status should be pending if there are unpaid views, regardless of manual dollar amount being 0
+     const status = node.unpaidViews > 0 ? 'pending' : 'cleared';
+     return { ...node, yieldRate, amountDue: due, status } as PayoutNode;
   });
 
   const totalLiability = displayNodes.reduce((acc, node) => acc + node.amountDue, 0);
