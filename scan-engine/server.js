@@ -437,7 +437,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
         nextInterval = 180; // 3 Hours (Ultra Viral)
         console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 3h.`);
       } else if (multiplier > 2 || delta > 10000) {
-        nextInterval = 720; // 12 Hours (Viral Traction) // Actually 12h is 720m
+        nextInterval = 720; // 12 Hours (Viral Traction)
         console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 12h.`);
       } else {
         nextInterval = baseInterval; // 6 Hours Resting Stage

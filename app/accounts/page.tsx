@@ -64,6 +64,27 @@ export default function AccountsPage() {
           const existingIds = new Set(local.map(a => a.id));
           const toAdd = backendAccounts.filter(a => !existingIds.has(a.id));
           
+          // Auto-heal: Find nodes stuck in local storage but missing from the backend scan engine
+          const backendIds = new Set(backendAccounts.map(b => b.id));
+          const missingInBackend = local.filter(a => !backendIds.has(a.id));
+
+          missingInBackend.forEach(async (missedAcc) => {
+             try {
+               await fetch(API_ROUTES.START, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({
+                   accountId: missedAcc.id,
+                   accountLink: missedAcc.link,
+                   platform: missedAcc.platform,
+                 }),
+               });
+             } catch (err) {
+               console.error('Auto-heal dispatch failed:', err);
+             }
+          });
+
+          
           // Even if none to add, update the followers/stats of existing ones
           const updatedLocal = local.map(acc => {
             const fresh = backendAccounts.find(b => b.id === acc.id);
@@ -130,6 +151,22 @@ export default function AccountsPage() {
       const updated = [newAcc, ...accounts];
       setAccounts(updated);
       saveAccounts(updated);
+
+      // Trigger the backend scan engine
+      try {
+        await fetch(API_ROUTES.START, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: newAcc.id,
+            accountLink: newAcc.link,
+            platform: newAcc.platform,
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to initialize scan engine for node:', err);
+      }
+
       setNewUrl('');
       setIsAddModalOpen(false);
     } catch (err: any) {
@@ -174,7 +211,7 @@ export default function AccountsPage() {
 
          if (res.ok) {
            const data = await res.json();
-           newAccounts.push({
+           const newAcc: Account = {
              id: (Date.now() + i).toString(),
              name: data.name || url.split('/').pop()?.replace('@', '') || 'New Account',
              platform: data.platform || 'youtube',
@@ -185,7 +222,23 @@ export default function AccountsPage() {
              avatarUrl: data.avatarUrl || '',
              channelId: data.channelId || '',
              addedAt: new Date().toISOString(),
-           });
+           };
+           newAccounts.push(newAcc);
+
+           // Trigger the backend scan engine
+           try {
+             await fetch(API_ROUTES.START, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({
+                 accountId: newAcc.id,
+                 accountLink: newAcc.link,
+                 platform: newAcc.platform,
+               }),
+             });
+           } catch (err) {
+             console.error('Failed to initialize scan engine for bulk node:', err);
+           }
          }
        } catch (err) {
          console.error(`Skip failing record ${url}:`, err);
