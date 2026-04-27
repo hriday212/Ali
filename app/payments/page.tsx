@@ -139,6 +139,30 @@ export default function PayoutsPage() {
      return { ...node, yieldRate, amountDue: due, status } as PayoutNode;
   });
 
+  const handleExportCSV = () => {
+    if (displayNodes.length === 0) return;
+
+    const headers = ["Network-Node", "Impressions", "Last-Payout-Mark", "Liability-Due-($)", "Status"];
+    const rows = displayNodes.map(node => [
+      node.id,
+      node.totalViews,
+      node.lastPaidViews,
+      node.amountDue.toFixed(2),
+      node.status.toUpperCase()
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers, ...rows].map(e => e.join(",")).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Clypso_Payments_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const totalLiability = displayNodes.reduce((acc, node) => acc + node.amountDue, 0);
   const totalUnpaidViews = displayNodes.reduce((acc, node) => acc + node.unpaidViews, 0);
 
@@ -156,7 +180,10 @@ export default function PayoutsPage() {
         </div>
 
         <div className="flex gap-4 w-full md:w-auto">
-          <button className="flex items-center justify-center gap-2 px-6 py-4 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest rounded-2xl flex-1 md:flex-none">
+          <button 
+            onClick={handleExportCSV}
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black uppercase tracking-widest rounded-2xl flex-1 md:flex-none transition-all active:scale-95"
+          >
              <FileText className="w-4 h-4" /> Export CSV
           </button>
         </div>

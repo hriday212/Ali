@@ -13,8 +13,6 @@ import {
 } from 'recharts';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
-import { ExportModal } from '@/components/dashboard/ExportModal';
-import { generatePDFReport } from '@/lib/exportUtils';
 
 // ── DateRange Presets ──
 type RangeKey = 'today' | '7d' | '14d' | '30d' | 'all' | 'custom';
@@ -98,7 +96,6 @@ export default function ForecastPage() {
   const [activeRange, setActiveRange] = useState<RangeKey>('7d');
   const [activeGlobalPlatform, setActiveGlobalPlatform] = useState<string>('all');
   const [loading, setLoading] = useState(true);
-  const [showExportModal, setShowExportModal] = useState(false);
   const [allScans, setAllScans] = useState<any[]>([]);
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
   const [customStart, setCustomStart] = useState<string>('');
@@ -326,15 +323,6 @@ export default function ForecastPage() {
         {/* Controllers */}
         <div className="flex flex-col items-end gap-3 flex-wrap">
           <div className="flex items-center gap-3 w-full justify-end">
-            
-            {/* Export Trigger */}
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="p-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-all shadow-[0_0_15px_rgba(59,130,246,0.15)] group relative"
-              title="Export Report"
-            >
-              <FileDown className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" />
-            </button>
             
             {/* Global Platform Filter */}
             <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5 overflow-x-auto hide-scrollbar">
@@ -783,12 +771,6 @@ export default function ForecastPage() {
           </div>
         )}
         
-      <ExportModal
-        isOpen={showExportModal}
-        onClose={() => setShowExportModal(false)}
-        onExport={generatePDFReport}
-        currentPlatform={activeGlobalPlatform}
-      />
     </div>
   );
 }
