@@ -305,7 +305,7 @@ async function scanTikTok(accountId, accountLink) {
   const first = items?.[0];
   const profileMetadata = first ? {
     name: first.authorMeta?.nickname || first.authorMeta?.name || profile,
-    avatarUrl: first.authorMeta?.avatar || ''
+    avatarUrl: first.authorMeta?.avatar ? `https://wsrv.nl/?url=${encodeURIComponent(first.authorMeta?.avatar)}&w=300&h=300&fit=cover&output=webp` : ''
   } : null;
 
   const posts = (items || []).map((item, idx) => {
@@ -340,7 +340,7 @@ async function scanInstagram(accountId, accountLink) {
   const first = items?.[0];
   const profileMetadata = first ? {
     name: first.ownerUsername || first.ownerFullName || accountLink.split('/').filter(Boolean).pop(),
-    avatarUrl: first.ownerProfilePicUrl || ''
+    avatarUrl: first.ownerProfilePicUrl ? `https://wsrv.nl/?url=${encodeURIComponent(first.ownerProfilePicUrl)}&w=300&h=300&fit=cover&output=webp` : ''
   } : null;
 
   const posts = (items || []).map(item => {
