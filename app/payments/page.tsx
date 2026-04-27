@@ -28,8 +28,8 @@ export default function PayoutsPage() {
   const [payoutsDb, setPayoutsDb] = useState<any[]>([]);
 
   // Custom Overrides
-  const [customRates, setCustomRates] = useState<Record<string, number>>({});
-  const [customAmounts, setCustomAmounts] = useState<Record<string, number>>({});
+  const [customRates, setCustomRates] = useState<Record<string, string>>({});
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function fetchLedger() {
@@ -100,8 +100,8 @@ export default function PayoutsPage() {
     setNodes(prev => prev.map(n => n.id === node.id ? { ...n, amountDue: 0, lastPaidViews: node.totalViews, unpaidViews: 0, status: 'cleared' } : n));
     
     // Compute the actual due with overrides
-    const actualCPM = customRates[node.id] !== undefined ? customRates[node.id] : node.yieldRate;
-    const actualDue = customAmounts[node.id] !== undefined ? customAmounts[node.id] : node.amountDue;
+    const actualCPM = customRates[node.id] !== undefined ? parseFloat(customRates[node.id]) : node.yieldRate;
+    const actualDue = customAmounts[node.id] !== undefined ? parseFloat(customAmounts[node.id]) : node.amountDue;
 
     // Send Real Settlement to Ledger
     const newPayout = {
@@ -130,9 +130,9 @@ export default function PayoutsPage() {
   };
 
   const displayNodes = nodes.map(node => {
-     const yieldRate = customRates[node.id] !== undefined ? customRates[node.id] : node.yieldRate;
+     const yieldRate = customRates[node.id] !== undefined ? parseFloat(customRates[node.id]) : node.yieldRate;
      let due = (node.unpaidViews / 1000) * yieldRate;
-     if (customAmounts[node.id] !== undefined) due = customAmounts[node.id];
+     if (customAmounts[node.id] !== undefined) due = parseFloat(customAmounts[node.id]);
      
      // Status should be pending if there are unpaid views, regardless of manual dollar amount being 0
      const status = node.unpaidViews > 0 ? 'pending' : 'cleared';
@@ -260,21 +260,22 @@ export default function PayoutsPage() {
                           <div className="flex flex-col items-end">
                             <div className="flex items-center justify-end gap-1">
                               <span className="text-indigo-500 font-black italic">$</span>
-                              <input 
-                                type="number" 
-                                step="0.01"
-                                value={customAmounts[node.id] !== undefined ? customAmounts[node.id] : node.amountDue.toFixed(2)} 
-                                onChange={(e) => {
-                                  const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                  if (val !== undefined) setCustomAmounts({...customAmounts, [node.id]: val});
-                                  else {
-                                    const cAmounts = {...customAmounts};
-                                    delete cAmounts[node.id];
-                                    setCustomAmounts(cAmounts);
-                                  }
-                                }}
-                                className="w-20 bg-white/5 border border-indigo-500/30 rounded px-2 py-1 text-sm font-black italic text-indigo-400 text-right focus:border-indigo-500 outline-none"
-                              />
+                                <input 
+                                  type="number" 
+                                  step="0.01"
+                                  value={customAmounts[node.id] !== undefined ? customAmounts[node.id] : node.amountDue.toFixed(2)} 
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val !== '') {
+                                      setCustomAmounts({...customAmounts, [node.id]: val});
+                                    } else {
+                                      const cAmounts = {...customAmounts};
+                                      delete cAmounts[node.id];
+                                      setCustomAmounts(cAmounts);
+                                    }
+                                  }}
+                                  className="w-20 bg-white/5 border border-indigo-500/30 rounded px-2 py-1 text-sm font-black italic text-indigo-400 text-right focus:border-indigo-500 outline-none"
+                                />
                             </div>
                             <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-1">FOR {node.unpaidViews.toLocaleString()} VIEWS</span>
                           </div>
