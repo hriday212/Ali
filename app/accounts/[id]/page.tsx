@@ -22,7 +22,8 @@ import {
   AlertCircle,
   Scan,
   Download,
-  Zap
+  Zap,
+  HandCoins
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -146,8 +147,8 @@ export default function AccountForensicPage() {
   const [timeframe, setTimeframe] = React.useState('ALL');
   const [isAdmin, setIsAdmin] = React.useState(true); // Mock admin session for dev
   const [isSettling, setIsSettling] = React.useState(false);
-  const [settleAmount, setSettleAmount] = React.useState('50');
-
+  const [settleAmount, setSettleAmount] = React.useState('0');
+  const [customMark, setCustomMark] = React.useState('');
 
   // Load account from persistent store
   const [account, setAccount] = React.useState<Account | null>(null);
@@ -353,28 +354,38 @@ export default function AccountForensicPage() {
 
   const handleSettle = async () => {
     if (!account) return;
-    const currentViews = totalViews;
     const amount = parseFloat(settleAmount) || 0;
+    const viewLevel = parseInt(customMark) || totalViews;
     
     const newSettlement = {
-      date: new Date().toISOString(),
-      viewLevel: currentViews,
-      amount: amount
+      id: crypto.randomUUID(),
+      accountId: account.id,
+      amount: amount,
+      paidAt: new Date().toISOString(),
+      viewsAtPayment: viewLevel,
+      yieldRate: account.yieldRate || 0.8,
+      nodeId: account.id
     };
 
-    const updatedAccount = {
-      ...account,
-      settlements: [...(account.settlements || []), newSettlement]
-    };
-
-    setAccount(updatedAccount);
-    const allAccs = getAccountById(account.id); // Get current state
-    const accounts = JSON.parse(localStorage.getItem('command_center_accounts_v1') || '[]');
-    const finalAccs = accounts.map((a: any) => a.id === account.id ? updatedAccount : a);
-    localStorage.setItem('command_center_accounts_v1', JSON.stringify(finalAccs));
-    
-    setIsSettling(false);
-  };   
+    try {
+      await safeFetchJson(API_ROUTES.PAYOUTS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettlement)
+      });
+      
+      // Update local account state (mocking for now since store is immutable in memory)
+      const updatedAccount = {
+        ...account,
+        settlements: [...(account.settlements || []), { date: newSettlement.paidAt, viewLevel, amount }]
+      };
+      setAccount(updatedAccount);
+      
+      setIsSettling(false);
+    } catch (err) {
+      console.error('Settlement Failed:', err);
+    }
+  };
 
   const lastSettlement = account?.settlements && account.settlements.length > 0 
     ? account.settlements[account.settlements.length - 1] 
@@ -383,6 +394,55 @@ export default function AccountForensicPage() {
   const unpaidViews = lastSettlement 
     ? Math.max(0, totalViews - lastSettlement.viewLevel) 
     : totalViews;
+
+  React.useEffect(() => {
+    if (isSettling) {
+      setCustomMark(totalViews.toString());
+      const unpaid = lastSettlement ? Math.max(0, totalViews - lastSettlement.viewLevel) : totalViews;
+      // @ts-ignore
+      const rate = account?.yieldRate || 0.8;
+      setSettleAmount(((unpaid / 1000) * rate).toFixed(2));
+    }
+  }, [isSettling, totalViews, lastSettlement, account]);
+
+  const [settlingVideoMark, setSettlingVideoMark] = React.useState<string>('');
+  const [settlingVideoAmount, setSettlingVideoAmount] = React.useState<string>('');
+
+  const handleSettleVideo = async (post: PostData) => {
+    const mark = parseInt(settlingVideoMark) || (typeof post.views === 'number' ? post.views : parseInt(post.views) || 0);
+    const amount = parseFloat(settlingVideoAmount) || 0;
+    
+    const payoutRecord: PayoutRecord = {
+      id: crypto.randomUUID(),
+      videoId: post.id,
+      videoTitle: post.title,
+      platform: post.platform || account?.platform || 'youtube',
+      amount: amount,
+      viewsAtPayment: mark,
+      paidAt: new Date().toISOString(),
+      accountId: account?.id,
+      thumbnail: post.thumbnail
+    };
+
+    try {
+      await safeFetchJson(API_ROUTES.PAYOUTS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payoutRecord)
+      });
+      
+      // Update local payouts state
+      setPayouts(prev => [payoutRecord, ...prev]);
+      // Force refresh data
+      const res = await safeFetchJson(API_ROUTES.PAYOUTS);
+      if (res && res.payouts && account) {
+        setPayouts(res.payouts.filter((p: any) => p.accountId === account.id));
+      }
+    } catch (err) {
+      console.error('Video Settlement Failed:', err);
+    }
+  };
+
 
   const handleStopAutoScan = async () => {
     if (!account) return;
@@ -1014,6 +1074,86 @@ export default function AccountForensicPage() {
         )}
       </AnimatePresence>
 
+      {/* Account Settlement Modal */}
+      <AnimatePresence>
+        {isSettling && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
+            onClick={() => setIsSettling(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              className="w-full max-w-md bg-slate-950 border border-emerald-500/20 rounded-[2.5rem] p-10 relative shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5),0_0_50px_rgba(16,185,129,0.1)]"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center">
+                  <HandCoins className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Settlement</h3>
+                  <p className="text-[8px] font-black uppercase tracking-[0.3em] text-emerald-500/40">Audit and clear view liability</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">Settlement Mark (Views)</label>
+                  <input 
+                    type="number"
+                    value={customMark}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomMark(val);
+                      const mark = parseInt(val) || 0;
+                      const prevMark = lastSettlement ? lastSettlement.viewLevel : 0;
+                      const unpaid = Math.max(0, mark - prevMark);
+                      // @ts-ignore
+                      const rate = account?.yieldRate || 0.8;
+                      setSettleAmount(((unpaid / 1000) * rate).toFixed(2));
+                    }}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-lg font-black italic outline-none focus:border-emerald-500/50 transition-all"
+                  />
+                  <p className="text-[7px] font-black uppercase tracking-widest text-white/30 mt-2 italic px-1">Current Reach: {formatNumber(totalViews)}</p>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">Payment Amount ($)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 font-black italic">$</span>
+                    <input 
+                      type="number"
+                      value={settleAmount}
+                      onChange={(e) => setSettleAmount(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3.5 text-lg font-black italic outline-none focus:border-emerald-500/50 transition-all text-emerald-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    onClick={() => setIsSettling(false)}
+                    className="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSettle}
+                    className="flex-[2] py-4 bg-emerald-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_10px_20px_-5px_rgba(16,185,129,0.3)]"
+                  >
+                    Clear Settlement
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Forensic Overlays */}
       <AnimatePresence>
         {activeSubHUD && (
@@ -1223,6 +1363,49 @@ export default function AccountForensicPage() {
                     <div>
                       <p className="text-[9px] font-black opacity-30 italic mb-2">Published</p>
                       <p className="text-[11px] font-black italic">{selectedPost.date ? new Date(selectedPost.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Unknown'}</p>
+                    </div>
+                  </div>
+                  <div className="p-8 bg-white/[0.02] border border-white/5 rounded-[2.5rem] space-y-4">
+                    <div className="flex items-center justify-between">
+                       <p className="text-[9px] font-black opacity-30 uppercase italic">Partial Payout</p>
+                       <Zap className="w-3 h-3 text-emerald-400" />
+                    </div>
+                    <div className="space-y-4 pt-2">
+                       <div>
+                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Settle Up To</p>
+                          <input 
+                            type="number"
+                            placeholder="View Mark..."
+                            value={settlingVideoMark}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setSettlingVideoMark(val);
+                              const mark = parseInt(val) || 0;
+                              // @ts-ignore
+                              const rate = account?.yieldRate || 0.8;
+                              setSettlingVideoAmount(((mark / 1000) * rate).toFixed(2));
+                            }}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm font-black italic outline-none focus:border-emerald-500/30 transition-all"
+                          />
+                       </div>
+                       <div>
+                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Payout Amount ($)</p>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400 font-black italic text-[10px]">$</span>
+                            <input 
+                              type="number"
+                              value={settlingVideoAmount}
+                              onChange={(e) => setSettlingVideoAmount(e.target.value)}
+                              className="w-full bg-white/5 border border-white/10 rounded-xl pl-7 pr-4 py-2 text-sm font-black italic outline-none focus:border-emerald-500/30 transition-all text-emerald-400"
+                            />
+                          </div>
+                       </div>
+                       <button 
+                        onClick={() => handleSettleVideo(selectedPost)}
+                        className="w-full py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-black uppercase text-[8px] tracking-widest rounded-xl hover:bg-emerald-500/20 transition-all"
+                       >
+                         Authorize Partial Settlement
+                       </button>
                     </div>
                   </div>
                   {selectedPost.link && selectedPost.link !== '#' && (
