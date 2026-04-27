@@ -23,8 +23,8 @@ export function TopHeader() {
         animate={{ 
           y: 0, 
           opacity: 1,
-          maxWidth: isLoginModalOpen ? '164px' : (user ? '896px' : '172px'),
-          height: isLoginModalOpen ? '48px' : (user ? '68px' : '64px'),
+          maxWidth: isLoginModalOpen ? '164px' : '896px',
+          height: isLoginModalOpen ? '48px' : (user ? '68px' : '96px'),
         }}
         transition={{ 
           maxWidth: { duration: isLoginModalOpen ? 0.8 : 2.0, ease: "easeInOut" },
@@ -36,7 +36,7 @@ export function TopHeader() {
       >
         <div className={cn(
           "flex items-center w-full h-full relative px-2 md:px-8",
-          (isLoginModalOpen || !user) ? "justify-center" : "justify-end"
+          isLoginModalOpen ? "justify-center" : "justify-end"
         )}>
           {/* Silk Shimmer */}
           <motion.div
@@ -51,8 +51,8 @@ export function TopHeader() {
            className="absolute left-4 md:left-6"
            initial={false}
            animate={{ 
-             opacity: (isLoginModalOpen || !user) ? 0 : 1, 
-             filter: (isLoginModalOpen || !user) ? 'blur(5px)' : 'blur(0px)',
+             opacity: isLoginModalOpen ? 0 : 1, 
+             filter: isLoginModalOpen ? 'blur(5px)' : 'blur(0px)',
              scale: user ? 0.8 : 1,
              originX: 0
            }}

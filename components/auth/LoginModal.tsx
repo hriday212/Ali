@@ -59,9 +59,9 @@ export function LoginModal() {
                   <Image 
                     src="/clypso-full-logo.png" 
                     alt="Clypso" 
-                    width={180} 
-                    height={60} 
-                    className="object-contain h-12 w-auto drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                    width={300} 
+                    height={100} 
+                    className="object-contain h-20 w-auto drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
                     priority
                   />
                 </div>
