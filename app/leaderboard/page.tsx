@@ -14,6 +14,8 @@ function cn(...inputs: ClassValue[]) {
 
 interface LeaderboardNode {
   accountId: string;
+  name?: string;
+  avatarUrl?: string;
   accountLink: string;
   platform: string;
   scanCount: number;
@@ -41,6 +43,8 @@ export default function LeaderboardPage() {
         
         return {
           accountId: scan.accountId,
+          name: scan.name || scan.accountId,
+          avatarUrl: scan.avatarUrl,
           accountLink: scan.accountLink,
           platform: scan.platform,
           scanCount: scan.scanCount,
@@ -140,13 +144,30 @@ export default function LeaderboardPage() {
 
                   {/* Icon & Details */}
                   <div className="flex items-center gap-4 md:gap-6 flex-1 min-w-0 w-full">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                      {node.platform === 'youtube' && <Youtube className="w-5 h-5 md:w-6 md:h-6 text-red-500" />}
-                      {node.platform === 'instagram' && <Instagram className="w-5 h-5 md:w-6 md:h-6 text-pink-500" />}
-                      {node.platform === 'tiktok' && <Music2 className="w-5 h-5 md:w-6 md:h-6 text-slate-100" />}
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 relative overflow-hidden">
+                      {node.avatarUrl ? (
+                         <img src={node.avatarUrl} alt={node.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <>
+                          {node.platform === 'youtube' && <Youtube className="w-5 h-5 md:w-6 md:h-6 text-red-500" />}
+                          {node.platform === 'instagram' && <Instagram className="w-5 h-5 md:w-6 md:h-6 text-pink-500" />}
+                          {node.platform === 'tiktok' && <Music2 className="w-5 h-5 md:w-6 md:h-6 text-slate-100" />}
+                        </>
+                      )}
+                      
+                      {/* Platform badge if avatar exists */}
+                      {node.avatarUrl && (
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-black/80 border border-white/10 flex items-center justify-center z-20">
+                          {node.platform === 'youtube' && <Youtube className="w-2.5 h-2.5 text-red-500" />}
+                          {node.platform === 'instagram' && <Instagram className="w-2.5 h-2.5 text-pink-500" />}
+                          {node.platform === 'tiktok' && <Music2 className="w-2.5 h-2.5 text-slate-100" />}
+                        </div>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-lg md:text-xl font-black italic tracking-tighter text-white uppercase truncate">{node.accountId}</h3>
+                      <h3 className="text-lg md:text-xl font-black italic tracking-tighter text-white uppercase truncate">
+                        {node.name || node.accountId}
+                      </h3>
                       <p className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-500">{node.platform} Node</p>
                     </div>
                   </div>

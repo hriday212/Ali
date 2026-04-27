@@ -773,10 +773,13 @@ app.get('/api/scans/latest-posts', (req, res) => {
     files.forEach(file => {
       if (file.endsWith('.json') && file !== 'state.json') {
         const data = JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8'));
+        const accountId = file.replace('.json', '');
+        const scan = activeScans.get(accountId);
         if (data.posts) {
           data.posts.forEach(p => allPosts.push({
             ...p,
-            nodeId: file.replace('.json', '')
+            nodeId: accountId,
+            nodeName: scan?.name || accountId
           }));
         }
       }

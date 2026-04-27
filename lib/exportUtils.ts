@@ -30,9 +30,10 @@ export async function generatePDFReport(config: ExportConfig, onProgress?: (msg:
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
-      allowTaint: true,
       backgroundColor: bgColor,
       logging: false,
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
       onclone: (clonedDoc) => {
         const clonedEl = clonedDoc.getElementById('forecast-report');
         if (clonedEl) {

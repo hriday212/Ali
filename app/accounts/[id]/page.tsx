@@ -121,7 +121,6 @@ export default function AccountForensicPage() {
   const [isScanning, setIsScanning] = React.useState(false);
   const [scanError, setScanError] = React.useState<string | null>(null);
   const [hasScanned, setHasScanned] = React.useState(false);
-  const [isExporting, setIsExporting] = React.useState(false);
 
   // Payout data from shared store
   const [payouts, setPayouts] = React.useState<PayoutRecord[]>([]);
@@ -401,28 +400,6 @@ export default function AccountForensicPage() {
     }
   };
 
-  const handleExportPDF = async () => {
-    const element = document.getElementById('analytics-export-wrapper');
-    if (!element) return;
-    
-    setIsExporting(true);
-    try {
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#020617' });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2]
-      });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
-      pdf.save(`Clypso_Report_${account?.name || 'Analytics'}.pdf`);
-    } catch (e) {
-      console.error('PDF export failed', e);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   // Format countdown
   const formatCountdown = (seconds: number) => {
     if (seconds === undefined || seconds === null) return '00:00:00';
@@ -600,14 +577,6 @@ export default function AccountForensicPage() {
             {scanCount > 0 && (
               <span className="text-[7px] font-black uppercase tracking-widest text-slate-700 italic">Scan #{scanCount}</span>
             )}
-            <button 
-              onClick={handleExportPDF} 
-              disabled={isExporting}
-              className="flex items-center gap-4 px-8 py-4 bg-blue-500/10 border border-blue-500/20 text-blue-400 font-black uppercase rounded-xl hover:bg-blue-500/20 transition-all text-[10px] tracking-widest disabled:opacity-50"
-            >
-              {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              {isExporting ? 'Exporting...' : 'Export PDF'}
-            </button>
             <button onClick={() => window.open(account.link, '_blank')} className="flex items-center gap-4 px-8 py-4 bg-white text-black font-black uppercase rounded-xl hover:bg-slate-200 transition-all text-[10px] tracking-widest">
               Open source <ExternalLink className="w-3.5 h-3.5" />
             </button>

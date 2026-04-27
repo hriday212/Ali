@@ -16,6 +16,7 @@ interface Post {
   platform: string;
   link: string;
   nodeId: string;
+  nodeName?: string;
   date: string;
 }
 
@@ -102,7 +103,7 @@ function ContentCard({ post, index }: { post: Post, index: number }) {
         <div className="p-6 flex-1 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[8px] font-black uppercase tracking-widest text-blue-500">{post.nodeId}</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-blue-500">{post.nodeName || post.nodeId}</span>
               <div className="w-1 h-1 rounded-full bg-slate-800" />
               <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">
                 {new Date(post.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}

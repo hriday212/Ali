@@ -9,6 +9,7 @@ import { safeFetchJson } from '@/lib/fetchUtils';
 interface Candidate {
   id: string;
   accountId: string;
+  accountName?: string;
   title: string;
   thumbnail: string | null;
   link: string;
@@ -49,6 +50,7 @@ export function ViralRadar() {
                   flagged.push({
                     id: videoId,
                     accountId: scan.accountId,
+                    accountName: scan.name || scan.accountId,
                     title: post ? post.title : videoId,
                     thumbnail: post ? post.thumbnail : null,
                     link: post ? post.link : `/accounts/${scan.accountId}`,
@@ -74,6 +76,7 @@ export function ViralRadar() {
               flagged.push({
                 id: scan.accountId,
                 accountId: scan.accountId,
+                accountName: scan.name || scan.accountId,
                 title: topPost ? topPost.title : scan.accountId,
                 thumbnail: topPost ? topPost.thumbnail : null,
                 link: topPost ? topPost.link : `/accounts/${scan.accountId}`,
@@ -160,7 +163,7 @@ export function ViralRadar() {
                        {candidate.platform === 'youtube' && <Youtube className="w-2.5 h-2.5 text-red-500" />}
                        {candidate.platform === 'tiktok' && <Music2 className="w-2.5 h-2.5 text-white" />}
                        {candidate.platform === 'instagram' && <Instagram className="w-2.5 h-2.5 text-pink-500" />}
-                       NODE: {candidate.accountId}
+                       NODE: {candidate.accountName || candidate.accountId}
                      </p>
                    </div>
                    <div className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
