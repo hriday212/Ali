@@ -50,13 +50,13 @@ export default function AccountsPage() {
           const { scans } = data;
           const backendAccounts: Account[] = scans.map((s: any) => ({
             id: s.accountId,
-            name: s.accountId, 
+            name: s.name || s.accountId, 
             platform: s.platform,
             link: s.accountLink,
             followers: formatNumber(s.lastViews || 0),
             status: 'connected',
             hasNew: false,
-            avatarUrl: '',
+            avatarUrl: s.avatarUrl || '',
             channelId: '', 
             addedAt: new Date().toISOString(),
           }));
@@ -89,7 +89,13 @@ export default function AccountsPage() {
           const updatedLocal = local.map(acc => {
             const fresh = backendAccounts.find(b => b.id === acc.id);
             if (fresh) {
-              return { ...acc, followers: fresh.followers, platform: fresh.platform };
+              return { 
+                ...acc, 
+                followers: fresh.followers, 
+                platform: fresh.platform,
+                name: fresh.name,
+                avatarUrl: fresh.avatarUrl
+              };
             }
             return acc;
           });
