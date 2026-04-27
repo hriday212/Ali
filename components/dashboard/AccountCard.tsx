@@ -10,7 +10,10 @@ import {
   Trash2,
   ChevronRight,
   User,
-  RefreshCw
+  RefreshCw,
+  Edit2,
+  Check,
+  X
 } from 'lucide-react';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
@@ -27,6 +30,7 @@ interface AccountCardProps {
     avatarUrl?: string; // High-fidelity PFP
   };
   onDelete: (id: string) => void;
+  onUpdate?: (id: string, newLink: string) => void;
 }
 
 const PlatformIcon = ({ platform }: { platform: string }) => {
@@ -36,9 +40,28 @@ const PlatformIcon = ({ platform }: { platform: string }) => {
   return null;
 };
 
-export default function AccountCard({ account, onDelete }: AccountCardProps) {
+export default function AccountCard({ account, onDelete, onUpdate }: AccountCardProps) {
   const router = useRouter();
   const [isSyncing, setIsSyncing] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [editedLink, setEditedLink] = React.useState(account.link);
+  const [isUpdating, setIsUpdating] = React.useState(false);
+
+  const handleUpdate = async () => {
+    if (!onUpdate || editedLink === account.link) {
+      setIsEditing(false);
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      await onUpdate(account.id, editedLink);
+      setIsEditing(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const displayName = React.useMemo(() => {
     if (account.name && account.name !== 'New Account' && !account.name.includes('?')) return account.name;
@@ -136,17 +159,31 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
         </motion.button>
 
         <motion.button 
-          whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
+          whileHover={{ scale: 1.1, backgroundColor: 'rgba(59, 130, 246, 0.15)' }}
+          whileTap={{ scale: 0.9 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEditing(!isEditing);
+          }}
+          className={`p-3 bg-white/5 ${isEditing ? 'text-blue-500 opacity-100' : 'text-slate-500 hover:text-blue-400 opacity-30 group-hover:opacity-100'} rounded-2xl transition-all duration-300 shadow-xl`}
+          title="Correct Link"
+        >
+          <Edit2 className="w-5 h-5" />
+        </motion.button>
+
+        <motion.button 
+          whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
           whileTap={{ scale: 0.9 }}
           onClick={(e) => {
             e.stopPropagation();
             onDelete(account.id);
           }}
-          className="p-3 bg-white/5 text-slate-500 hover:text-pink-400 rounded-2xl transition-all opacity-30 group-hover:opacity-100 duration-300 shadow-xl"
+          className="p-3 bg-white/5 text-slate-500 hover:text-red-500 opacity-30 group-hover:opacity-100 rounded-2xl transition-all duration-300 shadow-xl"
+          title="Delete Node"
         >
           <Trash2 className="w-5 h-5" />
         </motion.button>
-        
+
         <motion.div 
           onClick={() => router.push(`/accounts/${account.id}`)}
           whileHover={{ scale: 1.1, backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
@@ -155,6 +192,43 @@ export default function AccountCard({ account, onDelete }: AccountCardProps) {
           <ChevronRight className="w-5 h-5" />
         </motion.div>
       </div>
+
+      {isEditing && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="absolute inset-x-0 bottom-0 top-[180px] bg-slate-950/95 backdrop-blur-md p-6 z-40 rounded-b-3xl border-t border-white/10 flex flex-col justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+           <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3">Correct Typo / Edit Link</p>
+           <div className="space-y-4">
+             <input
+               type="text"
+               value={editedLink}
+               onChange={(e) => setEditedLink(e.target.value)}
+               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white font-bold focus:outline-none focus:border-blue-500 transition-all shadow-inner"
+               placeholder="Enter corrected URL..."
+               autoFocus
+             />
+             <div className="flex gap-2">
+               <button
+                 onClick={handleUpdate}
+                 disabled={isUpdating}
+                 className="flex-1 bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-3 text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+               >
+                 {isUpdating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                 Update Link
+               </button>
+               <button
+                 onClick={() => { setIsEditing(false); setEditedLink(account.link); }}
+                 className="px-4 bg-white/5 hover:bg-white/10 text-slate-400 rounded-xl py-3 border border-white/10 transition-all font-black uppercase text-[10px] tracking-widest"
+               >
+                 <X className="w-4 h-4" />
+               </button>
+             </div>
+           </div>
+        </motion.div>
+      )}
 
       <div className="mt-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.4em] group-hover:opacity-0 transition-opacity z-10 italic">
         Connection Idle

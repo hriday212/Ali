@@ -113,6 +113,33 @@ export default function AccountsPage() {
     saveAccounts(updated);
   };
 
+  const handleUpdateAccount = async (id: string, newLink: string) => {
+    const updated = accounts.map(acc => {
+      if (acc.id === id) return { ...acc, link: newLink };
+      return acc;
+    });
+    setAccounts(updated);
+    saveAccounts(updated);
+
+    // Sync with backend - /api/start handles overwriting with same accountId
+    const acc = updated.find(a => a.id === id);
+    if (acc) {
+      try {
+        await fetch(API_ROUTES.START, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountId: acc.id,
+            accountLink: acc.link,
+            platform: acc.platform,
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to sync updated link to backend:', err);
+      }
+    }
+  };
+
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUrl) return;
@@ -376,6 +403,7 @@ export default function AccountsPage() {
                   key={account.id}
                   account={account}
                   onDelete={handleDelete}
+                  onUpdate={handleUpdateAccount}
                 />
               ))
             ) : (
