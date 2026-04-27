@@ -363,7 +363,8 @@ export default function AccountForensicPage() {
       amount: amount,
       paidAt: new Date().toISOString(),
       viewsAtPayment: viewLevel,
-      yieldRate: account.yieldRate || 0.8,
+      // @ts-ignore
+      yieldRate: account.yieldRate || (account.platform === 'tiktok' ? 0.30 : account.platform === 'youtube' ? 1.50 : 0.80),
       nodeId: account.id
     };
 
@@ -400,7 +401,7 @@ export default function AccountForensicPage() {
       setCustomMark(totalViews.toString());
       const unpaid = lastSettlement ? Math.max(0, totalViews - lastSettlement.viewLevel) : totalViews;
       // @ts-ignore
-      const rate = account?.yieldRate || 0.8;
+      const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
       setSettleAmount(((unpaid / 1000) * rate).toFixed(2));
     }
   }, [isSettling, totalViews, lastSettlement, account]);
@@ -1113,7 +1114,7 @@ export default function AccountForensicPage() {
                       const prevMark = lastSettlement ? lastSettlement.viewLevel : 0;
                       const unpaid = Math.max(0, mark - prevMark);
                       // @ts-ignore
-                      const rate = account?.yieldRate || 0.8;
+                      const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
                       setSettleAmount(((unpaid / 1000) * rate).toFixed(2));
                     }}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-lg font-black italic outline-none focus:border-emerald-500/50 transition-all"
@@ -1382,7 +1383,7 @@ export default function AccountForensicPage() {
                               setSettlingVideoMark(val);
                               const mark = parseInt(val) || 0;
                               // @ts-ignore
-                              const rate = account?.yieldRate || 0.8;
+                              const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
                               setSettlingVideoAmount(((mark / 1000) * rate).toFixed(2));
                             }}
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm font-black italic outline-none focus:border-emerald-500/30 transition-all"
