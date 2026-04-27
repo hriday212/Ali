@@ -23,7 +23,8 @@ import {
   Scan,
   Download,
   Zap,
-  HandCoins
+  HandCoins,
+  ArrowRight
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -149,6 +150,7 @@ export default function AccountForensicPage() {
   const [isSettling, setIsSettling] = React.useState(false);
   const [settleAmount, setSettleAmount] = React.useState('0');
   const [customMark, setCustomMark] = React.useState('');
+  const [customFromMark, setCustomFromMark] = React.useState('');
 
   // Load account from persistent store
   const [account, setAccount] = React.useState<Account | null>(null);
@@ -356,6 +358,7 @@ export default function AccountForensicPage() {
     if (!account) return;
     const amount = parseFloat(settleAmount) || 0;
     const viewLevel = parseInt(customMark) || totalViews;
+    const fromLevel = parseInt(customFromMark) || (lastSettlement ? lastSettlement.viewLevel : 0);
     
     const newSettlement = {
       id: crypto.randomUUID(),
@@ -363,6 +366,7 @@ export default function AccountForensicPage() {
       amount: amount,
       paidAt: new Date().toISOString(),
       viewsAtPayment: viewLevel,
+      fromViewLevel: fromLevel, // Storing range
       // @ts-ignore
       yieldRate: account.yieldRate || (account.platform === 'tiktok' ? 0.30 : account.platform === 'youtube' ? 1.50 : 0.80),
       nodeId: account.id
@@ -399,6 +403,8 @@ export default function AccountForensicPage() {
   React.useEffect(() => {
     if (isSettling) {
       setCustomMark(totalViews.toString());
+      setCustomFromMark(lastSettlement ? lastSettlement.viewLevel.toString() : '0');
+      
       const unpaid = lastSettlement ? Math.max(0, totalViews - lastSettlement.viewLevel) : totalViews;
       // @ts-ignore
       const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
@@ -407,10 +413,12 @@ export default function AccountForensicPage() {
   }, [isSettling, totalViews, lastSettlement, account]);
 
   const [settlingVideoMark, setSettlingVideoMark] = React.useState<string>('');
+  const [settlingVideoFromMark, setSettlingVideoFromMark] = React.useState<string>('0');
   const [settlingVideoAmount, setSettlingVideoAmount] = React.useState<string>('');
 
   const handleSettleVideo = async (post: PostData) => {
     const mark = parseInt(settlingVideoMark) || (typeof post.views === 'number' ? post.views : parseInt(post.views) || 0);
+    const fromMark = parseInt(settlingVideoFromMark) || 0;
     const amount = parseFloat(settlingVideoAmount) || 0;
     
     const payoutRecord: PayoutRecord = {
@@ -420,6 +428,8 @@ export default function AccountForensicPage() {
       platform: post.platform || account?.platform || 'youtube',
       amount: amount,
       viewsAtPayment: mark,
+      // @ts-ignore
+      fromViewLevel: fromMark,
       paidAt: new Date().toISOString(),
       accountId: account?.id,
       thumbnail: post.thumbnail
@@ -1102,24 +1112,46 @@ export default function AccountForensicPage() {
               </div>
 
               <div className="space-y-6">
-                <div>
-                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">Settlement Mark (Views)</label>
-                  <input 
-                    type="number"
-                    value={customMark}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCustomMark(val);
-                      const mark = parseInt(val) || 0;
-                      const prevMark = lastSettlement ? lastSettlement.viewLevel : 0;
-                      const unpaid = Math.max(0, mark - prevMark);
-                      // @ts-ignore
-                      const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
-                      setSettleAmount(((unpaid / 1000) * rate).toFixed(2));
-                    }}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-lg font-black italic outline-none focus:border-emerald-500/50 transition-all"
-                  />
-                  <p className="text-[7px] font-black uppercase tracking-widest text-white/30 mt-2 italic px-1">Current Reach: {formatNumber(totalViews)}</p>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">From Mark</label>
+                    <input 
+                      type="number"
+                      value={customFromMark}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomFromMark(val);
+                        const from = parseInt(val) || 0;
+                        const to = parseInt(customMark) || 0;
+                        const unpaid = Math.max(0, to - from);
+                        // @ts-ignore
+                        const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
+                        setSettleAmount(((unpaid / 1000) * rate).toFixed(2));
+                      }}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-black italic outline-none focus:border-indigo-500/30 transition-all text-slate-500"
+                    />
+                  </div>
+                  <div className="flex items-center pt-6 text-slate-800">
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">To Mark</label>
+                    <input 
+                      type="number"
+                      value={customMark}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomMark(val);
+                        const mark = parseInt(val) || 0;
+                        const from = parseInt(customFromMark) || 0;
+                        const unpaid = Math.max(0, mark - from);
+                        // @ts-ignore
+                        const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
+                        setSettleAmount(((unpaid / 1000) * rate).toFixed(2));
+                      }}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-black italic outline-none focus:border-emerald-500/50 transition-all"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -1372,22 +1404,41 @@ export default function AccountForensicPage() {
                        <Zap className="w-3 h-3 text-emerald-400" />
                     </div>
                     <div className="space-y-4 pt-2">
-                       <div>
-                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Settle Up To</p>
-                          <input 
-                            type="number"
-                            placeholder="View Mark..."
-                            value={settlingVideoMark}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSettlingVideoMark(val);
-                              const mark = parseInt(val) || 0;
-                              // @ts-ignore
-                              const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
-                              setSettlingVideoAmount(((mark / 1000) * rate).toFixed(2));
-                            }}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm font-black italic outline-none focus:border-emerald-500/30 transition-all"
-                          />
+                       <div className="flex gap-3">
+                          <div className="flex-1">
+                            <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">From</p>
+                            <input 
+                              type="number"
+                              value={settlingVideoFromMark}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setSettlingVideoFromMark(val);
+                                const from = parseInt(val) || 0;
+                                const to = parseInt(settlingVideoMark) || 0;
+                                // @ts-ignore
+                                const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
+                                setSettlingVideoAmount(((Math.max(0, to - from) / 1000) * rate).toFixed(2));
+                              }}
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm font-black italic outline-none focus:border-indigo-500/30 transition-all text-slate-500"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">To</p>
+                            <input 
+                              type="number"
+                              value={settlingVideoMark}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setSettlingVideoMark(val);
+                                const to = parseInt(val) || 0;
+                                const from = parseInt(settlingVideoFromMark) || 0;
+                                // @ts-ignore
+                                const rate = account?.yieldRate || (account?.platform === 'tiktok' ? 0.30 : account?.platform === 'youtube' ? 1.50 : 0.80);
+                                setSettlingVideoAmount(((Math.max(0, to - from) / 1000) * rate).toFixed(2));
+                              }}
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm font-black italic outline-none focus:border-emerald-500/30 transition-all"
+                            />
+                          </div>
                        </div>
                        <div>
                           <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Payout Amount ($)</p>

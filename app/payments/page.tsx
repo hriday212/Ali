@@ -31,6 +31,7 @@ export default function PayoutsPage() {
   const [customRates, setCustomRates] = useState<Record<string, string>>({});
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [customMarks, setCustomMarks] = useState<Record<string, string>>({});
+  const [customFromMarks, setCustomFromMarks] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function fetchLedger() {
@@ -99,9 +100,10 @@ export default function PayoutsPage() {
   const displayNodes = nodes.map(node => {
      const yieldRate = customRates[node.id] !== undefined ? parseFloat(customRates[node.id]) : node.yieldRate;
      const settleMark = customMarks[node.id] !== undefined ? parseInt(customMarks[node.id]) : node.totalViews;
+     const fromMark = customFromMarks[node.id] !== undefined ? parseInt(customFromMarks[node.id]) : node.lastPaidViews;
      
-     // Debt is views between lastPaid and the settleMark
-     const unpaidInRange = Math.max(0, settleMark - node.lastPaidViews);
+     // Debt is views between fromMark and the settleMark
+     const unpaidInRange = Math.max(0, settleMark - fromMark);
      let due = (unpaidInRange / 1000) * yieldRate;
 
      if (customAmounts[node.id] !== undefined) due = parseFloat(customAmounts[node.id]);
@@ -146,6 +148,7 @@ export default function PayoutsPage() {
       const cRates = {...customRates}; delete cRates[node.id]; setCustomRates(cRates);
       const cAmounts = {...customAmounts}; delete cAmounts[node.id]; setCustomAmounts(cAmounts);
       const cMarks = {...customMarks}; delete cMarks[node.id]; setCustomMarks(cMarks);
+      const cFromMarks = {...customFromMarks}; delete cFromMarks[node.id]; setCustomFromMarks(cFromMarks);
 
     } catch (e) {
       console.error('Settlement Failed:', e);
@@ -243,8 +246,7 @@ export default function PayoutsPage() {
                 <tr>
                   <th className="p-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Network Node</th>
                   <th className="p-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Impressions</th>
-                  <th className="p-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Last Payout Mark</th>
-                  <th className="p-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Settlement Mark</th>
+                  <th className="p-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Settlement Range (From → To)</th>
                   <th className="p-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 underline decoration-indigo-500/30">Yield (CPM)</th>
                   <th className="p-6 text-right text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Liability ($)</th>
                   <th className="p-6 text-center text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Operations</th>
@@ -277,21 +279,39 @@ export default function PayoutsPage() {
                           <span className="text-[8px] font-black uppercase text-slate-700 tracking-widest">total</span>
                         </div>
                       </td>
-                      <td className="p-6 text-[11px] font-black tracking-widest text-slate-500">{node.lastPaidViews.toLocaleString()}</td>
                       <td className="p-6">
                         <div className="flex items-center gap-2">
-                          <input 
-                            type="number"
-                            value={customMarks[node.id] !== undefined ? customMarks[node.id] : node.totalViews} 
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val !== '') setCustomMarks({...customMarks, [node.id]: val});
-                              else {
-                                const cMarks = {...customMarks}; delete cMarks[node.id]; setCustomMarks(cMarks);
-                              }
-                            }}
-                            className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] font-black italic text-white/50 focus:text-white focus:border-white/30 outline-none transition-all"
-                          />
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[7px] font-black uppercase text-slate-600 tracking-widest pl-1">From</span>
+                            <input 
+                              type="number"
+                              value={customFromMarks[node.id] !== undefined ? customFromMarks[node.id] : node.lastPaidViews} 
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val !== '') setCustomFromMarks({...customFromMarks, [node.id]: val});
+                                else {
+                                  const cFromMarks = {...customFromMarks}; delete cFromMarks[node.id]; setCustomFromMarks(cFromMarks);
+                                }
+                              }}
+                              className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] font-black italic text-slate-500 focus:text-white focus:border-white/30 outline-none transition-all"
+                            />
+                          </div>
+                          <ArrowRight className="w-3 h-3 text-slate-800 mt-4" />
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[7px] font-black uppercase text-slate-600 tracking-widest pl-1">To</span>
+                            <input 
+                              type="number"
+                              value={customMarks[node.id] !== undefined ? customMarks[node.id] : node.totalViews} 
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val !== '') setCustomMarks({...customMarks, [node.id]: val});
+                                else {
+                                  const cMarks = {...customMarks}; delete cMarks[node.id]; setCustomMarks(cMarks);
+                                }
+                              }}
+                              className="w-24 bg-white/5 border border-white/10 rounded px-2 py-1 text-[11px] font-black italic text-white/50 focus:text-white focus:border-white/30 outline-none transition-all"
+                            />
+                          </div>
                         </div>
                       </td>
                       <td className="p-6">
