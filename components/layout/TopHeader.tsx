@@ -6,6 +6,12 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/authStore';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export function TopHeader() {
   const { user, role, logout, isLoginModalOpen, setLoginModalOpen } = useAuth();
@@ -17,8 +23,8 @@ export function TopHeader() {
         animate={{ 
           y: 0, 
           opacity: 1,
-          maxWidth: isLoginModalOpen ? '164px' : '896px',
-          height: isLoginModalOpen ? '48px' : (user ? '68px' : '96px'),
+          maxWidth: isLoginModalOpen ? '164px' : (user ? '896px' : '172px'),
+          height: isLoginModalOpen ? '48px' : (user ? '68px' : '64px'),
         }}
         transition={{ 
           maxWidth: { duration: isLoginModalOpen ? 0.8 : 2.0, ease: "easeInOut" },
@@ -28,7 +34,10 @@ export function TopHeader() {
         }}
         className="bg-black/20 backdrop-blur-[4px] border border-white/50 rounded-full overflow-hidden mx-auto shadow-2xl relative w-full"
       >
-        <div className="flex items-center justify-end w-full h-full relative px-2 md:px-8">
+        <div className={cn(
+          "flex items-center w-full h-full relative px-2 md:px-8",
+          (isLoginModalOpen || !user) ? "justify-center" : "justify-end"
+        )}>
           {/* Silk Shimmer */}
           <motion.div
             animate={{ x: ['-100%', '200%'] }}
@@ -42,8 +51,8 @@ export function TopHeader() {
            className="absolute left-4 md:left-6"
            initial={false}
            animate={{ 
-             opacity: isLoginModalOpen ? 0 : 1, 
-             filter: isLoginModalOpen ? 'blur(5px)' : 'blur(0px)',
+             opacity: (isLoginModalOpen || !user) ? 0 : 1, 
+             filter: (isLoginModalOpen || !user) ? 'blur(5px)' : 'blur(0px)',
              scale: user ? 0.8 : 1,
              originX: 0
            }}

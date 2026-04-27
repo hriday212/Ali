@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, ArrowRight, AlertCircle, X } from 'lucide-react';
+import Image from 'next/image';
 import { useAuth } from '@/lib/authStore';
 
 export function LoginModal() {
@@ -53,8 +54,17 @@ export function LoginModal() {
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="mb-8 relative z-10 text-center">
-                <h2 className="text-2xl font-black text-white italic tracking-tighter mb-1">CLYPSO</h2>
+              <div className="mb-8 relative z-10 flex flex-col items-center">
+                <div className="mb-2">
+                  <Image 
+                    src="/clypso-full-logo.png" 
+                    alt="Clypso" 
+                    width={180} 
+                    height={60} 
+                    className="object-contain h-12 w-auto drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                    priority
+                  />
+                </div>
                 <p className="text-[9px] font-semibold tracking-[0.2em] uppercase text-slate-400">Authentication Gate</p>
               </div>
 
