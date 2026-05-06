@@ -15,7 +15,7 @@ interface StatsCardProps {
   value: string | number;
   growth: number;
   icon: LucideIcon;
-  variant?: 'silver' | 'charcoal';
+  variant?: 'silver' | 'charcoal' | 'emerald';
 }
 
 export function StatsCard({ title, value, growth, icon: Icon, variant = 'silver' }: StatsCardProps) {
@@ -24,11 +24,13 @@ export function StatsCard({ title, value, growth, icon: Icon, variant = 'silver'
   const gradients = {
     silver: 'from-white/10 to-transparent',
     charcoal: 'from-slate-700/20 to-transparent',
+    emerald: 'from-emerald-500/10 to-transparent',
   };
 
   const ringColors = {
     silver: 'ring-white/20 bg-white/5 text-white',
     charcoal: 'ring-slate-700/30 bg-slate-800/10 text-slate-400',
+    emerald: 'ring-emerald-500/30 bg-emerald-500/10 text-emerald-500',
   };
 
   return (
@@ -38,7 +40,11 @@ export function StatsCard({ title, value, growth, icon: Icon, variant = 'silver'
       whileHover={{ y: -4 }}
       className="stats-card p-6 relative overflow-hidden group"
     >
-      <div className={cn(variant === 'silver' ? "stats-gradient-silver" : "stats-gradient-charcoal")} />
+      <div className={cn(
+        variant === 'silver' ? "stats-gradient-silver" : 
+        variant === 'emerald' ? "bg-gradient-to-br from-emerald-500/10 to-transparent absolute inset-0" :
+        "stats-gradient-charcoal"
+      )} />
       
       <div className="flex justify-between items-start mb-4">
         <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center ring-1", ringColors[variant])}>
