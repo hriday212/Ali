@@ -361,9 +361,10 @@ export default function PayoutsPage() {
                         {node.amountDue > 0 ? (
                           <button 
                             onClick={() => handleSettleAccount(node)}
-                            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-lg text-indigo-400 text-[9px] font-black uppercase tracking-widest transition-all"
+                            disabled={!isAdmin}
+                            className={`inline-flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isAdmin ? 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-white/5 text-slate-600 cursor-not-allowed'}`}
                           >
-                             Settle <ArrowRight className="w-3 h-3" />
+                             {isAdmin ? 'Settle' : 'Locked'} <ArrowRight className="w-3 h-3" />
                           </button>
                         ) : (
                           <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-emerald-500/50 text-[9px] font-black uppercase tracking-widest">

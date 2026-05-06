@@ -138,6 +138,8 @@ export default function ForecastPage() {
     let cViews = 0, cLikes = 0, cComments = 0, cShares = 0;
     let pViews = 0, pLikes = 0, pComments = 0, pShares = 0;
     const platViews: Record<string, number> = {};
+    const topAccountsMap: Record<string, any> = {};
+    let allValidPosts: any[] = [];
     
     // Arrays representing sequential days in the range
     const totalDays = rangeDays * 2;
@@ -213,6 +215,43 @@ export default function ForecastPage() {
         pShares += Math.max(0, (latest.totalShares || 0) - baselineShares);
       }
 
+      // Record Account Gains for Top 5
+      const currentPeriodGain = cViews - (currentH.length > 0 ? (isNewVideo ? 0 : (history.find((h: any) => new Date(h.time).getTime() >= currentStart.getTime()) || currentH[0]).totalViews || 0) : 0);
+      // Actually we already have the net gain for this account in the cViews addition, let's recalculate just for this account:
+      let accViewsGain = 0;
+      if (currentH.length > 0) {
+        const startH = history.find((h: any) => new Date(h.time).getTime() >= currentStart.getTime());
+        const first = startH || currentH[0];
+        const latest = currentH[currentH.length - 1];
+        const isNewVideo = history[0] === first;
+        const baseline = isNewVideo ? 0 : (first.totalViews || 0);
+        accViewsGain = Math.max(0, (latest.totalViews || 0) - baseline);
+      }
+      
+      if (accViewsGain > 0) {
+        topAccountsMap[scan.accountId] = {
+          id: scan.accountId,
+          name: scan.accountId,
+          handle: scan.accountLink || scan.accountId,
+          views: accViewsGain,
+          followers: scan.lastFollowers || 0
+        };
+      }
+
+      // Collect posts created within this period for Top 5 Posts
+      if (scan.posts && Array.isArray(scan.posts)) {
+        const periodPosts = scan.posts.filter((p: any) => {
+          const d = new Date(p.date || p.createdAt).getTime();
+          return d >= currentStart.getTime() && d <= currentEnd.getTime();
+        }).map((p: any) => ({
+          ...p,
+          accountName: scan.accountId,
+          accountId: scan.accountId
+        }));
+        allValidPosts = [...allValidPosts, ...periodPosts];
+      }
+      
+
       // Platform distribution
       const plat = scan.platform || 'unknown';
       platViews[plat] = (platViews[plat] || 0) + (scan.lastViews || 0);
@@ -282,12 +321,17 @@ export default function ForecastPage() {
       previous: hourMapPrev[hour],
     }));
 
+    const topAccounts = Object.values(topAccountsMap).sort((a: any, b: any) => b.views - a.views).slice(0, 5);
+    const topPosts = allValidPosts.sort((a: any, b: any) => (b.views || 0) - (a.views || 0)).slice(0, 5);
+
     return {
       currentKPIs: { views: cViews, likes: cLikes, comments: cComments, shares: cShares },
       prevKPIs: { views: pViews, likes: pLikes, comments: pComments, shares: pShares },
       platformDist,
       timeSeries: mergedTimeSeries,
       hourlyPattern,
+      topAccounts,
+      topPosts
     };
   }, [allScans, activeRange, customStart, customEnd, rangeDays, activeGlobalPlatform]);
 

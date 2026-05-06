@@ -58,6 +58,7 @@ import {
 } from '@/components/dashboard/VisualizationSuite';
 import { getAccountById, type Account } from '@/lib/accountsStore';
 import { getPayouts, getPayoutsForAccount, type PayoutRecord } from '@/lib/payoutsStore';
+import { useAuth } from '@/lib/authStore';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
 
@@ -146,7 +147,7 @@ export default function AccountForensicPage() {
 
   // Chart Timeframe State
   const [timeframe, setTimeframe] = React.useState('ALL');
-  const [isAdmin, setIsAdmin] = React.useState(true); // Mock admin session for dev
+  const { isAdmin } = useAuth();
   const [isSettling, setIsSettling] = React.useState(false);
   const [settleAmount, setSettleAmount] = React.useState('0');
   const [customMark, setCustomMark] = React.useState('');
@@ -1176,9 +1177,10 @@ export default function AccountForensicPage() {
                   </button>
                   <button 
                     onClick={handleSettle}
-                    className="flex-[2] py-4 bg-emerald-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-[0_10px_20px_-5px_rgba(16,185,129,0.3)]"
+                    disabled={!isAdmin}
+                    className={`flex-[2] py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_10px_20px_-5px_rgba(16,185,129,0.3)] ${isAdmin ? 'bg-emerald-500 text-black hover:bg-emerald-400' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
                   >
-                    Clear Settlement
+                    {isAdmin ? 'Clear Settlement' : 'Admin Only Access'}
                   </button>
                 </div>
               </div>

@@ -662,25 +662,35 @@ app.get('/api/status', (req, res) => {
 });
 
 // New: list all active scans
+// New: list all active scans
 app.get('/api/scans', (req, res) => {
-  const scans = [];
-  activeScans.forEach((v, k) => {
-    const { timer, ...rest } = v;
-    const diskData = readScanData(k);
-    const lastHistory = diskData.history && diskData.history.length > 0 ? diskData.history[diskData.history.length - 1] : {};
-    scans.push({
-      ...rest,
-      secondsRemaining: v.nextScanAt ? Math.max(0, Math.floor((new Date(v.nextScanAt) - Date.now()) / 1000)) : 0,
-      lastViews: lastHistory.totalViews || 0,
-      lastLikes: lastHistory.totalLikes || 0,
-      lastComments: lastHistory.totalComments || 0,
-      lastShares: lastHistory.totalShares || 0,
-      history: diskData.history || [],
-      posts: (diskData.posts || []).slice(0, 200),
-      platform: v.platform || diskData.platform || 'youtube',
+  try {
+    const scans = [];
+    activeScans.forEach((v, k) => {
+      try {
+        const { timer, ...rest } = v;
+        const diskData = readScanData(k) || { history: [], posts: [] };
+        const lastHistory = diskData.history && diskData.history.length > 0 ? diskData.history[diskData.history.length - 1] : {};
+        scans.push({
+          ...rest,
+          secondsRemaining: v.nextScanAt ? Math.max(0, Math.floor((new Date(v.nextScanAt) - Date.now()) / 1000)) : 0,
+          lastViews: lastHistory.totalViews || 0,
+          lastLikes: lastHistory.totalLikes || 0,
+          lastComments: lastHistory.totalComments || 0,
+          lastShares: lastHistory.totalShares || 0,
+          history: diskData.history || [],
+          posts: (diskData.posts || []).slice(0, 200),
+          platform: v.platform || diskData.platform || 'youtube',
+        });
+      } catch (innerErr) {
+        console.error(`[API] Error processing account ${k}:`, innerErr.message);
+      }
     });
-  });
-  res.json({ scans, globalDefaultInterval, smartEngineEnabled });
+    res.json({ scans, globalDefaultInterval, smartEngineEnabled });
+  } catch (error) {
+    console.error('[API] Fatal error in /api/scans:', error);
+    res.status(500).json({ error: 'Internal server error', scans: [] });
+  }
 });
 
 // Admin Route: SmartEngine Toggle

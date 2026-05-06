@@ -17,6 +17,17 @@ export interface Account {
     viewLevel: number;
     amount: number;
   }[];
+  campaignConfig?: {
+    type: 'CPM' | 'Retainer' | 'None';
+    campaignStart?: string; // ISO Date String
+    // CPM Fields
+    cpmRate?: number;
+    threshold?: number;
+    cap?: number;
+    // Retainer Fields
+    baseRetainer?: number;
+    milestones?: { views: number; bonus: number }[];
+  };
 }
 
 const STORAGE_KEY = 'command_center_accounts_v1';
