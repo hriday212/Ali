@@ -203,28 +203,28 @@ export default function ForecastPage() {
         const first = startH || prevH[0];
         const latest = prevH[prevH.length - 1];
         
-        const isNewVideo = history[0] === first;
-        const baselineViews = isNewVideo ? 0 : (first.totalViews || 0);
-        const baselineLikes = isNewVideo ? 0 : (first.totalLikes || 0);
-        const baselineComments = isNewVideo ? 0 : (first.totalComments || 0);
-        const baselineShares = isNewVideo ? 0 : (first.totalShares || 0);
+        const isVideoNewPrev = history[0] === first;
+        const baselineViews = isVideoNewPrev ? 0 : (first.totalViews || 0);
+        const baselineLikes = isVideoNewPrev ? 0 : (first.totalLikes || 0);
+        const baselineComments = isVideoNewPrev ? 0 : (first.totalComments || 0);
+        const baselineShares = isVideoNewPrev ? 0 : (first.totalShares || 0);
 
         pViews += Math.max(0, (latest.totalViews || 0) - baselineViews);
         pLikes += Math.max(0, (latest.totalLikes || 0) - baselineLikes);
         pComments += Math.max(0, (latest.totalComments || 0) - baselineComments);
         pShares += Math.max(0, (latest.totalShares || 0) - baselineShares);
       }
-
       // Record Account Gains for Top 5
-      const currentPeriodGain = cViews - (currentH.length > 0 ? (isNewVideo ? 0 : (history.find((h: any) => new Date(h.time).getTime() >= currentStart.getTime()) || currentH[0]).totalViews || 0) : 0);
+      const isVideoNewCurrent = new Date(p.timestamp).getTime() >= currentStart.getTime();
+      const currentPeriodGain = cViews - (currentH.length > 0 ? (isVideoNewCurrent ? 0 : (history.find((h: any) => new Date(h.time).getTime() >= currentStart.getTime()) || currentH[0]).totalViews || 0) : 0);
       // Actually we already have the net gain for this account in the cViews addition, let's recalculate just for this account:
       let accViewsGain = 0;
       if (currentH.length > 0) {
         const startH = history.find((h: any) => new Date(h.time).getTime() >= currentStart.getTime());
         const first = startH || currentH[0];
         const latest = currentH[currentH.length - 1];
-        const isNewVideo = history[0] === first;
-        const baseline = isNewVideo ? 0 : (first.totalViews || 0);
+        const isVideoNewForAcc = history[0] === first;
+        const baseline = isVideoNewForAcc ? 0 : (first.totalViews || 0);
         accViewsGain = Math.max(0, (latest.totalViews || 0) - baseline);
       }
       
