@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings2, Clock, Zap, Shield, AlertTriangle, Loader2, Gauge, Server, KeySquare, Brain, ChevronDown, ChevronUp, Info, DollarSign, Cpu, Database, Globe, BarChart3 } from 'lucide-react';
+import { Settings2, Clock, Zap, Shield, AlertTriangle, Loader2, Gauge, Server, KeySquare, Brain, ChevronDown, ChevronUp, Info, DollarSign, Cpu, Database, Globe, BarChart3, Calendar } from 'lucide-react';
 import { useAuth } from '@/lib/authStore';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
