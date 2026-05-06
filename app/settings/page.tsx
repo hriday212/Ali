@@ -30,6 +30,7 @@ export default function SettingsPage() {
   useEffect(() => {
     async function loadStats() {
       try {
+        const data = await safeFetchJson(API_ROUTES.SCANS);
         if (data && data.scans) {
           setNodeCount(data.scans.length);
           setPendingApprovals(data.scans.filter((s: any) => s.pendingInterval));
