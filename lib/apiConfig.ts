@@ -1,6 +1,7 @@
 export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
 export const API_ROUTES = {
+  BASE: BACKEND_URL,
   SCANS: `${BACKEND_URL}/api/scans`,
   STATUS: `${BACKEND_URL}/api/status`,
   START: `${BACKEND_URL}/api/start`,

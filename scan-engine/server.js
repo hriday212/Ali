@@ -599,12 +599,27 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       totalShares: peakTotalShares,
     }].slice(-50);
 
-    // 4. SLA Tracking (Phase 18: Posting Frequency)
+    // 4. SLA Tracking (Phase 18: Posting Frequency & Retainer Fulfillment)
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
     const postsLast24h = posts.filter(p => new Date(p.date) > oneDayAgo).length;
     
-    scan.slaStatus = postsLast24h >= 2 ? 'HEALTHY' : 'FAILING';
+    // Dynamic SLA based on Campaign Type
+    const config = scan.campaignConfig || {};
+    const quota = config.postsQuota || 2;
+    const viewThreshold = config.minViews || 5000;
+    
+    let slaStatus = postsLast24h >= quota ? 'HEALTHY' : 'FAILING';
+    
+    // Retainer specific fulfillment check
+    if (config.type === 'Retainer') {
+        const metViews = peakTotalViews >= viewThreshold;
+        const metPosts = postsLast24h >= quota;
+        scan.retainerFulfilled = metViews && metPosts;
+        if (!scan.retainerFulfilled) slaStatus = 'FAILING';
+    }
+
+    scan.slaStatus = slaStatus;
     scan.dailyPostCount = postsLast24h;
     scan.lastSLAUpdate = now.toISOString();
 
@@ -637,11 +652,15 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
             
             const payableViews = Math.min(Math.max(totalViews - threshold, 0), cap);
             earned = (payableViews / 1000) * rate;
+            scan.payableViews = payableViews;
+        } else if (config.type === 'Retainer') {
+            // Retainer: Earned if fulfilled (at least for current scan snapshot)
+            earned = scan.retainerFulfilled ? (config.retainerAmount || 0) : 0;
+            scan.payableViews = 0;
         }
 
         // Update Scan Settlement State
         scan.totalEarned = earned;
-        scan.payableViews = Math.min(Math.max(totalViews - (config.threshold || 0), 0), (config.cap || Infinity));
         
         // Log to Ledger if changed significantly
         const lastAmount = scan.lastSettledAmount || 0;
@@ -1005,6 +1024,9 @@ app.post('/api/stop', (req, res) => {
 
 app.get('/api/status', (req, res) => {
   const accountId = req.query.accountId;
+  if (!accountId) {
+    return res.json({ status: 'HEALTHY', engine: 'ScanEngine v1.4.2', uptime: process.uptime() });
+  }
   const scan = activeScans.get(accountId);
   const data = readScanData(accountId);
   let cleanStatus = null;

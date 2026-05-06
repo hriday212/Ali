@@ -135,6 +135,16 @@ export default function AccountCard({ account, onDelete, onUpdate }: AccountCard
           </div>
         </div>
       )}
+      {account.campaignConfig?.type === 'Retainer' && (
+        <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start">
+          <div className="px-2 py-0.5 bg-indigo-500 text-white text-[7px] font-black uppercase rounded-md shadow-[0_0_10px_rgba(99,102,241,0.5)]">
+            RETAINER
+          </div>
+          <div className={`px-2 py-0.5 bg-black/60 backdrop-blur-md border ${account.slaStatus === 'HEALTHY' ? 'border-emerald-500/30 text-emerald-400' : 'border-red-500/30 text-red-400'} text-[7px] font-black uppercase italic rounded-md`}>
+            {account.slaStatus === 'HEALTHY' ? 'FULFILLED' : 'PENDING'}
+          </div>
+        </div>
+      )}
 
       {/* Profile / Platform Badge Container */}
       <div className="relative mb-5 z-10">

@@ -27,8 +27,9 @@ export interface Account {
     threshold?: number;
     cap?: number;
     // Retainer Fields
-    baseRetainer?: number;
-    milestones?: { views: number; bonus: number }[];
+    postsQuota?: number;
+    minViews?: number;
+    retainerAmount?: number;
   };
 }
 

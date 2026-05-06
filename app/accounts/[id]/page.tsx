@@ -162,6 +162,9 @@ export default function AccountForensicPage() {
   const [cpmRate, setCpmRate] = React.useState('0');
   const [viewThreshold, setViewThreshold] = React.useState('0');
   const [viewCap, setViewCap] = React.useState('0');
+  const [postsQuota, setPostsQuota] = React.useState('2');
+  const [minViews, setMinViews] = React.useState('5000');
+  const [retainerAmount, setRetainerAmount] = React.useState('0');
   const [isSavingConfig, setIsSavingConfig] = React.useState(false);
 
   // Load account from persistent store
@@ -203,6 +206,9 @@ export default function AccountForensicPage() {
         setCpmRate(String(found.campaignConfig.cpmRate || 0));
         setViewThreshold(String(found.campaignConfig.threshold || 0));
         setViewCap(String(found.campaignConfig.cap || 0));
+        setPostsQuota(String(found.campaignConfig.postsQuota || 2));
+        setMinViews(String(found.campaignConfig.minViews || 5000));
+        setRetainerAmount(String(found.campaignConfig.retainerAmount || 0));
       }
     }
   }, [params.id]);
@@ -484,6 +490,9 @@ export default function AccountForensicPage() {
       cpmRate: parseFloat(cpmRate) || 0,
       threshold: parseInt(viewThreshold) || 0,
       cap: parseInt(viewCap) || 0,
+      postsQuota: parseInt(postsQuota) || 2,
+      minViews: parseInt(minViews) || 5000,
+      retainerAmount: parseFloat(retainerAmount) || 0,
       campaignStart: account.campaignConfig?.campaignStart || new Date().toISOString()
     };
 
@@ -825,6 +834,27 @@ export default function AccountForensicPage() {
                           <p className="text-[6px] font-black uppercase tracking-widest text-slate-700 mt-1 italic">
                             @{account.campaignConfig.cpmRate}/1k Views | Threshold {formatNumber(account.campaignConfig.threshold || 0)}
                           </p>
+                        </div>
+                      )}
+                      {account.campaignConfig?.type === 'Retainer' && (
+                        <div className="mt-4 pt-4 border-t border-white/5">
+                           <div className="flex items-center justify-between mb-2">
+                             <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400 italic">Retainer Model</span>
+                             <div className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest ${account.slaStatus === 'HEALTHY' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                {account.slaStatus === 'HEALTHY' ? 'FULFILLED' : 'PENDING'}
+                             </div>
+                           </div>
+                           <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                 <span className="text-[7px] font-black text-slate-500 uppercase">Posts (24h)</span>
+                                 <span className="text-[10px] font-black italic">{account.dailyPostCount || 0} / {account.campaignConfig.postsQuota || 2}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                 <span className="text-[7px] font-black text-slate-500 uppercase">Min Views</span>
+                                 <span className="text-[10px] font-black italic">{formatNumber(totalViews)} / {formatNumber(account.campaignConfig.minViews || 5000)}</span>
+                              </div>
+                           </div>
+                           <p className="text-[10px] font-black italic tracking-tighter text-indigo-400 text-right mt-2">${(account.campaignConfig.retainerAmount || 0).toFixed(2)} / Period</p>
                         </div>
                       )}
                     </>
@@ -1408,9 +1438,37 @@ export default function AccountForensicPage() {
                 )}
 
                 {campaignType === 'Retainer' && (
-                   <div className="p-6 bg-white/5 border border-white/5 rounded-2xl text-center">
-                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 italic">Retainer Logic Initializing in Phase 19...</p>
-                   </div>
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">Fixed Retainer Amount ($)</label>
+                      <input 
+                        type="number"
+                        value={retainerAmount}
+                        onChange={(e) => setRetainerAmount(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-black italic outline-none focus:border-white/30 transition-all text-emerald-400"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">Daily Posts Quota</label>
+                        <input 
+                          type="number"
+                          value={postsQuota}
+                          onChange={(e) => setPostsQuota(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-black italic outline-none focus:border-white/30 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">Min Views Threshold</label>
+                        <input 
+                          type="number"
+                          value={minViews}
+                          onChange={(e) => setMinViews(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-black italic outline-none focus:border-white/30 transition-all"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
                 )}
 
                 <div className="pt-6 flex gap-3">
