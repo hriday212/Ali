@@ -15,8 +15,10 @@ export default function SettingsPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [nodeCount, setNodeCount] = useState(0);
-  const [smartEngineEnabled, setSmartEngineEnabled] = useState(true);
+  const [smartEngineEnabled, setSmartEngineEnabled] = useState(false);
   const [isTogglingSmartEngine, setIsTogglingSmartEngine] = useState(false);
+  const [viralDetectionMode, setViralDetectionMode] = useState<'off'|'standard'|'aggressive'>('off');
+  const [isSettingViralMode, setIsSettingViralMode] = useState(false);
   const [discordWebhook, setDiscordWebhook] = useState('');
   const [isUpdatingWebhook, setIsUpdatingWebhook] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -29,6 +31,7 @@ export default function SettingsPage() {
         if (data && typeof data.smartEngineEnabled === 'boolean') setSmartEngineEnabled(data.smartEngineEnabled);
         if (data && data.globalDefaultInterval) setActiveCadence(data.globalDefaultInterval);
         if (data && data.discordWebhookUrl) setDiscordWebhook(data.discordWebhookUrl);
+        if (data && data.viralDetectionMode) setViralDetectionMode(data.viralDetectionMode);
       } catch (err) {}
     }
     loadStats();
@@ -86,6 +89,23 @@ export default function SettingsPage() {
       console.error('Failed to toggle SmartEngine:', err);
     } finally {
       setIsTogglingSmartEngine(false);
+    }
+  };
+
+  const handleSetViralMode = async (mode: 'off' | 'standard' | 'aggressive') => {
+    setIsSettingViralMode(true);
+    try {
+      const res = await fetch(API_ROUTES.VIRAL_MODE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      });
+      const data = await res.json();
+      if (data.success) setViralDetectionMode(data.viralDetectionMode);
+    } catch (err) {
+      console.error('Failed to set viral mode:', err);
+    } finally {
+      setIsSettingViralMode(false);
     }
   };
 
@@ -166,39 +186,62 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
-          {/* SmartEngine Toggle */}
-          <div className={`glass-card p-8 border relative overflow-hidden transition-all ${smartEngineEnabled ? 'border-amber-500/30 bg-gradient-to-br from-amber-900/10 to-transparent' : 'border-white/10 bg-gradient-to-br from-slate-900/10 to-transparent'}`}>
-            <div className="absolute top-0 right-0 p-6 opacity-15 pointer-events-none">
+          {/* SmartEngine + Viral Detection Mode */}
+          <div className={`glass-card p-8 border relative overflow-hidden transition-all ${smartEngineEnabled ? 'border-amber-500/30 bg-gradient-to-br from-amber-900/10 to-transparent' : 'border-white/10'}`}>
+            <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
                <Brain className="w-28 h-28 text-amber-500" />
             </div>
-            <h2 className="text-lg font-black italic uppercase text-white tracking-widest mb-4 flex items-center gap-2">
-              <Brain className="w-4 h-4 text-amber-400" /> SmartEngine Auto-Escalation
+            <h2 className="text-lg font-black italic uppercase text-white tracking-widest mb-2 flex items-center gap-2">
+              <Brain className="w-4 h-4 text-amber-400" /> SmartEngine
             </h2>
-            <p className="text-xs text-slate-400 mb-4 max-w-sm leading-relaxed">
-              When enabled, the SmartEngine will <span className="text-amber-400 font-bold">automatically override</span> your chosen cadence and escalate polling to every 10 minutes if it detects high view activity on any node. It will also throttle dormant nodes to save tokens.
+            <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+              When enabled, the engine auto-adjusts polling cadence based on viral velocity. Choose a detection sensitivity below.
             </p>
-            
-            {smartEngineEnabled && (
-              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-5">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-amber-300/80 leading-relaxed">
-                  <span className="font-black">WARNING:</span> SmartEngine can silently override your weekly/economy cadence for hot nodes, which may consume significant Apify credits without your knowledge.
-                </p>
-              </div>
-            )}
-            
+
+            {/* Master ON/OFF */}
             <button
               onClick={handleToggleSmartEngine}
               disabled={isTogglingSmartEngine}
-              className={`w-full flex items-center justify-center gap-3 px-6 py-4 border text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all ${
+              className={`w-full flex items-center justify-center gap-3 px-5 py-3 border text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all mb-6 ${
                 smartEngineEnabled
                   ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-400'
                   : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/10 text-slate-400'
               }`}
             >
               {isTogglingSmartEngine ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-              {smartEngineEnabled ? 'Disable SmartEngine' : 'Enable SmartEngine'}
+              SmartEngine: {smartEngineEnabled ? 'ACTIVE' : 'OFF'}
             </button>
+
+            {/* Viral Detection Mode Selector */}
+            <div className="space-y-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3">Viral Detection Sensitivity</p>
+              {([
+                { mode: 'off' as const, label: 'Off', desc: 'No automatic escalation. Fixed cadence only.', color: 'text-slate-400', border: 'border-slate-700', activeBg: 'bg-slate-800' },
+                { mode: 'standard' as const, label: 'Standard', desc: '5x multiplier threshold. Escalates ultra-viral to 4h.', color: 'text-blue-400', border: 'border-blue-500/30', activeBg: 'bg-blue-900/20' },
+                { mode: 'aggressive' as const, label: 'Aggressive', desc: '3x multiplier threshold. Escalates to 2h scan rate.', color: 'text-red-400', border: 'border-red-500/30', activeBg: 'bg-red-900/20' },
+              ]).map(({ mode, label, desc, color, border, activeBg }) => (
+                <button
+                  key={mode}
+                  onClick={() => handleSetViralMode(mode)}
+                  disabled={isSettingViralMode || !smartEngineEnabled}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left disabled:opacity-40 ${
+                    viralDetectionMode === mode ? `${activeBg} ${border}` : 'bg-white/[0.02] border-white/5 hover:border-white/10'
+                  }`}
+                >
+                  <div>
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${viralDetectionMode === mode ? color : 'text-slate-400'}`}>{label}</p>
+                    <p className="text-[8px] text-slate-600 mt-0.5">{desc}</p>
+                  </div>
+                  {viralDetectionMode === mode && (
+                    <span className={`w-2 h-2 rounded-full ${mode === 'off' ? 'bg-slate-500' : mode === 'standard' ? 'bg-blue-500' : 'bg-red-500'} shadow-[0_0_8px_currentColor]`} />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {!smartEngineEnabled && (
+              <p className="text-[9px] text-slate-600 uppercase tracking-widest mt-4 text-center">Enable SmartEngine to configure detection mode</p>
+            )}
           </div>
 
           {/* Discord Webhook Configuration */}

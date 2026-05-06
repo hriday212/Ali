@@ -41,7 +41,8 @@ const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 // -------------------------------------------------------
 
 let globalDefaultInterval = 30; // Minutes
-let smartEngineEnabled = true;
+let smartEngineEnabled = false; // Default OFF
+let viralDetectionMode = 'off'; // 'off' | 'standard' | 'aggressive' — Default OFF
 let discordWebhookUrl = '';
 
 const activeScans = new Map();
@@ -545,10 +546,10 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     scan.slaLogs = scan.slaLogs.slice(-20);
 
     // --- Smart Engine: Relative Pulse Algorithm (Phase 7) ---
-    // Default fallback interval
+    // Default fallback interval — stays fixed if SmartEngine is off
     let nextInterval = scan.intervalMinutes || globalDefaultInterval;
     
-    if (data.history && data.history.length > 1) {
+    if (smartEngineEnabled && viralDetectionMode !== 'off' && data.history && data.history.length > 1) {
       const latest = data.history[data.history.length - 1].totalViews;
       const previousTotal = data.history[data.history.length - 2].totalViews;
       const delta = Math.max(0, latest - previousTotal);
@@ -563,48 +564,53 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       const avgHourlyGain = Math.max(1, (latest - firstRecord.totalViews) / totalHours);
       
       const multiplier = currentHourlyGain / avgHourlyGain;
-      
-      // Testing Phase: 6 Hour resting baseline (was 3 days)
-      const baseInterval = 360; 
 
-      // --- 3. Enhanced Viral Detection Logic ---
+      // --- Milestone & Velocity Discord Alerts (fire regardless of mode when webhook set) ---
       if (discordWebhookUrl) {
           // A. Milestone Detection
           const milestones = [100000, 500000, 1000000, 5000000, 10000000];
           const hitMilestone = milestones.find(m => previousTotal < m && latest >= m);
-          
           if (hitMilestone) {
               fetch(discordWebhookUrl, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                      content: `🏆 **MILESTONE REACHED** 🏆\nNode: **${accountId}**\nAccount has crossed **${hitMilestone.toLocaleString()}** total views!\nPlatform: ${platform.toUpperCase()}\nLink: ${accountLink}`
+                      content: `🏆 **MILESTONE REACHED** 🏆\nNode: **${accountId}**\nCrossed **${hitMilestone.toLocaleString()}** total views!\nPlatform: ${platform.toUpperCase()}\nLink: ${accountLink}`
                   })
               }).catch(e => console.error('[Discord] Milestone failed:', e.message));
           }
 
-          // B. Velocity Spike Detection
-          if (multiplier > 8 && delta > 25000) {
+          // B. Velocity Spike — Aggressive mode only
+          if (viralDetectionMode === 'aggressive' && multiplier > 8 && delta > 25000) {
               fetch(discordWebhookUrl, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                      content: `⚡ **VELOCITY SPIKE DETECTED** ⚡\nNode: **${accountId}**\nGrowth rate is **${multiplier.toFixed(1)}x** above baseline!\nDelta: +${delta.toLocaleString()} views in last cycle\nLink: ${accountLink}`
+                      content: `⚡ **VELOCITY SPIKE** ⚡\nNode: **${accountId}**\nGrowth is **${multiplier.toFixed(1)}x** above baseline!\nDelta: +${delta.toLocaleString()} views\nLink: ${accountLink}`
                   })
               }).catch(e => console.error('[Discord] Spike failed:', e.message));
           }
       }
       
-      // C. Interval Escalation Logic
-      if (multiplier > 5 || delta > 100000) {
-        nextInterval = 120; // 2 Hours (Ultra Viral)
-        console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 2h.`);
-      } else if (multiplier > 2 || delta > 25000) {
-        nextInterval = 360; // 6 Hours (Viral Traction)
-        console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 6h.`);
+      // --- C. Interval Escalation Logic (thresholds vary by mode) ---
+      const isAggressive = viralDetectionMode === 'aggressive';
+      const ultraViralMultiplier  = isAggressive ? 3  : 5;
+      const ultraViralDelta       = isAggressive ? 50000 : 100000;
+      const trendingMultiplier    = isAggressive ? 1.5 : 2;
+      const trendingDelta         = isAggressive ? 10000 : 25000;
+      const ultraViralInterval    = isAggressive ? 120  : 240;  // 2h vs 4h
+      const trendingInterval      = isAggressive ? 360  : 720;  // 6h vs 12h
+      const restingInterval       = isAggressive ? 1440 : 1440; // 24h both
+
+      if (multiplier > ultraViralMultiplier || delta > ultraViralDelta) {
+        nextInterval = ultraViralInterval;
+        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🚀 Node ${accountId} ULTRA VIRAL (M=${multiplier.toFixed(1)}x, D=${delta})! → ${ultraViralInterval}m.`);
+      } else if (multiplier > trendingMultiplier || delta > trendingDelta) {
+        nextInterval = trendingInterval;
+        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🔥 Node ${accountId} TRENDING (M=${multiplier.toFixed(1)}x, D=${delta}) → ${trendingInterval}m.`);
       } else {
-        nextInterval = 1440; // 24 Hours Resting Stage
-        console.log(`[SmartEngine] 💤 Node ${accountId} resting (M=${multiplier.toFixed(1)}x). Setting to 24h.`);
+        nextInterval = restingInterval;
+        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 💤 Node ${accountId} resting → 24h.`);
       }
     }
     
@@ -640,6 +646,7 @@ function saveAllState() {
     settings: {
       globalDefaultInterval,
       smartEngineEnabled,
+      viralDetectionMode,
       discordWebhookUrl
     },
     scans: scansRoot
@@ -683,7 +690,8 @@ function restoreState() {
       if (raw.scans && raw.settings) {
          scansToLoad = raw.scans;
          globalDefaultInterval = raw.settings.globalDefaultInterval || globalDefaultInterval;
-         smartEngineEnabled = raw.settings.smartEngineEnabled !== undefined ? raw.settings.smartEngineEnabled : smartEngineEnabled;
+         smartEngineEnabled = raw.settings.smartEngineEnabled !== undefined ? raw.settings.smartEngineEnabled : false;
+         viralDetectionMode = raw.settings.viralDetectionMode || 'off';
          discordWebhookUrl = raw.settings.discordWebhookUrl || discordWebhookUrl;
       } else {
          // Legacy mode
@@ -789,7 +797,7 @@ app.get('/api/scans', (req, res) => {
         console.error(`[API] Error processing account ${k}:`, innerErr.message);
       }
     });
-    res.json({ scans, globalDefaultInterval, smartEngineEnabled, discordWebhookUrl });
+    res.json({ scans, globalDefaultInterval, smartEngineEnabled, viralDetectionMode, discordWebhookUrl });
   } catch (error) {
     console.error('[API] Fatal error in /api/scans:', error);
     res.status(500).json({ error: 'Internal server error', scans: [] });
@@ -800,9 +808,21 @@ app.get('/api/scans', (req, res) => {
 app.post('/api/settings/smart-engine', (req, res) => {
   const { enabled } = req.body;
   smartEngineEnabled = !!enabled;
-  saveAllState(); // Persist setting
-  console.log(`[ScanEngine] ⚙️ SmartEngine auto-escalation ${smartEngineEnabled ? 'ENABLED' : 'DISABLED'} by Admin.`);
+  saveAllState();
+  console.log(`[ScanEngine] ⚙️ SmartEngine ${smartEngineEnabled ? 'ENABLED' : 'DISABLED'} by Admin.`);
   res.json({ success: true, smartEngineEnabled });
+});
+
+// Admin Route: Viral Detection Mode
+app.post('/api/settings/viral-mode', (req, res) => {
+  const { mode } = req.body;
+  if (!['off', 'standard', 'aggressive'].includes(mode)) {
+    return res.status(400).json({ error: 'Invalid mode. Use: off | standard | aggressive' });
+  }
+  viralDetectionMode = mode;
+  saveAllState();
+  console.log(`[ScanEngine] ⚙️ Viral Detection Mode set to: ${viralDetectionMode.toUpperCase()} by Admin.`);
+  res.json({ success: true, viralDetectionMode });
 });
 
 // Admin Route: Discord Webhook

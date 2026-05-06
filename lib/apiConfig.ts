@@ -11,6 +11,7 @@ export const API_ROUTES = {
   SMART_ENGINE: `${BACKEND_URL}/api/settings/smart-engine`,
   FORCE_SYNC: `${BACKEND_URL}/api/settings/force-sync`,
   DISCORD_WEBHOOK: `${BACKEND_URL}/api/settings/discord-webhook`,
+  VIRAL_MODE: `${BACKEND_URL}/api/settings/viral-mode`,
   LATEST_POSTS: `${BACKEND_URL}/api/scans/latest-posts`,
   APIFY_USAGE: `${BACKEND_URL}/api/apify-usage`,
   APIFY_HISTORY: `${BACKEND_URL}/api/usage/history`,
