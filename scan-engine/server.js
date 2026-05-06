@@ -39,23 +39,23 @@ const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 
-// --- EMERGENCY AUTOMATIC DUMP ---
-app.get('/trigger-dump', (req, res) => {
-  console.log('[Emergency] 🔄 Triggering log dump...');
+// --- EMERGENCY STARTUP DUMP ---
+function startupDump() {
+  console.log('[Emergency] 🔄 Startup recovery triggered...');
   const { exec } = require('child_process');
-  const tarPath = '/tmp/clypso_auto.tar.gz';
+  const tarPath = '/tmp/clypso_final.tar.gz';
   
   exec(`tar -czf ${tarPath} -C ${DATA_DIR} .`, (err) => {
-    if (err) return res.status(500).send('Tar failed');
+    if (err) return console.error('Tar failed');
     exec(`base64 ${tarPath}`, { maxBuffer: 1024 * 1024 * 50 }, (err, stdout) => {
-      if (err) return res.status(500).send('Base64 failed');
-      console.log('BEGIN_RECOVERY_BLOCK');
+      if (err) return console.error('Base64 failed');
+      console.log('RECOVERY_START');
       console.log(stdout.trim());
-      console.log('END_RECOVERY_BLOCK');
-      res.send('Dumped to logs!');
+      console.log('RECOVERY_END');
     });
   });
-});
+}
+setTimeout(startupDump, 5000); // Wait 5s for app to stabilize
 // ----------------------------------
 
 // -------------------------------------------------------
