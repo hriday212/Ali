@@ -113,6 +113,22 @@ export default function PayoutsPage() {
     }
   };
 
+  const displayNodes = nodes.map(node => {
+     const yieldRate = customRates[node.id] !== undefined ? parseFloat(customRates[node.id]) : node.yieldRate;
+     const settleMark = customMarks[node.id] !== undefined ? parseInt(customMarks[node.id]) : node.qualifiedViews;
+     const fromMark = customFromMarks[node.id] !== undefined ? parseInt(customFromMarks[node.id]) : node.lastPaidViews;
+     
+     const unpaidInRange = Math.max(0, settleMark - fromMark);
+     let due = node.campaignConfig?.type === 'Retainer' 
+        ? (node.campaignConfig.retainerAmount || 0) 
+        : (unpaidInRange / 1000) * yieldRate;
+
+     if (customAmounts[node.id] !== undefined) due = parseFloat(customAmounts[node.id]);
+     const status = (due > 0 || unpaidInRange > 0) ? 'pending' : 'cleared';
+
+     return { ...node, yieldRate, amountDue: due, status, unpaidViews: unpaidInRange } as PayoutNode;
+  });
+
   const handleSettleAccount = async (node: PayoutNode) => {
     if (node.amountDue <= 0 && node.status === 'cleared') return;
     
