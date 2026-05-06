@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, DollarSign, CheckCircle2, AlertCircle, RefreshCw, HandCoins, ArrowRight, Video, FileText, Loader2 } from 'lucide-react';
+import { Wallet, DollarSign, CheckCircle2, AlertCircle, RefreshCw, HandCoins, ArrowRight, Video, FileText, Loader2, Settings2 } from 'lucide-react';
 import { useAuth } from '@/lib/authStore';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
