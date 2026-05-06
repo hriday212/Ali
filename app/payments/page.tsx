@@ -16,11 +16,15 @@ interface PayoutNode {
   yieldRate: number; // CPM per 1000 views
   amountDue: number;
   status: 'pending' | 'cleared';
-  campaignStartDate?: string;
-  cpmThreshold?: number;
-  perPostCap?: number;
   qualifiedViews: number;
-  postsInCampaign: number;
+  campaignConfig?: {
+    type: 'CPM' | 'Retainer' | 'None';
+    cpmRate?: number;
+    threshold?: number;
+    retainerAmount?: number;
+    postsQuota?: number;
+    minViews?: number;
+  };
 }
 
 export default function PayoutsPage() {
