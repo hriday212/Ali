@@ -12,7 +12,8 @@ import {
   Settings2,
   Trophy,
   Hash,
-  Film
+  Film,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '@/lib/authStore';
 import './Dock.css';
@@ -126,6 +127,7 @@ export default function Dock() {
     { name: 'Dashboard', icon: Home, href: '/', adminOnly: false },
     { name: 'Leaderboard', icon: Trophy, href: '/leaderboard', adminOnly: false },
     { name: 'Accounts', icon: UsersRound, href: '/accounts', adminOnly: false },
+    { name: 'SLA Logs', icon: FileText, href: '/logs', adminOnly: true },
     { name: 'Library', icon: Film, href: '/videos', adminOnly: false },
     { name: 'Payments', icon: Wallet, href: '/payments', adminOnly: true },
     { name: 'Platform Insights', icon: LineChart, href: '/forecast', adminOnly: false },
