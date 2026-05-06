@@ -17,6 +17,8 @@ export default function SettingsPage() {
   const [nodeCount, setNodeCount] = useState(0);
   const [smartEngineEnabled, setSmartEngineEnabled] = useState(true);
   const [isTogglingSmartEngine, setIsTogglingSmartEngine] = useState(false);
+  const [discordWebhook, setDiscordWebhook] = useState('');
+  const [isUpdatingWebhook, setIsUpdatingWebhook] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
@@ -26,6 +28,7 @@ export default function SettingsPage() {
         if (data && data.scans) setNodeCount(data.scans.length);
         if (data && typeof data.smartEngineEnabled === 'boolean') setSmartEngineEnabled(data.smartEngineEnabled);
         if (data && data.globalDefaultInterval) setActiveCadence(data.globalDefaultInterval);
+        if (data && data.discordWebhookUrl) setDiscordWebhook(data.discordWebhookUrl);
       } catch (err) {}
     }
     loadStats();
@@ -83,6 +86,22 @@ export default function SettingsPage() {
       console.error('Failed to toggle SmartEngine:', err);
     } finally {
       setIsTogglingSmartEngine(false);
+    }
+  };
+
+  const handleUpdateWebhook = async () => {
+    setIsUpdatingWebhook(true);
+    try {
+      const res = await fetch(API_ROUTES.DISCORD_WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: discordWebhook }),
+      });
+      await res.json();
+    } catch (err) {
+      console.error('Failed to update webhook:', err);
+    } finally {
+      setTimeout(() => setIsUpdatingWebhook(false), 1000);
     }
   };
 
@@ -180,6 +199,32 @@ export default function SettingsPage() {
               {isTogglingSmartEngine ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
               {smartEngineEnabled ? 'Disable SmartEngine' : 'Enable SmartEngine'}
             </button>
+          </div>
+
+          {/* Discord Webhook Configuration */}
+          <div className="glass-card p-8 border border-indigo-500/20 bg-gradient-to-br from-indigo-900/10 to-transparent">
+            <h2 className="text-lg font-black italic uppercase text-white tracking-widest mb-4 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-indigo-400" /> Global Discord Alerts
+            </h2>
+            <p className="text-xs text-slate-400 mb-6 leading-relaxed">Configure a Discord webhook to receive automatic alerts when a node experiences a viral anomaly (100k views in 72h or abnormal growth rates).</p>
+            
+            <div className="space-y-3">
+              <input 
+                type="text" 
+                value={discordWebhook}
+                onChange={(e) => setDiscordWebhook(e.target.value)}
+                placeholder="https://discord.com/api/webhooks/..."
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
+              />
+              <button
+                onClick={handleUpdateWebhook}
+                disabled={isUpdatingWebhook}
+                className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all"
+              >
+                {isUpdatingWebhook ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
+                {isUpdatingWebhook ? 'Saving...' : 'Save Webhook URL'}
+              </button>
+            </div>
           </div>
 
           {/* ActionWidget: Force Sync */}

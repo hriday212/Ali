@@ -38,29 +38,13 @@ const DATA_DIR = process.env.DATA_PATH || path.join(os.homedir(), '.forensic-sca
 const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
+// -------------------------------------------------------
 
-// --- EMERGENCY SLOW DRIP-FEED ---
-async function startupDump() {
-  console.log('[Emergency] 🐢 SLOW RECOVERY STARTED...');
-  const { exec } = require('child_process');
-  const tarPath = '/tmp/clypso_safe.tar.gz';
-  
-  exec(`tar -czf ${tarPath} -C ${DATA_DIR} .`, (err) => {
-    if (err) return console.error('Tar failed');
-    exec(`base64 ${tarPath}`, { maxBuffer: 1024 * 1024 * 50 }, async (err, stdout) => {
-      if (err) return console.error('Base64 failed');
-      const data = stdout.trim();
-      console.log('RECOVERY_START');
-      for (let i = 0; i < data.length; i += 500) {
-        console.log(data.substring(i, i + 500));
-        await new Promise(r => setTimeout(r, 1000));
-      }
-      console.log('RECOVERY_END');
-    });
-  });
-}
-setTimeout(startupDump, 10000); 
-// ----------------------------------
+let globalDefaultInterval = 30; // Minutes
+let smartEngineEnabled = true;
+let discordWebhookUrl = '';
+
+const activeScans = new Map();
 
 // -------------------------------------------------------
 
@@ -532,6 +516,17 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       if (multiplier > 5 || delta > 50000) {
         nextInterval = 180; // 3 Hours (Ultra Viral)
         console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 3h.`);
+        
+        // Discord Alert
+        if (discordWebhookUrl) {
+          fetch(discordWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: `🚀 **ULTRA VIRAL ALERT** 🚀\nNode: **${accountId}**\nViews Gained: +${delta.toLocaleString()} in last ${scan.intervalMinutes}m\nMultiplier: ${multiplier.toFixed(1)}x average rate\nLink: ${accountLink}`
+            })
+          }).catch(err => console.error('[Discord] Webhook failed:', err.message));
+        }
       } else if (multiplier > 2 || delta > 10000) {
         nextInterval = 720; // 12 Hours (Viral Traction)
         console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 12h.`);
@@ -572,7 +567,8 @@ function saveAllState() {
   const state = {
     settings: {
       globalDefaultInterval,
-      smartEngineEnabled
+      smartEngineEnabled,
+      discordWebhookUrl
     },
     scans: scansRoot
   };
@@ -616,6 +612,7 @@ function restoreState() {
          scansToLoad = raw.scans;
          globalDefaultInterval = raw.settings.globalDefaultInterval || globalDefaultInterval;
          smartEngineEnabled = raw.settings.smartEngineEnabled !== undefined ? raw.settings.smartEngineEnabled : smartEngineEnabled;
+         discordWebhookUrl = raw.settings.discordWebhookUrl || discordWebhookUrl;
       } else {
          // Legacy mode
          scansToLoad = raw;
@@ -711,7 +708,7 @@ app.get('/api/scans', (req, res) => {
         console.error(`[API] Error processing account ${k}:`, innerErr.message);
       }
     });
-    res.json({ scans, globalDefaultInterval, smartEngineEnabled });
+    res.json({ scans, globalDefaultInterval, smartEngineEnabled, discordWebhookUrl });
   } catch (error) {
     console.error('[API] Fatal error in /api/scans:', error);
     res.status(500).json({ error: 'Internal server error', scans: [] });
@@ -725,6 +722,15 @@ app.post('/api/settings/smart-engine', (req, res) => {
   saveAllState(); // Persist setting
   console.log(`[ScanEngine] ⚙️ SmartEngine auto-escalation ${smartEngineEnabled ? 'ENABLED' : 'DISABLED'} by Admin.`);
   res.json({ success: true, smartEngineEnabled });
+});
+
+// Admin Route: Discord Webhook
+app.post('/api/settings/discord-webhook', (req, res) => {
+  const { webhookUrl } = req.body;
+  discordWebhookUrl = webhookUrl || '';
+  saveAllState();
+  console.log(`[ScanEngine] ⚙️ Discord Webhook updated.`);
+  res.json({ success: true, discordWebhookUrl });
 });
 
 // Admin Route: Global Cadence Control

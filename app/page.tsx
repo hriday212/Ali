@@ -283,12 +283,10 @@ export default function Home() {
       </section>
 
       {/* Actionable Intelligence / Viral Radar */}
-      {isAdmin && (
-        <section className="space-y-6">
-          <ApiPulse />
-          <ViralRadar />
-        </section>
-      )}
+      <section className="space-y-6">
+        {isAdmin && <ApiPulse />}
+        <ViralRadar />
+      </section>
 
       {/* Content Pulse Section */}
       <section className="space-y-8">
