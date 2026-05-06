@@ -15,6 +15,7 @@ export const API_ROUTES = {
   APIFY_USAGE: `${BACKEND_URL}/api/apify-usage`,
   APIFY_HISTORY: `${BACKEND_URL}/api/usage/history`,
   SYNC_ACCOUNT: (id: string) => `${BACKEND_URL}/api/scans/${id}/sync`,
+  CAMPAIGN_SETTINGS: (id: string) => `${BACKEND_URL}/api/scans/${id}/campaign`,
   TOGGLE_VIDEO_PAYMENT: (acc: string, vid: string) => `${BACKEND_URL}/api/scans/${acc}/videos/${vid}/toggle-payment`,
   // Next.js internal routes
   RESOLVE: '/api/accounts/resolve',

@@ -431,9 +431,6 @@ function applyHighWaterMark(data, posts) {
 }
 
 // --- Scan Engine State ---
-const activeScans = new Map();
-let globalDefaultInterval = 360; // Back to 6h for Testing Phase
-let smartEngineEnabled = true; // Enabled to allow viral acceleration override
 
 async function executeScan(accountId, accountLink, platform, isManual = false) {
   const scan = activeScans.get(accountId);
@@ -649,8 +646,17 @@ app.post('/api/start', async (req, res) => {
   const existing = activeScans.get(accountId);
   if (existing && existing.timer) clearTimeout(existing.timer);
   const selectedInterval = intervalMinutes || globalDefaultInterval;
-  const normPlatform = (platform || 'youtube').toLowerCase();
-  const scan = { accountId, accountLink, intervalMinutes: selectedInterval, platform: normPlatform, scanCount: 0, lastScanTime: null, nextScanAt: null, currentInterval: selectedInterval };
+  const normPlatform = (platform || existing?.platform || 'youtube').toLowerCase();
+  
+  const scan = { 
+    ...existing, 
+    accountId, 
+    accountLink, 
+    intervalMinutes: selectedInterval, 
+    platform: normPlatform, 
+    scanCount: existing?.scanCount || 0, 
+    currentInterval: selectedInterval 
+  };
   startScanInternal(scan);
   
   saveAllState();

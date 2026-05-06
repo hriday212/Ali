@@ -16,6 +16,11 @@ interface PayoutNode {
   yieldRate: number; // CPM per 1000 views
   amountDue: number;
   status: 'pending' | 'cleared';
+  campaignStartDate?: string;
+  cpmThreshold?: number;
+  perPostCap?: number;
+  qualifiedViews: number;
+  postsInCampaign: number;
 }
 
 export default function PayoutsPage() {
@@ -23,6 +28,8 @@ export default function PayoutsPage() {
   const isAdmin = user?.role === 'admin';
   const [nodes, setNodes] = useState<PayoutNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingNode, setEditingNode] = useState<PayoutNode | null>(null);
+  const [campaignData, setCampaignData] = useState({ startDate: '', cpmThreshold: 0, perPostCap: 0 });
 
   // Stores real payouts fetched from backend ledger
   const [payoutsDb, setPayoutsDb] = useState<any[]>([]);
@@ -51,18 +58,33 @@ export default function PayoutsPage() {
         if (!scans) return;
 
         const ledgerRaw = await Promise.all(scans.map(async (scan: any) => {
-          const { data } = await safeFetchJson(`${API_ROUTES.STATUS}?accountId=${scan.accountId}`);
-          if (!data || !data.history) return null;
-          
-          const latest = data.history[data.history.length - 1];
-          const totalViews = latest?.totalViews || 0;
-          
           // Fetch real lastPaidViews from DB (max viewsAtPayment for this node)
           const nodeHistory = historyPayouts.filter((p: any) => p.accountId === scan.accountId);
           const lastPaid = nodeHistory.reduce((max: number, p: any) => Math.max(max, p.viewsAtPayment || 0), 0);
           
-          const unpaid = Math.max(0, totalViews - lastPaid);
-          const defaultCPM = scan.platform === 'tiktok' ? 0.30 : scan.platform === 'youtube' ? 1.50 : 0.80; // Example CPMs
+          const startDate = scan.campaignStartDate ? new Date(scan.campaignStartDate) : null;
+          const threshold = scan.cpmThreshold || 0;
+          const cap = scan.perPostCap || Infinity;
+
+          let totalViews = 0;
+          let qualifiedViews = 0;
+          let postsInCampaign = 0;
+
+          if (scan.posts) {
+             scan.posts.forEach((post: any) => {
+                 totalViews += post.views || 0;
+                 if (startDate && new Date(post.date) < startDate) return;
+                 postsInCampaign++;
+                 if ((post.views || 0) < threshold) return;
+                 qualifiedViews += Math.min(post.views || 0, cap);
+             });
+          } else {
+             totalViews = scan.lastViews || 0;
+             qualifiedViews = totalViews;
+          }
+
+          const unpaid = Math.max(0, qualifiedViews - lastPaid);
+          const defaultCPM = scan.cpmRate !== undefined ? scan.cpmRate : (scan.platform === 'tiktok' ? 0.30 : scan.platform === 'youtube' ? 1.50 : 0.80);
           const due = (unpaid / 1000) * defaultCPM;
 
           return {
@@ -73,7 +95,12 @@ export default function PayoutsPage() {
             unpaidViews: unpaid,
             yieldRate: defaultCPM,
             amountDue: due,
-            status: due > 0 ? 'pending' : 'cleared'
+            status: due > 0 ? 'pending' : 'cleared',
+            campaignStartDate: scan.campaignStartDate,
+            cpmThreshold: scan.cpmThreshold,
+            perPostCap: scan.perPostCap,
+            qualifiedViews,
+            postsInCampaign
           } as PayoutNode;
         }));
 
@@ -99,7 +126,7 @@ export default function PayoutsPage() {
 
   const displayNodes = nodes.map(node => {
      const yieldRate = customRates[node.id] !== undefined ? parseFloat(customRates[node.id]) : node.yieldRate;
-     const settleMark = customMarks[node.id] !== undefined ? parseInt(customMarks[node.id]) : node.totalViews;
+     const settleMark = customMarks[node.id] !== undefined ? parseInt(customMarks[node.id]) : node.qualifiedViews;
      const fromMark = customFromMarks[node.id] !== undefined ? parseInt(customFromMarks[node.id]) : node.lastPaidViews;
      
      // Debt is views between fromMark and the settleMark
@@ -114,13 +141,32 @@ export default function PayoutsPage() {
      return { ...node, yieldRate, amountDue: due, status, unpaidViews: unpaidInRange } as PayoutNode;
   });
 
+  const handleSaveCampaign = async () => {
+    if (!editingNode) return;
+    try {
+      await safeFetchJson(API_ROUTES.CAMPAIGN_SETTINGS(editingNode.id), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignStartDate: campaignData.startDate || null,
+          cpmThreshold: campaignData.cpmThreshold || 0,
+          perPostCap: campaignData.perPostCap || 0
+        })
+      });
+      // Simple reload
+      window.location.reload();
+    } catch (e) {
+      console.error('Failed to save campaign:', e);
+    }
+  };
+
   const handleSettleAccount = async (node: PayoutNode) => {
     if (node.amountDue <= 0 && node.status === 'cleared') return;
     
     // Compute the actual due with overrides
     const actualCPM = customRates[node.id] !== undefined ? parseFloat(customRates[node.id]) : node.yieldRate;
     const actualDue = customAmounts[node.id] !== undefined ? parseFloat(customAmounts[node.id]) : node.amountDue;
-    const actualMark = customMarks[node.id] !== undefined ? parseInt(customMarks[node.id]) : node.totalViews;
+    const actualMark = customMarks[node.id] !== undefined ? parseInt(customMarks[node.id]) : node.qualifiedViews;
 
     // Send Real Settlement to Ledger
     const newPayout = {
@@ -249,7 +295,7 @@ export default function PayoutsPage() {
                   <th className="p-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Settlement Range (From → To)</th>
                   <th className="p-6 text-left text-[9px] font-black uppercase tracking-[0.3em] text-slate-500 underline decoration-indigo-500/30">Yield (CPM)</th>
                   <th className="p-6 text-right text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Liability ($)</th>
-                  <th className="p-6 text-center text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Operations</th>
+                  <th className="p-6 text-center text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Settings & Ops</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -274,9 +320,15 @@ export default function PayoutsPage() {
                         </div>
                       </td>
                       <td className="p-6">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black italic text-white">{node.totalViews.toLocaleString()}</span>
-                          <span className="text-[8px] font-black uppercase text-slate-700 tracking-widest">total</span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-black italic text-white">{node.qualifiedViews.toLocaleString()}</span>
+                            <span className="text-[8px] font-black uppercase text-indigo-400 tracking-widest bg-indigo-500/10 px-1.5 py-0.5 rounded">QUALIFIED</span>
+                          </div>
+                          <div className="flex items-center gap-2 opacity-50">
+                            <span className="text-[10px] font-bold text-slate-400">{node.totalViews.toLocaleString()}</span>
+                            <span className="text-[7px] font-black uppercase text-slate-500 tracking-widest">RAW TOTAL</span>
+                          </div>
                         </div>
                       </td>
                       <td className="p-6">
@@ -301,7 +353,7 @@ export default function PayoutsPage() {
                             <span className="text-[7px] font-black uppercase text-slate-600 tracking-widest pl-1">To</span>
                             <input 
                               type="number"
-                              value={customMarks[node.id] !== undefined ? customMarks[node.id] : node.totalViews} 
+                              value={customMarks[node.id] !== undefined ? customMarks[node.id] : node.qualifiedViews} 
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (val !== '') setCustomMarks({...customMarks, [node.id]: val});
@@ -358,19 +410,35 @@ export default function PayoutsPage() {
                         )}
                       </td>
                       <td className="p-6 text-center">
-                        {node.amountDue > 0 ? (
+                        <div className="flex items-center justify-center gap-2">
                           <button 
-                            onClick={() => handleSettleAccount(node)}
-                            disabled={!isAdmin}
-                            className={`inline-flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isAdmin ? 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-white/5 text-slate-600 cursor-not-allowed'}`}
+                            onClick={() => {
+                              setEditingNode(node);
+                              setCampaignData({
+                                startDate: node.campaignStartDate ? new Date(node.campaignStartDate).toISOString().split('T')[0] : '',
+                                cpmThreshold: node.cpmThreshold || 0,
+                                perPostCap: node.perPostCap || 0
+                              });
+                            }}
+                            className="inline-flex items-center justify-center p-2 bg-slate-800 hover:bg-slate-700 border border-white/5 rounded-lg text-slate-400 transition-all"
                           >
-                             {isAdmin ? 'Settle' : 'Locked'} <ArrowRight className="w-3 h-3" />
+                            <Settings2 className="w-4 h-4" />
                           </button>
-                        ) : (
-                          <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-emerald-500/50 text-[9px] font-black uppercase tracking-widest">
-                             <CheckCircle2 className="w-3 h-3" /> Settled
-                          </div>
-                        )}
+
+                          {node.amountDue > 0 ? (
+                            <button 
+                              onClick={() => handleSettleAccount(node)}
+                              disabled={!isAdmin}
+                              className={`inline-flex items-center justify-center gap-2 px-4 py-2 border rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isAdmin ? 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-slate-800 border-white/5 text-slate-600 cursor-not-allowed'}`}
+                            >
+                               {isAdmin ? 'Settle' : 'Locked'} <ArrowRight className="w-3 h-3" />
+                            </button>
+                          ) : (
+                            <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-emerald-500/50 text-[9px] font-black uppercase tracking-widest">
+                               <CheckCircle2 className="w-3 h-3" /> Settled
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -385,6 +453,66 @@ export default function PayoutsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Campaign Settings Modal */}
+      {editingNode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0f172a] border border-white/10 p-6 rounded-2xl w-full max-w-md shadow-2xl">
+            <h3 className="text-xl font-black italic uppercase text-white mb-4">Campaign Fencing</h3>
+            <p className="text-xs text-slate-400 mb-6">Configure specific payout rules for <span className="text-indigo-400 font-bold">{editingNode.id}</span></p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Campaign Start Date</label>
+                <input 
+                  type="date"
+                  value={campaignData.startDate}
+                  onChange={(e) => setCampaignData({...campaignData, startDate: e.target.value})}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none"
+                />
+                <p className="text-[9px] text-slate-600 mt-1">Posts before this date will yield 0 qualified views.</p>
+              </div>
+              
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Minimum Views Threshold</label>
+                <input 
+                  type="number"
+                  value={campaignData.cpmThreshold}
+                  onChange={(e) => setCampaignData({...campaignData, cpmThreshold: parseInt(e.target.value) || 0})}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none"
+                />
+                <p className="text-[9px] text-slate-600 mt-1">Posts under this threshold will yield 0 qualified views.</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Per-Post Max Cap</label>
+                <input 
+                  type="number"
+                  value={campaignData.perPostCap}
+                  onChange={(e) => setCampaignData({...campaignData, perPostCap: parseInt(e.target.value) || 0})}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none"
+                />
+                <p className="text-[9px] text-slate-600 mt-1">Maximum qualified views allowed per individual post (0 = infinite).</p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button 
+                onClick={() => setEditingNode(null)}
+                className="flex-1 px-4 py-2 bg-slate-800 text-slate-300 text-xs font-bold uppercase tracking-widest rounded-lg"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveCampaign}
+                className="flex-1 px-4 py-2 bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-indigo-600 transition-colors"
+              >
+                Apply Fencing
+              </button>
+            </div>
           </div>
         </div>
       )}
