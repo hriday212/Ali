@@ -281,10 +281,10 @@ function parseDuration(duration) {
 }
 
 // --- Platform Scan Functions ---
-async function scanYouTube(accountId, accountLink) {
+async function scanYouTube(accountId, accountLink, limit = 200) {
   const channelId = await getChannelIdFromUrl(accountLink);
   if (!channelId) return null;
-  const { videos, profile } = await getChannelVideos(channelId, 200); 
+  const { videos, profile } = await getChannelVideos(channelId, limit); 
   const posts = videos.map(item => ({
     id: item.id,
     title: item.snippet.title,
@@ -302,14 +302,14 @@ async function scanYouTube(accountId, accountLink) {
   return { posts, profile };
 }
 
-async function scanTikTok(accountId, accountLink) {
+async function scanTikTok(accountId, accountLink, limit = 200) {
   // Strip query params (?_r=1...) to ensure clean profile lookup
   const cleanLink = accountLink.split('?')[0];
   const handleMatch = cleanLink.match(/@([a-zA-Z0-9._-]+)/);
   const profile = handleMatch ? handleMatch[1] : cleanLink.replace(/https?:\/\/(www\.)?tiktok\.com\/@/, '').replace(/\//g, '');
   const items = await runApifyActor('clockworks/tiktok-scraper', {
     profiles: [`https://www.tiktok.com/@${profile}`],
-    resultsPerPage: 200, // Tracking deep history for retainers
+    resultsPerPage: limit, // Optimized depth
   });
 
   const first = items?.[0];
@@ -341,10 +341,10 @@ async function scanTikTok(accountId, accountLink) {
   return { posts, profile: profileMetadata };
 }
 
-async function scanInstagram(accountId, accountLink) {
+async function scanInstagram(accountId, accountLink, limit = 200) {
   const items = await runApifyActor('apify/instagram-scraper', {
     directUrls: [accountLink],
-    resultsLimit: 200, // Tracking deep history for retainers
+    resultsLimit: limit, // Optimized depth
     resultsType: 'posts',
   });
 
@@ -415,15 +415,101 @@ async function scanHashtag(tag, platform = 'instagram') {
   return [];
 }
 
-// --- High-Water Mark system (works for all platforms) ---
-function applyHighWaterMark(data, posts) {
+// --- Advanced Detection Algorithms (Phase 8: Pro-Grade Viral Logic) ---
+
+/**
+ * Z-Score Normalization: Detects statistical anomalies relative to account baseline.
+ * Captures "True Virality" even on smaller accounts.
+ */
+function calculateZScore(currentDelta, history) {
+  if (!history || history.length < 5) return 0;
+  const deltas = [];
+  for (let i = 1; i < history.length; i++) {
+    const d = Math.max(0, history[i].totalViews - history[i-1].totalViews);
+    deltas.push(d);
+  }
+  const n = deltas.length;
+  const mean = deltas.reduce((a, b) => a + b, 0) / n;
+  const variance = deltas.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
+  const stdDev = Math.sqrt(variance);
+  
+  return stdDev > 0 ? (currentDelta - mean) / stdDev : 0;
+}
+
+/**
+ * Bot Slayer: Engagement Ratio Validation
+ * Detects suspicious organic signals (bot views or bot likes).
+ */
+function validateEngagement(views, likes, comments) {
+  if (views < 5000) return { status: 'NORMAL', reason: 'Low sample' };
+  const likeRatio = likes / views;
+  const commentRatio = comments / views;
+  
+  if (likeRatio < 0.005) return { status: 'SUSPICIOUS', reason: 'Abnormally low likes (Bot Views?)' };
+  if (likeRatio > 0.40) return { status: 'SUSPICIOUS', reason: 'Abnormally high likes (Bot Likes?)' };
+  if (commentRatio < 0.0001) return { status: 'SUSPICIOUS', reason: 'Ghost engagement (No comments)' };
+  
+  return { status: 'ORGANIC', reason: 'Normal signal' };
+}
+
+/**
+ * Post Lifecycle Classifier (Flatline Algorithm)
+ * Optimizes tracking by identifying "Dead" or "Cooling" posts.
+ */
+function classifyPostLifecycle(post, videoHistory) {
+  const ageDays = (Date.now() - new Date(post.date).getTime()) / (1000 * 60 * 60 * 24);
+  
+  // Evergreen Rules (Don't kill long-form or high-reach YT)
+  const isEvergreenEligible = post.platform === 'youtube' && (post.type === 'video' || post.views > 100000);
+
+  if (!videoHistory || videoHistory.length < 3) return 'HOT';
+  
+  const last3 = videoHistory.slice(-3);
+  const vDelta = last3[last3.length - 1].views - last3[0].views;
+  const avgDelta = vDelta / (last3.length - 1);
+  const growthRatio = avgDelta / Math.max(post.views, 1);
+
+  if (growthRatio < 0.001 && avgDelta < 100 && ageDays > 7) {
+    if (isEvergreenEligible) return 'COOL';
+    return 'DEAD';
+  }
+  
+  if (growthRatio < 0.01 || ageDays > 30) return 'COOL';
+  if (growthRatio < 0.05) return 'WARM';
+  
+  return 'HOT';
+}
+
+// --- High-Water Mark & Advanced Tagging system ---
+function applyAdvancedHighWaterMark(data, posts) {
   if (!data.peakViews) data.peakViews = {};
+  
   posts.forEach(p => {
     const existing = data.peakViews[p.id];
+    
+    // 1. Classification & Validation
+    const lifecycle = classifyPostLifecycle(p, data.videoHistory?.[p.id]);
+    const validation = validateEngagement(p.views, p.likes, p.comments);
+    
+    // 2. High-Water Mark Logic
     if (!existing || p.views >= existing.views) {
-      data.peakViews[p.id] = { views: p.views, likes: p.likes, comments: p.comments, shares: p.shares || 0, title: p.title };
+      data.peakViews[p.id] = { 
+        views: p.views, 
+        likes: p.likes, 
+        comments: p.comments, 
+        shares: p.shares || 0, 
+        title: p.title,
+        lifecycle,
+        validation,
+        lastUpdated: new Date().toISOString()
+      };
+    } else {
+      // Just update labels even if views haven't peaked
+      data.peakViews[p.id].lifecycle = lifecycle;
+      data.peakViews[p.id].validation = validation;
     }
   });
+
   const allPeaks = Object.values(data.peakViews);
   return {
     peakTotalViews: allPeaks.reduce((s, p) => s + p.views, 0),
@@ -439,11 +525,47 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
   const scan = activeScans.get(accountId);
   if (!scan) return;
   console.log(`[ScanEngine] ${new Date().toLocaleTimeString()} - Scanning ${accountId} (${platform})...`);
+  
   try {
+    // 1. Tiered Intensity Logic (Phase 8: Cost Optimization)
+    if (!scan.scanCycle) scan.scanCycle = 0;
+    scan.scanCycle++;
+
+    // Determine current node status based on multiplier/Z-score (if available from disk)
+    const diskData = readScanData(accountId);
+    const lastHistory = diskData.history?.slice(-1)[0];
+    const prevHistory = diskData.history?.slice(-2)[0];
+    const lastDelta = lastHistory && prevHistory ? lastHistory.totalViews - prevHistory.totalViews : 0;
+    const z = calculateZScore(lastDelta, diskData.history);
+    
+    // Status Classification
+    let nodeStatus = 'HOT';
+    if (z > 2 || (scan.currentInterval || 0) < 360) nodeStatus = 'HOT';
+    else if ((scan.currentInterval || 0) < 1440) nodeStatus = 'WARM';
+    else nodeStatus = 'COOL';
+
+    // Skip Rules:
+    // - WARM: Skip 2/3 scans
+    // - COOL: Skip 6/7 scans (effectively weekly if interval is 24h)
+    let shouldSkipScraper = false;
+    if (!isManual && nodeStatus === 'WARM' && (scan.scanCycle % 3 !== 0)) shouldSkipScraper = true;
+    if (!isManual && nodeStatus === 'COOL' && (scan.scanCycle % 7 !== 0)) shouldSkipScraper = true;
+
+    if (shouldSkipScraper) {
+      console.log(`[ScanEngine] 💤 Node ${accountId} is ${nodeStatus} - Skipping scraper run (Cycle ${scan.scanCycle}) to save credits.`);
+      scan.lastScanTime = new Date().toISOString();
+      scheduleNextScan(scan, scan.currentInterval || globalDefaultInterval);
+      return;
+    }
+
+    // Tiered Depth Optimization: If node is resting (interval > 12h), scrape less history
+    const isResting = (scan.currentInterval || 0) >= 720;
+    const scrapeLimit = isResting ? 50 : 200;
+
     let result = { posts: [] };
-    if (platform === 'youtube') result = await scanYouTube(accountId, accountLink);
-    else if (platform === 'tiktok') result = await scanTikTok(accountId, accountLink);
-    else if (platform === 'instagram') result = await scanInstagram(accountId, accountLink);
+    if (platform === 'youtube') result = await scanYouTube(accountId, accountLink, scrapeLimit);
+    else if (platform === 'tiktok') result = await scanTikTok(accountId, accountLink, scrapeLimit);
+    else if (platform === 'instagram') result = await scanInstagram(accountId, accountLink, scrapeLimit);
 
     const posts = result?.posts || [];
     const profile = result?.profile;
@@ -467,7 +589,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     data.posts = posts;
     data.platform = platform;
 
-    const { peakTotalViews, peakTotalLikes, peakTotalComments, peakTotalShares } = applyHighWaterMark(data, posts);
+    const { peakTotalViews, peakTotalLikes, peakTotalComments, peakTotalShares } = applyAdvancedHighWaterMark(data, posts);
 
     data.history = [...(data.history || []), {
       time: new Date().toISOString(),
@@ -545,7 +667,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     // Keep logs manageable
     scan.slaLogs = scan.slaLogs.slice(-20);
 
-    // --- Smart Engine: Relative Pulse Algorithm (Phase 7) ---
+    // --- Smart Engine: Relative Pulse Algorithm (Phase 8: Advanced) ---
     // Default fallback interval — stays fixed if SmartEngine is off
     let nextInterval = scan.intervalMinutes || globalDefaultInterval;
     
@@ -564,8 +686,9 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       const avgHourlyGain = Math.max(1, (latest - firstRecord.totalViews) / totalHours);
       
       const multiplier = currentHourlyGain / avgHourlyGain;
+      const zScore = calculateZScore(delta, data.history);
 
-      // --- Milestone & Velocity Discord Alerts (fire regardless of mode when webhook set) ---
+      // --- 3. Enhanced Viral & Anomaly Discord Alerts ---
       if (discordWebhookUrl) {
           // A. Milestone Detection
           const milestones = [100000, 500000, 1000000, 5000000, 10000000];
@@ -580,34 +703,49 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
               }).catch(e => console.error('[Discord] Milestone failed:', e.message));
           }
 
-          // B. Velocity Spike — Aggressive mode only
-          if (viralDetectionMode === 'aggressive' && multiplier > 8 && delta > 25000) {
+          // B. Velocity Spike & Z-Score Anomaly
+          const isAggressive = viralDetectionMode === 'aggressive';
+          const zThreshold = isAggressive ? 2.5 : 4.0;
+          
+          if (zScore > zThreshold || (multiplier > 8 && delta > 25000)) {
               fetch(discordWebhookUrl, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                      content: `⚡ **VELOCITY SPIKE** ⚡\nNode: **${accountId}**\nGrowth is **${multiplier.toFixed(1)}x** above baseline!\nDelta: +${delta.toLocaleString()} views\nLink: ${accountLink}`
+                      content: `⚡ **SUPERNOVA DETECTED** ⚡\nNode: **${accountId}**\nZ-Score: **${zScore.toFixed(2)}** (Threshold: ${zThreshold})\nGrowth is **${multiplier.toFixed(1)}x** above baseline!\nDelta: +${delta.toLocaleString()} views\nLink: ${accountLink}`
                   })
-              }).catch(e => console.error('[Discord] Spike failed:', e.message));
+              }).catch(e => console.error('[Discord] Anomaly alert failed:', e.message));
+          }
+
+          // C. Bot Slayer Alerts
+          const suspiciousPosts = posts.filter(p => validateEngagement(p.views, p.likes, p.comments).status === 'SUSPICIOUS');
+          if (suspiciousPosts.length > 0 && delta > 10000) {
+              fetch(discordWebhookUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      content: `🛡️ **BOT SLAYER: SUSPICIOUS ENGAGEMENT** 🛡️\nNode: **${accountId}**\nDetected **${suspiciousPosts.length}** posts with unnatural ratios.\nAction: Flags added to audit trail.\nLink: ${accountLink}`
+                  })
+              }).catch(e => console.error('[Discord] BotSlayer alert failed:', e.message));
           }
       }
       
-      // --- C. Interval Escalation Logic (thresholds vary by mode) ---
+      // --- C. Interval Escalation Logic (Tiered Scanning) ---
       const isAggressive = viralDetectionMode === 'aggressive';
       const ultraViralMultiplier  = isAggressive ? 3  : 5;
       const ultraViralDelta       = isAggressive ? 50000 : 100000;
-      const trendingMultiplier    = isAggressive ? 1.5 : 2;
-      const trendingDelta         = isAggressive ? 10000 : 25000;
+      const ultraViralZ           = isAggressive ? 2.0 : 3.5;
+      
       const ultraViralInterval    = isAggressive ? 120  : 240;  // 2h vs 4h
       const trendingInterval      = isAggressive ? 360  : 720;  // 6h vs 12h
-      const restingInterval       = isAggressive ? 1440 : 1440; // 24h both
+      const restingInterval       = 1440; // 24h
 
-      if (multiplier > ultraViralMultiplier || delta > ultraViralDelta) {
+      if (zScore > ultraViralZ || multiplier > ultraViralMultiplier || delta > ultraViralDelta) {
         nextInterval = ultraViralInterval;
-        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🚀 Node ${accountId} ULTRA VIRAL (M=${multiplier.toFixed(1)}x, D=${delta})! → ${ultraViralInterval}m.`);
-      } else if (multiplier > trendingMultiplier || delta > trendingDelta) {
+        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🚀 Node ${accountId} SUPERNOVA (Z=${zScore.toFixed(1)}, M=${multiplier.toFixed(1)}x)! → ${ultraViralInterval}m.`);
+      } else if (multiplier > 1.5 || delta > 10000) {
         nextInterval = trendingInterval;
-        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🔥 Node ${accountId} TRENDING (M=${multiplier.toFixed(1)}x, D=${delta}) → ${trendingInterval}m.`);
+        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🔥 Node ${accountId} TRENDING → ${trendingInterval}m.`);
       } else {
         nextInterval = restingInterval;
         console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 💤 Node ${accountId} resting → 24h.`);
