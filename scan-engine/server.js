@@ -39,29 +39,25 @@ const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 
-// --- EMERGENCY DATA EXTRACTION (DRIP-FEED LOG DUMP) ---
-const { exec } = require('child_process');
-async function emergencyExport() {
-  console.log('[Emergency] 📦 Starting data extraction...');
-  const tarPath = '/tmp/clypso_backup.tar.gz';
+// --- EMERGENCY AUTOMATIC DUMP ---
+app.get('/trigger-dump', (req, res) => {
+  console.log('[Emergency] 🔄 Triggering log dump...');
+  const { exec } = require('child_process');
+  const tarPath = '/tmp/clypso_auto.tar.gz';
+  
   exec(`tar -czf ${tarPath} -C ${DATA_DIR} .`, (err) => {
-    if (err) return console.error('[Emergency] ❌ Tar failed:', err.message);
-    exec(`base64 ${tarPath}`, { maxBuffer: 1024 * 1024 * 10 }, async (err, stdout) => {
-      if (err) return console.error('[Emergency] ❌ Base64 failed:', err.message);
-      const data = stdout.trim();
-      console.log('\n\n================================================');
-      console.log('🚀 EMERGENCY DATA DUMP (RELIABLE MODE)');
-      console.log('RECOVERY_START');
-      for (let i = 0; i < data.length; i += 2000) {
-        console.log(data.substring(i, i + 2000));
-        await new Promise(r => setTimeout(r, 400));
-      }
-      console.log('RECOVERY_END');
-      console.log('================================================\n\n');
+    if (err) return res.status(500).send('Tar failed');
+    exec(`base64 ${tarPath}`, { maxBuffer: 1024 * 1024 * 50 }, (err, stdout) => {
+      if (err) return res.status(500).send('Base64 failed');
+      console.log('BEGIN_RECOVERY_BLOCK');
+      console.log(stdout.trim());
+      console.log('END_RECOVERY_BLOCK');
+      res.send('Dumped to logs!');
     });
   });
-}
-setTimeout(emergencyExport, 10000);
+});
+// ----------------------------------
+
 // -------------------------------------------------------
 
 function readLedger() {
