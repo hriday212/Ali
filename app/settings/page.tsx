@@ -149,6 +149,24 @@ export default function SettingsPage() {
     }
   };
 
+  const handleToggleEscalationGate = async () => {
+    setIsTogglingGate(true);
+    const newState = !escalationApprovalRequired;
+    try {
+      const res = await fetch(`${API_ROUTES.SCANS.replace('/api/scans', '/api/settings/escalation-gate')}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: newState }),
+      });
+      const data = await res.json();
+      if (data.success) setEscalationApprovalRequired(newState);
+    } catch (err) {
+      console.error('Failed to toggle escalation gate:', err);
+    } finally {
+      setIsTogglingGate(false);
+    }
+  };
+
   const cadences = [
     { label: 'Turbo', value: 10, desc: 'Highest consumption. Active Viral mode.', color: 'text-red-500', bg: 'bg-red-500' },
     { label: 'Standard', value: 30, desc: 'Balanced polling. Default network rate.', color: 'text-blue-500', bg: 'bg-blue-500' },
