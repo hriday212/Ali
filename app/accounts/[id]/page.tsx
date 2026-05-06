@@ -24,7 +24,8 @@ import {
   Download,
   Zap,
   HandCoins,
-  ArrowRight
+  ArrowRight,
+  Shield
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -115,7 +116,7 @@ export default function AccountForensicPage() {
   const [selectedPost, setSelectedPost] = React.useState<PostData | null>(null);
 
   // Registry state
-  const [registryTab, setRegistryTab] = React.useState<'videos' | 'shorts'>('videos');
+  const [registryTab, setRegistryTab] = React.useState<'videos' | 'shorts' | 'sla'>('videos');
   const [videosVisible, setVideosVisible] = React.useState(10);
   const [shortsVisible, setShortsVisible] = React.useState(10);
 
@@ -144,6 +145,7 @@ export default function AccountForensicPage() {
   // Scan history
   const [scanHistory, setScanHistory] = React.useState<Array<{ time: string; totalViews: number; totalLikes: number; totalComments: number; totalShares: number }>>([]);
   const [videoHistoryMap, setVideoHistoryMap] = React.useState<Record<string, Array<{ time: string; views: number }>>>({});
+  const [slaLogs, setSlaLogs] = React.useState<Array<{ time: string; status: string; reason: string; postsCount: number }>>([]);
 
   // Chart Timeframe State
   const [timeframe, setTimeframe] = React.useState('ALL');
@@ -215,6 +217,7 @@ export default function AccountForensicPage() {
             setScanCount(s.scanCount);
             setLastScanTime(s.lastScanTime);
             setIntervalMinutes(s.intervalMinutes);
+            setSlaLogs(s.slaLogs || []);
           } else {
             setAutoScanActive(false);
           }
@@ -895,7 +898,8 @@ export default function AccountForensicPage() {
               </div>
 
               {/* Tab Switcher: Videos / Shorts */}
-              <div className="flex gap-2 mb-6 flex-shrink-0">
+              {/* Tab Navigation */}
+              <div className="flex gap-4 mb-6 flex-shrink-0">
                 <button
                   onClick={() => setRegistryTab('videos')}
                   className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border ${registryTab === 'videos'
@@ -916,23 +920,66 @@ export default function AccountForensicPage() {
                   <Play className="w-3 h-3" />
                   Shorts ({shorts.length})
                 </button>
+                <button
+                  onClick={() => setRegistryTab('sla')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all border ${registryTab === 'sla'
+                      ? 'bg-white/10 border-white/20 text-white'
+                      : 'bg-white/[0.02] border-white/5 text-slate-600 hover:text-white hover:border-white/10'
+                    }`}
+                >
+                  <Shield className="w-3 h-3" />
+                  SLA ({slaLogs.length})
+                </button>
               </div>
 
-              {/* Asset Grid */}
+              {/* Asset Grid / SLA Log */}
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-3 -mr-2">
-                {!hasScanned ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-4 opacity-30">
-                    <Scan className="w-8 h-8" />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-center">Scan to populate<br />registry</p>
-                  </div>
-                ) : visibleAssets.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-4 opacity-30">
-                    <Film className="w-8 h-8" />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-center">No {registryTab} found<br />in this scan</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-3 min-w-0">
+                <AnimatePresence mode="wait">
+                  {registryTab === 'sla' ? (
+                    <motion.div 
+                      key="sla"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="space-y-3"
+                    >
+                      {slaLogs.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full py-20 gap-4 opacity-30">
+                          <AlertCircle className="w-8 h-8" />
+                          <p className="text-[9px] font-black uppercase tracking-widest text-center">No compliance logs<br />available</p>
+                        </div>
+                      ) : (
+                        slaLogs.slice().reverse().map((log, i) => (
+                          <div key={i} className="p-4 bg-white/[0.02] border border-white/5 rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full ${log.status === 'FAILED' ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-emerald-500 shadow-[0_0_8px_emerald]'}`} />
+                              <div>
+                                <p className={`text-[10px] font-black italic uppercase ${log.status === 'FAILED' ? 'text-red-400' : 'text-emerald-400'}`}>{log.status}</p>
+                                <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">{log.reason}</p>
+                              </div>
+                            </div>
+                            <span className="text-[8px] text-slate-700 font-black uppercase tracking-widest">{new Date(log.time).toLocaleTimeString()}</span>
+                          </div>
+                        ))
+                      )}
+                    </motion.div>
+                  ) : !hasScanned ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-4 opacity-30">
+                      <Scan className="w-8 h-8" />
+                      <p className="text-[9px] font-black uppercase tracking-widest text-center">Scan to populate<br />registry</p>
+                    </div>
+                  ) : visibleAssets.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-4 opacity-30">
+                      <Film className="w-8 h-8" />
+                      <p className="text-[9px] font-black uppercase tracking-widest text-center">No {registryTab} found<br />in this scan</p>
+                    </div>
+                  ) : (
+                    <motion.div 
+                      key={registryTab}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="grid grid-cols-2 gap-3 min-w-0"
+                    >
                       {visibleAssets.map((post, i) => (
                         <motion.div
                           key={`${post.id}-${i}`}
@@ -940,7 +987,6 @@ export default function AccountForensicPage() {
                           onClick={() => setSelectedPost(post)}
                           className="bg-white/[0.03] border border-white/5 rounded-xl p-2 cursor-pointer group hover:border-white/20 transition-all flex flex-col gap-2 relative overflow-hidden"
                         >
-                          {/* Real Thumbnail - Dynamic Aspect Ratio for Shorts vs Longform */}
                           <div className={`w-full bg-slate-900 border border-white/5 rounded-lg flex items-center justify-center relative overflow-hidden flex-shrink-0 ${
                             post.type === 'short' ? 'aspect-[4/5]' : 'aspect-video'
                           }`}>
@@ -949,18 +995,15 @@ export default function AccountForensicPage() {
                             ) : (
                               <Film className="w-4 h-4 text-slate-800" />
                             )}
-                            {/* Type Badge */}
-                            <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-wider ${post.type === 'short' ? 'bg-white/20 text-white' : 'bg-black/40 text-white/60'
-                              }`}>
+                            <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-wider ${post.type === 'short' ? 'bg-white/20 text-white' : 'bg-black/40 text-white/60'}`}>
                               {post.type === 'short' ? '⚡ Short' : '▶ Video'}
                             </div>
-                            {/* View Count Overlay */}
                             <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 rounded text-[7px] font-black text-white/80">
                               {formatNumber(post.views)}
                             </div>
                           </div>
                           <div className="min-w-0 px-0.5">
-                            <p className="text-[8px] font-black text-white uppercase italic tracking-tighter truncate leading-tight group-hover:text-white transition-colors">{post.title}</p>
+                            <p className="text-[8px] font-black text-white uppercase italic tracking-tighter truncate leading-tight group-hover:text-white transition-colors">{post.title || "Untethered Content Stream"}</p>
                             <div className="flex items-center justify-between mt-1 text-[6px] font-black uppercase text-slate-700 tracking-wider">
                               <span className="truncate pr-1">{timeAgo(post.date)}</span>
                               <span className="text-white/30 italic">{formatNumber(post.likes)} ♥</span>
@@ -968,19 +1011,19 @@ export default function AccountForensicPage() {
                           </div>
                         </motion.div>
                       ))}
-                    </div>
-
-                    {/* Load More Button */}
-                    {visibleCount < activeList.length && (
-                      <button
-                        onClick={() => registryTab === 'videos' ? setVideosVisible(prev => Math.min(prev + 10, videos.length)) : setShortsVisible(prev => Math.min(prev + 10, shorts.length))}
-                        className="w-full mt-6 py-4 bg-white/[0.03] hover:bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-3 group transition-all"
-                      >
-                        <RefreshCw className="w-3 h-3 text-slate-600 group-hover:text-white group-hover:rotate-180 transition-all duration-700" />
-                        <span className="text-[8px] font-black text-slate-600 group-hover:text-white uppercase tracking-[0.4em] italic">Load More</span>
-                      </button>
-                    )}
-                  </>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                
+                {/* Load More Button */}
+                {registryTab !== 'sla' && visibleCount < activeList.length && (
+                  <button
+                    onClick={() => registryTab === 'videos' ? setVideosVisible(prev => Math.min(prev + 10, videos.length)) : setShortsVisible(prev => Math.min(prev + 10, shorts.length))}
+                    className="w-full mt-6 py-4 bg-white/[0.03] hover:bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-3 group transition-all"
+                  >
+                    <RefreshCw className="w-3 h-3 text-slate-600 group-hover:text-white group-hover:rotate-180 transition-all duration-700" />
+                    <span className="text-[8px] font-black text-slate-600 group-hover:text-white uppercase tracking-[0.4em] italic">Load More</span>
+                  </button>
                 )}
               </div>
 

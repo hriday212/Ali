@@ -489,6 +489,40 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     scan.scanCount++;
     scan.lastScanTime = new Date().toISOString();
 
+    // --- 2. SLA Compliance Check (Phase 2) ---
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const recentPosts = posts.filter(p => p.date >= last24h).length;
+    
+    if (!scan.slaLogs) scan.slaLogs = [];
+    if (recentPosts < 2) {
+      const logEntry = {
+        time: new Date().toISOString(),
+        status: 'FAILED',
+        reason: `Only ${recentPosts} posts in last 24h (Target: 2)`,
+        postsCount: recentPosts
+      };
+      // Prevent duplicate logs for the same failure period (check if last log was recent)
+      const lastLog = scan.slaLogs[scan.slaLogs.length - 1];
+      const oneHourAgo = Date.now() - 3600000;
+      if (!lastLog || new Date(lastLog.time).getTime() < oneHourAgo) {
+        scan.slaLogs.push(logEntry);
+        console.log(`[SLA] ⚠️ Node ${accountId} failed compliance: ${recentPosts}/2 posts.`);
+      }
+    } else {
+      // Optional: log successful compliance
+      const lastLog = scan.slaLogs[scan.slaLogs.length - 1];
+      if (lastLog && lastLog.status === 'FAILED') {
+        scan.slaLogs.push({
+            time: new Date().toISOString(),
+            status: 'RECOVERED',
+            reason: `${recentPosts} posts in last 24h. Compliance restored.`,
+            postsCount: recentPosts
+        });
+      }
+    }
+    // Keep logs manageable
+    scan.slaLogs = scan.slaLogs.slice(-20);
+
     // --- Smart Engine: Relative Pulse Algorithm (Phase 7) ---
     // Default fallback interval
     let nextInterval = scan.intervalMinutes || globalDefaultInterval;
