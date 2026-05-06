@@ -44,20 +44,19 @@ const { exec } = require('child_process');
 async function emergencyExport() {
   console.log('[Emergency] 📦 Starting data extraction...');
   const tarPath = '/tmp/clypso_backup.tar.gz';
-  exec(`tar -czf ${tarPath} ${DATA_DIR}`, (err) => {
+  exec(`tar -czf ${tarPath} -C ${DATA_DIR} .`, (err) => {
     if (err) return console.error('[Emergency] ❌ Tar failed:', err.message);
     exec(`base64 ${tarPath}`, { maxBuffer: 1024 * 1024 * 10 }, async (err, stdout) => {
       if (err) return console.error('[Emergency] ❌ Base64 failed:', err.message);
       const data = stdout.trim();
       console.log('\n\n================================================');
-      console.log('🚀 EMERGENCY DATA DUMP (DRIP-FEED STARTED)');
-      console.log('BEGIN_DATA');
-      // Drip feed 1000 chars every 200ms to bypass rate limits
-      for (let i = 0; i < data.length; i += 1000) {
-        console.log(data.substring(i, i + 1000));
-        await new Promise(r => setTimeout(r, 200));
+      console.log('🚀 EMERGENCY DATA DUMP (RELIABLE MODE)');
+      console.log('RECOVERY_START');
+      for (let i = 0; i < data.length; i += 2000) {
+        console.log(data.substring(i, i + 2000));
+        await new Promise(r => setTimeout(r, 400));
       }
-      console.log('END_DATA');
+      console.log('RECOVERY_END');
       console.log('================================================\n\n');
     });
   });
