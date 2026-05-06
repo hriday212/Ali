@@ -39,28 +39,31 @@ const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 
-// --- EMERGENCY DATA EXTRACTION (BASE64 LOG DUMP) ---
+// --- EMERGENCY DATA EXTRACTION (DRIP-FEED LOG DUMP) ---
 const { exec } = require('child_process');
 async function emergencyExport() {
-  console.log('[Emergency] 📦 Starting data extraction from:', DATA_DIR);
+  console.log('[Emergency] 📦 Starting data extraction...');
   const tarPath = '/tmp/clypso_backup.tar.gz';
   exec(`tar -czf ${tarPath} ${DATA_DIR}`, (err) => {
     if (err) return console.error('[Emergency] ❌ Tar failed:', err.message);
-    console.log('[Emergency] ✅ Archive created. Converting to Base64...');
-    // Convert to base64 and print to logs
-    exec(`base64 ${tarPath}`, { maxBuffer: 1024 * 1024 * 10 }, (err, stdout) => {
+    exec(`base64 ${tarPath}`, { maxBuffer: 1024 * 1024 * 10 }, async (err, stdout) => {
       if (err) return console.error('[Emergency] ❌ Base64 failed:', err.message);
+      const data = stdout.trim();
       console.log('\n\n================================================');
-      console.log('🚀 EMERGENCY DATA DUMP (COPY EVERYTHING BELOW)');
+      console.log('🚀 EMERGENCY DATA DUMP (DRIP-FEED STARTED)');
       console.log('BEGIN_DATA');
-      console.log(stdout.trim());
+      // Drip feed 1000 chars every 200ms to bypass rate limits
+      for (let i = 0; i < data.length; i += 1000) {
+        console.log(data.substring(i, i + 1000));
+        await new Promise(r => setTimeout(r, 200));
+      }
       console.log('END_DATA');
       console.log('================================================\n\n');
     });
   });
 }
-setTimeout(emergencyExport, 10000); // Run after 10s
-// ----------------------------------------------------
+setTimeout(emergencyExport, 10000);
+// -------------------------------------------------------
 
 function readLedger() {
   try {
