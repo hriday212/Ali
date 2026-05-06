@@ -821,7 +821,6 @@ function saveAllState() {
 }
 
 // Initialize Discord Bot
-const { initDiscordBot } = require('./discordBot');
 initDiscordBot(process.env.DISCORD_BOT_TOKEN, async (accountId, targetInterval) => {
     const scan = activeScans.get(accountId);
     if (!scan) return;
