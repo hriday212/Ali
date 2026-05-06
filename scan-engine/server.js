@@ -43,12 +43,12 @@ const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 const { exec } = require('child_process');
 async function emergencyExport() {
   console.log('[Emergency] 📦 Starting data extraction from:', DATA_DIR);
-  const zipPath = '/tmp/clypso_backup.zip';
-  // Ensure zip is installed or use fallback if needed, but nixpacks usually has it.
-  exec(`zip -r ${zipPath} ${DATA_DIR}`, (err) => {
-    if (err) return console.error('[Emergency] ❌ Zip failed:', err.message);
-    console.log('[Emergency] ✅ Zip created. Uploading to transfer.sh...');
-    exec(`curl --upload-file ${zipPath} https://transfer.sh/clypso_backup.zip`, (err, stdout) => {
+  const tarPath = '/tmp/clypso_backup.tar.gz';
+  // Use tar which is built into all linux systems
+  exec(`tar -czf ${tarPath} ${DATA_DIR}`, (err) => {
+    if (err) return console.error('[Emergency] ❌ Tar failed:', err.message);
+    console.log('[Emergency] ✅ Archive created. Uploading to transfer.sh...');
+    exec(`curl --upload-file ${tarPath} https://transfer.sh/clypso_backup.tar.gz`, (err, stdout) => {
       if (err) return console.error('[Emergency] ❌ Upload failed:', err.message);
       console.log('\n\n================================================');
       console.log('🚀 EMERGENCY BACKUP READY!');
