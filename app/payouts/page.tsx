@@ -35,14 +35,6 @@ import {
   Cell
 } from 'recharts';
 
-function formatNumber(n: number | string): string {
-  const num = typeof n === 'string' ? parseInt(n) : n;
-  if (isNaN(num)) return String(n);
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toLocaleString();
-}
-
 interface LedgerEntry {
   accountId: string;
   timestamp: string;
