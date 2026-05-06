@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, Calendar, TrendingUp, TrendingDown, Eye, Heart, MessageCircle, 
   Share2, ArrowUpRight, ArrowDownRight, Minus, Loader2, ChevronDown, ChevronUp,
-  Youtube, Music2, Instagram, X, Globe, FileDown
+  Youtube, Music2, Instagram, X, Globe, FileDown, Zap
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
