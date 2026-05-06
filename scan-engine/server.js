@@ -1378,19 +1378,46 @@ app.listen(PORT, '0.0.0.0', () => {
         let totalViews = 0, totalNodes = activeScans.size, totalEarned = 0;
         let healthy = 0, failing = 0;
         
-        const details = Array.from(activeScans.values()).map(s => {
+        const sortedScans = Array.from(activeScans.values())
+            .sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0));
+
+        const getEmoji = (p) => {
+            if (p === 'youtube') return '🔴';
+            if (p === 'instagram') return '🟣';
+            if (p === 'tiktok') return '⚫';
+            return '⚪';
+        };
+
+        const details = sortedScans.slice(0, 15).map(s => {
             const data = readScanData(s.accountId);
             const views = data.history?.[data.history.length - 1]?.totalViews || 0;
             totalViews += views;
             totalEarned += s.totalEarned || 0;
-            if (s.slaStatus === 'HEALTHY') healthy++; else failing++;
+            const status = s.slaStatus || 'HEALTHY';
+            if (status === 'HEALTHY') healthy++; else failing++;
             
-            return `• **${s.accountId}**: ${views.toLocaleString()} views | SLA: ${s.slaStatus} | Mode: ${s.campaignConfig?.type || 'None'}`;
+            const icon = getEmoji(s.platform);
+            const health = status === 'HEALTHY' ? '✅' : '⚠️';
+            return `${icon} \`${s.accountId.padEnd(16)}\` | **${(views/1000).toFixed(1)}k** | ${health}`;
         }).join('\n');
 
+        // Add stats for nodes not in the top 15
+        if (sortedScans.length > 15) {
+            sortedScans.slice(15).forEach(s => {
+                const data = readScanData(s.accountId);
+                totalViews += data.history?.[data.history.length - 1]?.totalViews || 0;
+                totalEarned += s.totalEarned || 0;
+                if ((s.slaStatus || 'HEALTHY') === 'HEALTHY') healthy++; else failing++;
+            });
+        }
+
         return {
-            brief: `📡 **Network Overview**\nNodes: ${totalNodes}\nReach: ${(totalViews / 1000000).toFixed(2)}M views\nYield: $${totalEarned.toFixed(2)}\nHealth: ${healthy}H / ${failing}F`,
-            detailed: `🔍 **Node Forensic Audit**\n${details || 'No active nodes detected.'}`
+            brief: `📡 **Network Overview**\n` +
+                   `> Nodes: \`${totalNodes}\` active\n` +
+                   `> Reach: \`${(totalViews / 1000000).toFixed(2)}M\` views\n` +
+                   `> Yield: \`$${totalEarned.toFixed(2)}\` earned\n` +
+                   `> Health: \`${healthy} ✅ / ${failing} ⚠️\``,
+            detailed: `🔍 **Forensic Node Audit (Top 15)**\n${details}${sortedScans.length > 15 ? `\n*+ ${sortedScans.length - 15} more nodes...*` : ''}\n\n[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`
         };
     }
   );
