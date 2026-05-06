@@ -41,6 +41,7 @@ interface LedgerEntry {
   totalViews: number;
   amount: number;
   currency: string;
+  type?: string;
   videoId?: string;
   videoTitle?: string;
 }
