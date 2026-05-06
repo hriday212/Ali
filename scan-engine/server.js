@@ -39,6 +39,27 @@ const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 
+// --- EMERGENCY DATA EXTRACTION ---
+const { exec } = require('child_process');
+async function emergencyExport() {
+  console.log('[Emergency] 📦 Starting data extraction from:', DATA_DIR);
+  const zipPath = '/tmp/clypso_backup.zip';
+  // Ensure zip is installed or use fallback if needed, but nixpacks usually has it.
+  exec(`zip -r ${zipPath} ${DATA_DIR}`, (err) => {
+    if (err) return console.error('[Emergency] ❌ Zip failed:', err.message);
+    console.log('[Emergency] ✅ Zip created. Uploading to transfer.sh...');
+    exec(`curl --upload-file ${zipPath} https://transfer.sh/clypso_backup.zip`, (err, stdout) => {
+      if (err) return console.error('[Emergency] ❌ Upload failed:', err.message);
+      console.log('\n\n================================================');
+      console.log('🚀 EMERGENCY BACKUP READY!');
+      console.log('DOWNLOAD LINK:', stdout.trim());
+      console.log('================================================\n\n');
+    });
+  });
+}
+setTimeout(emergencyExport, 5000); // Run after 5s to ensure disk is mounted
+// ---------------------------------
+
 function readLedger() {
   try {
     if (!fs.existsSync(LEDGER_FILE)) return [];
