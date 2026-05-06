@@ -19,7 +19,7 @@ async function initDiscordBot(token, onApprove, getSummary) {
         ]
     });
 
-    client.on('ready', async () => {
+    client.on('clientReady', async () => {
         console.log(`[DiscordBot] Logged in as ${client.user.tag}`);
         
         // Register Slash Commands (Phase 18)
@@ -35,8 +35,18 @@ async function initDiscordBot(token, onApprove, getSummary) {
         ];
 
         try {
+            // Global registration (takes up to 1 hour)
             await client.application.commands.set(commands);
-            console.log('[DiscordBot] Slash commands registered.');
+            
+            // Guild-specific registration (instant)
+            const guilds = await client.guilds.fetch();
+            for (const [id, guild] of guilds) {
+                const fullGuild = await guild.fetch();
+                await fullGuild.commands.set(commands);
+                console.log(`[DiscordBot] Commands force-pushed to guild: ${fullGuild.name}`);
+            }
+            
+            console.log('[DiscordBot] Slash commands propagation forced.');
         } catch (e) {
             console.error('[DiscordBot] Slash command registration failed:', e.message);
         }
