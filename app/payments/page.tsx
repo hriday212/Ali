@@ -28,8 +28,8 @@ export default function PayoutsPage() {
   const isAdmin = user?.role === 'admin';
   const [nodes, setNodes] = useState<PayoutNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingNode, setEditingNode] = useState<PayoutNode | null>(null);
-  const [campaignData, setCampaignData] = useState({ startDate: '', cpmThreshold: 0, perPostCap: 0 });
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editingNode, setEditingNode] = useState<any | null>(null);
 
   // Stores real payouts fetched from backend ledger
   const [payoutsDb, setPayoutsDb] = useState<any[]>([]);
@@ -40,123 +40,76 @@ export default function PayoutsPage() {
   const [customMarks, setCustomMarks] = useState<Record<string, string>>({});
   const [customFromMarks, setCustomFromMarks] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    async function fetchLedger() {
-      setLoading(true);
-      try {
-        // Fetch Real Ledger
-        let historyPayouts = [];
-        try {
-          const ledgerRes = await safeFetchJson(API_ROUTES.PAYOUTS);
-          historyPayouts = ledgerRes?.payouts || [];
-        } catch (e) {
-          console.warn('Ledger fetch error, assuming empty.');
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const ledgerRes = await safeFetchJson(API_ROUTES.PAYOUTS);
+      const historyPayouts = ledgerRes?.payouts || [];
+      setPayoutsDb(historyPayouts);
+
+      const { scans } = await safeFetchJson(API_ROUTES.SCANS);
+      if (!scans) return;
+
+      const ledgerRaw = scans.map((scan: any) => {
+        const nodeHistory = historyPayouts.filter((p: any) => p.accountId === scan.accountId);
+        const lastPaid = nodeHistory.reduce((max: number, p: any) => Math.max(max, p.viewsAtPayment || 0), 0);
+        
+        let totalViews = 0;
+        let qualifiedViews = 0;
+        if (scan.posts) {
+           scan.posts.forEach((post: any) => {
+               totalViews += post.views || 0;
+               if (scan.campaignConfig?.type === 'CPM' && (post.views || 0) < (scan.campaignConfig?.threshold || 0)) return;
+               qualifiedViews += post.views || 0;
+           });
+        } else {
+           totalViews = scan.lastViews || 0;
+           qualifiedViews = totalViews;
         }
-        setPayoutsDb(historyPayouts);
 
-        const { scans } = await safeFetchJson(API_ROUTES.SCANS);
-        if (!scans) return;
+        const unpaid = Math.max(0, qualifiedViews - lastPaid);
+        const defaultCPM = scan.campaignConfig?.cpmRate || (scan.platform === 'tiktok' ? 0.30 : scan.platform === 'youtube' ? 1.50 : 0.80);
+        
+        return {
+          id: scan.accountId,
+          platform: scan.platform,
+          totalViews,
+          lastPaidViews: lastPaid,
+          unpaidViews: unpaid,
+          yieldRate: defaultCPM,
+          amountDue: 0, // Calculated in displayNodes
+          status: 'pending',
+          qualifiedViews,
+          campaignConfig: scan.campaignConfig || { type: 'CPM', cpmRate: defaultCPM }
+        };
+      });
 
-        const ledgerRaw = await Promise.all(scans.map(async (scan: any) => {
-          // Fetch real lastPaidViews from DB (max viewsAtPayment for this node)
-          const nodeHistory = historyPayouts.filter((p: any) => p.accountId === scan.accountId);
-          const lastPaid = nodeHistory.reduce((max: number, p: any) => Math.max(max, p.viewsAtPayment || 0), 0);
-          
-          const startDate = scan.campaignStartDate ? new Date(scan.campaignStartDate) : null;
-          const threshold = scan.cpmThreshold || 0;
-          const cap = scan.perPostCap || Infinity;
-
-          let totalViews = 0;
-          let qualifiedViews = 0;
-          let postsInCampaign = 0;
-
-          if (scan.posts) {
-             scan.posts.forEach((post: any) => {
-                 totalViews += post.views || 0;
-                 if (startDate && new Date(post.date) < startDate) return;
-                 postsInCampaign++;
-                 if ((post.views || 0) < threshold) return;
-                 qualifiedViews += Math.min(post.views || 0, cap);
-             });
-          } else {
-             totalViews = scan.lastViews || 0;
-             qualifiedViews = totalViews;
-          }
-
-          const unpaid = Math.max(0, qualifiedViews - lastPaid);
-          const defaultCPM = scan.cpmRate !== undefined ? scan.cpmRate : (scan.platform === 'tiktok' ? 0.30 : scan.platform === 'youtube' ? 1.50 : 0.80);
-          const due = (unpaid / 1000) * defaultCPM;
-
-          return {
-            id: scan.accountId,
-            platform: scan.platform,
-            totalViews: totalViews,
-            lastPaidViews: lastPaid,
-            unpaidViews: unpaid,
-            yieldRate: defaultCPM,
-            amountDue: due,
-            status: due > 0 ? 'pending' : 'cleared',
-            campaignStartDate: scan.campaignStartDate,
-            cpmThreshold: scan.cpmThreshold,
-            perPostCap: scan.perPostCap,
-            qualifiedViews,
-            postsInCampaign
-          } as PayoutNode;
-        }));
-
-        setNodes(ledgerRaw.filter(Boolean) as PayoutNode[]);
-      } catch (err) {
-        console.error('Ledger Fail', err);
-      } finally {
-        setLoading(false);
-      }
+      setNodes(ledgerRaw);
+    } catch (err) {
+      console.error('Ledger Fail', err);
+    } finally {
+      setLoading(false);
     }
-    fetchLedger();
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
-  if (!isAdmin) {
-    return (
-      <div className="h-[60vh] flex flex-col items-center justify-center">
-        <Wallet className="w-16 h-16 text-slate-700 mb-4" />
-        <h2 className="text-2xl font-black uppercase italic tracking-widest text-slate-500">Ledger Restricted</h2>
-        <p className="text-xs uppercase tracking-widest text-slate-600 mt-2">Only Network Operators can view financial telemetry.</p>
-      </div>
-    );
-  }
-
-  const displayNodes = nodes.map(node => {
-     const yieldRate = customRates[node.id] !== undefined ? parseFloat(customRates[node.id]) : node.yieldRate;
-     const settleMark = customMarks[node.id] !== undefined ? parseInt(customMarks[node.id]) : node.qualifiedViews;
-     const fromMark = customFromMarks[node.id] !== undefined ? parseInt(customFromMarks[node.id]) : node.lastPaidViews;
-     
-     // Debt is views between fromMark and the settleMark
-     const unpaidInRange = Math.max(0, settleMark - fromMark);
-     let due = (unpaidInRange / 1000) * yieldRate;
-
-     if (customAmounts[node.id] !== undefined) due = parseFloat(customAmounts[node.id]);
-     
-     // Status should be pending if there are unpaid views in the range
-     const status = unpaidInRange > 0 ? 'pending' : 'cleared';
-
-     return { ...node, yieldRate, amountDue: due, status, unpaidViews: unpaidInRange } as PayoutNode;
-  });
-
-  const handleSaveCampaign = async () => {
-    if (!editingNode) return;
+  const handleUpdateConfig = async (accountId: string, config: any) => {
+    setIsUpdating(true);
     try {
-      await safeFetchJson(API_ROUTES.CAMPAIGN_SETTINGS(editingNode.id), {
+      await safeFetchJson(`${API_ROUTES.SCANS}/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignStartDate: campaignData.startDate || null,
-          cpmThreshold: campaignData.cpmThreshold || 0,
-          perPostCap: campaignData.perPostCap || 0
-        })
+        body: JSON.stringify({ accountId, config })
       });
-      // Simple reload
-      window.location.reload();
-    } catch (e) {
-      console.error('Failed to save campaign:', e);
+      await fetchData();
+      setEditingNode(null);
+    } catch (err) {
+      console.error('Failed to update node config:', err);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -457,65 +410,135 @@ export default function PayoutsPage() {
         </div>
       )}
 
-      {/* Campaign Settings Modal */}
-      {editingNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#0f172a] border border-white/10 p-6 rounded-2xl w-full max-w-md shadow-2xl">
-            <h3 className="text-xl font-black italic uppercase text-white mb-4">Campaign Fencing</h3>
-            <p className="text-xs text-slate-400 mb-6">Configure specific payout rules for <span className="text-indigo-400 font-bold">{editingNode.id}</span></p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Campaign Start Date</label>
-                <input 
-                  type="date"
-                  value={campaignData.startDate}
-                  onChange={(e) => setCampaignData({...campaignData, startDate: e.target.value})}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none"
-                />
-                <p className="text-[9px] text-slate-600 mt-1">Posts before this date will yield 0 qualified views.</p>
-              </div>
-              
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Minimum Views Threshold</label>
-                <input 
-                  type="number"
-                  value={campaignData.cpmThreshold}
-                  onChange={(e) => setCampaignData({...campaignData, cpmThreshold: parseInt(e.target.value) || 0})}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none"
-                />
-                <p className="text-[9px] text-slate-600 mt-1">Posts under this threshold will yield 0 qualified views.</p>
+      {/* Dynamic Model Switcher Modal */}
+      <AnimatePresence>
+        {editingNode && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-black/80"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-lg glass-card p-10 border-white/20 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-black italic tracking-tighter uppercase">Configure Protocol</h3>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">{editingNode.id}</p>
+                </div>
+                <button onClick={() => setEditingNode(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-500 hover:text-white">✕</button>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Per-Post Max Cap</label>
-                <input 
-                  type="number"
-                  value={campaignData.perPostCap}
-                  onChange={(e) => setCampaignData({...campaignData, perPostCap: parseInt(e.target.value) || 0})}
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-indigo-500 outline-none"
-                />
-                <p className="text-[9px] text-slate-600 mt-1">Maximum qualified views allowed per individual post (0 = infinite).</p>
+              {/* Model Selector Toggle */}
+              <div className="flex p-1 bg-white/5 border border-white/10 rounded-xl mb-8">
+                {['CPM', 'Retainer', 'None'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      const newConfig = { ...editingNode.campaignConfig, type };
+                      setEditingNode({ ...editingNode, campaignConfig: newConfig });
+                    }}
+                    className={`flex-1 py-3 text-[9px] font-black uppercase tracking-[0.2em] rounded-lg transition-all ${editingNode.campaignConfig?.type === type ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    {type}
+                  </button>
+                ))}
               </div>
-            </div>
 
-            <div className="mt-8 flex gap-3">
-              <button 
-                onClick={() => setEditingNode(null)}
-                className="flex-1 px-4 py-2 bg-slate-800 text-slate-300 text-xs font-bold uppercase tracking-widest rounded-lg"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSaveCampaign}
-                className="flex-1 px-4 py-2 bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-indigo-600 transition-colors"
-              >
-                Apply Fencing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="space-y-6">
+                {editingNode.campaignConfig?.type === 'CPM' && (
+                  <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4">
+                    <div>
+                      <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">CPM Rate ($)</label>
+                      <input 
+                        type="number" 
+                        value={editingNode.campaignConfig?.cpmRate || 10}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setEditingNode({ ...editingNode, campaignConfig: { ...editingNode.campaignConfig, cpmRate: val } });
+                        }}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">Threshold (Views)</label>
+                      <input 
+                        type="number" 
+                        value={editingNode.campaignConfig?.threshold || 0}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setEditingNode({ ...editingNode, campaignConfig: { ...editingNode.campaignConfig, threshold: val } });
+                        }}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {editingNode.campaignConfig?.type === 'Retainer' && (
+                  <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">Retainer Amt ($)</label>
+                        <input 
+                          type="number" 
+                          value={editingNode.campaignConfig?.retainerAmount || 100}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setEditingNode({ ...editingNode, campaignConfig: { ...editingNode.campaignConfig, retainerAmount: val } });
+                          }}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">Post Quota (24h)</label>
+                        <input 
+                          type="number" 
+                          value={editingNode.campaignConfig?.postsQuota || 2}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            setEditingNode({ ...editingNode, campaignConfig: { ...editingNode.campaignConfig, postsQuota: val } });
+                          }}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">Min Views for Retainer</label>
+                      <input 
+                        type="number" 
+                        value={editingNode.campaignConfig?.minViews || 5000}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setEditingNode({ ...editingNode, campaignConfig: { ...editingNode.campaignConfig, minViews: val } });
+                        }}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {editingNode.campaignConfig?.type === 'None' && (
+                  <div className="py-12 text-center opacity-40">
+                    <HandCoins className="w-12 h-12 mx-auto mb-4" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">No payout model active for this node</p>
+                  </div>
+                )}
+
+                <div className="pt-6">
+                  <button
+                    disabled={isUpdating}
+                    onClick={() => handleUpdateConfig(editingNode.id, editingNode.campaignConfig)}
+                    className="w-full py-4 bg-indigo-500 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-indigo-400 transition-colors disabled:opacity-50"
+                  >
+                    {isUpdating ? 'Synchronizing Engine...' : 'Apply Protocol Configuration'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
