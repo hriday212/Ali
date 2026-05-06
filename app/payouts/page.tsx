@@ -149,16 +149,18 @@ export default function PayoutsPage() {
            <div className="flex items-center gap-4 mb-6">
               <Database className="w-5 h-5 text-indigo-400" />
               <h2 className="text-xs font-black uppercase tracking-[0.2em] italic">Node Governance</h2>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/10">{scans.length} Active Nodes</span>
            </div>
-           <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-              {scans.map((scan) => (
+           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {scans.map((scan, idx) => (
                 <motion.div
                   key={scan.accountId}
-                  whileHover={{ scale: 1.05 }}
+                  whileHover={{ scale: 1.05, y: -4 }}
                   onClick={() => setSelectedNode(scan)}
-                  className={`flex-shrink-0 w-48 p-5 glass-card border-white/10 cursor-pointer transition-all hover:border-white/30 ${selectedNode?.accountId === scan.accountId ? 'ring-2 ring-emerald-500 border-emerald-500/50 bg-emerald-500/5' : ''}`}
+                  className={`relative p-5 glass-card border-white/10 cursor-pointer transition-all hover:border-white/30 ${selectedNode?.accountId === scan.accountId ? 'ring-2 ring-emerald-500 border-emerald-500/50 bg-emerald-500/5' : ''}`}
                 >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white truncate mb-1">{scan.accountId}</p>
+                  <span className="absolute top-2 right-3 text-[9px] font-black text-white/20 italic">#{idx + 1}</span>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white truncate mb-1 pr-6">{scan.accountId}</p>
                   <div className="flex items-center justify-between mt-3">
                      <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-sm uppercase italic tracking-widest ${scan.campaignConfig?.type === 'Retainer' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                         {scan.campaignConfig?.type || 'No Model'}
