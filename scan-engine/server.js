@@ -39,32 +39,28 @@ const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 
-// --- EMERGENCY DATA EXTRACTION ---
+// --- EMERGENCY DATA EXTRACTION (BASE64 LOG DUMP) ---
 const { exec } = require('child_process');
 async function emergencyExport() {
   console.log('[Emergency] 📦 Starting data extraction from:', DATA_DIR);
   const tarPath = '/tmp/clypso_backup.tar.gz';
   exec(`tar -czf ${tarPath} ${DATA_DIR}`, (err) => {
     if (err) return console.error('[Emergency] ❌ Tar failed:', err.message);
-    console.log('[Emergency] ✅ Archive created. Uploading to file.io...');
-    // Use file.io instead
-    exec(`curl -F "file=@${tarPath}" https://file.io`, (err, stdout) => {
-      if (err) return console.error('[Emergency] ❌ Upload failed:', err.message);
-      try {
-        const res = JSON.parse(stdout);
-        console.log('\n\n================================================');
-        console.log('🚀 EMERGENCY BACKUP READY!');
-        console.log('DOWNLOAD LINK:', res.link);
-        console.log('EXPIRATION: 14 Days / 1 Download');
-        console.log('================================================\n\n');
-      } catch (e) {
-        console.log('[Emergency] Upload result:', stdout);
-      }
+    console.log('[Emergency] ✅ Archive created. Converting to Base64...');
+    // Convert to base64 and print to logs
+    exec(`base64 ${tarPath}`, { maxBuffer: 1024 * 1024 * 10 }, (err, stdout) => {
+      if (err) return console.error('[Emergency] ❌ Base64 failed:', err.message);
+      console.log('\n\n================================================');
+      console.log('🚀 EMERGENCY DATA DUMP (COPY EVERYTHING BELOW)');
+      console.log('BEGIN_DATA');
+      console.log(stdout.trim());
+      console.log('END_DATA');
+      console.log('================================================\n\n');
     });
   });
 }
-setTimeout(emergencyExport, 8000); // Run after 8s
-// ---------------------------------
+setTimeout(emergencyExport, 10000); // Run after 10s
+// ----------------------------------------------------
 
 function readLedger() {
   try {
