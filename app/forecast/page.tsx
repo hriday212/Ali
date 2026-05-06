@@ -215,8 +215,6 @@ export default function ForecastPage() {
         pShares += Math.max(0, (latest.totalShares || 0) - baselineShares);
       }
       // Record Account Gains for Top 5
-      const isVideoNewCurrent = new Date(p.timestamp).getTime() >= currentStart.getTime();
-      const currentPeriodGain = cViews - (currentH.length > 0 ? (isVideoNewCurrent ? 0 : (history.find((h: any) => new Date(h.time).getTime() >= currentStart.getTime()) || currentH[0]).totalViews || 0) : 0);
       // Actually we already have the net gain for this account in the cViews addition, let's recalculate just for this account:
       let accViewsGain = 0;
       if (currentH.length > 0) {
