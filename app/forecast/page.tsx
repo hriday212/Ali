@@ -642,6 +642,141 @@ export default function ForecastPage() {
          </div>
       </div>
 
+      {/* Bottom Grid: Bar Chart + Pie Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-export-id="comparison-charts">
+        
+        {/* Comparative Bar Chart */}
+        <div className="lg:col-span-2 glass-card p-8 border border-white/10">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-black italic uppercase text-white tracking-widest">Period Comparison</h3>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Current vs Previous Period Views</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm bg-blue-500" />
+                <span className="text-[8px] font-black uppercase text-slate-500">Current</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-sm bg-white/10" />
+                <span className="text-[8px] font-black uppercase text-slate-500">Previous</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="h-[320px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
+            {timeSeries.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Insufficient data — accumulating scan history...</p>
+              </div>
+            ) : (
+              <div className="min-w-[600px] h-full px-2 lg:px-0">
+                <ResponsiveContainer width="99%" height="100%">
+                  <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="splitGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#475569" />
+                        <stop offset="50%" stopColor="#475569" />
+                        <stop offset="50%" stopColor="#3b82f6" />
+                        <stop offset="100%" stopColor="#3b82f6" />
+                      </linearGradient>
+                      <linearGradient id="fillGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#475569" stopOpacity={0.05} />
+                        <stop offset="50%" stopColor="#475569" stopOpacity={0.05} />
+                        <stop offset="50%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} minTickGap={20} />
+                    <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                    <Tooltip
+                      cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }}
+                      contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
+                      itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
+                      labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
+                    />
+                    <Area 
+                       type="monotone" 
+                       dataKey="views" 
+                       name="Views" 
+                       stroke="url(#splitGradient)" 
+                       strokeWidth={3} 
+                       fill="url(#fillGradient)" 
+                       isAnimationActive={false} 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Cross-Platform Pie Chart */}
+        <div className="glass-card p-8 border border-white/10">
+          <h3 className="text-lg font-black italic uppercase text-white tracking-widest mb-1">Platform Split</h3>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-6">View Distribution by Platform</p>
+
+          <div className="h-[250px]">
+            {platformDist.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">No platform data</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="99%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={platformDist}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {platformDist.map((entry: any, i: number) => (
+                      <Cell key={`cell-${i}`} fill={PLATFORM_COLORS[entry.name] || '#64748b'} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
+                    formatter={(val: any) => `${val}%`}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Legend — Clickable */}
+          <div className="space-y-3 mt-4">
+            {platformDist.map((p: any) => (
+              <button
+                key={p.name}
+                onClick={() => setActivePlatform(activePlatform === p.name.toLowerCase() ? null : p.name.toLowerCase())}
+                className={`w-full flex items-center justify-between p-2 rounded-lg transition-all ${
+                  activePlatform === p.name.toLowerCase()
+                    ? 'bg-white/10 border border-white/20'
+                    : 'hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PLATFORM_COLORS[p.name] || '#64748b' }} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{p.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black italic text-white">{p.value}%</span>
+                  {activePlatform === p.name.toLowerCase()
+                    ? <ChevronUp className="w-3 h-3 text-slate-500" />
+                    : <ChevronDown className="w-3 h-3 text-slate-500" />
+                  }
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Activity Pattern Chart */}
       <div className="glass-card p-10 border border-white/10 overflow-hidden relative" data-export-id="hourly-chart">
         <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
@@ -728,141 +863,6 @@ export default function ForecastPage() {
               />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-        
-      {/* Bottom Grid: Bar Chart + Pie Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-export-id="comparison-charts">
-        
-        {/* Comparative Bar Chart */}
-        <div className="lg:col-span-2 glass-card p-8 border border-white/10">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-black italic uppercase text-white tracking-widest">Period Comparison</h3>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Current vs Previous Period Views</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-blue-500" />
-                <span className="text-[8px] font-black uppercase text-slate-500">Current</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-white/10" />
-                <span className="text-[8px] font-black uppercase text-slate-500">Previous</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="h-[320px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
-            {timeSeries.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Insufficient data — accumulating scan history...</p>
-              </div>
-            ) : (
-              <div className="min-w-[600px] h-full px-2 lg:px-0">
-                <ResponsiveContainer width="99%" height="100%">
-                  <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="splitGradient" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#475569" />
-                        <stop offset="50%" stopColor="#475569" />
-                        <stop offset="50%" stopColor="#3b82f6" />
-                        <stop offset="100%" stopColor="#3b82f6" />
-                      </linearGradient>
-                      <linearGradient id="fillGradient" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#475569" stopOpacity={0.05} />
-                        <stop offset="50%" stopColor="#475569" stopOpacity={0.05} />
-                        <stop offset="50%" stopColor="#3b82f6" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} minTickGap={20} />
-                    <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                    <Tooltip
-                      cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }} // Subtle, thin cursor
-                      contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
-                      itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
-                      labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
-                    />
-                    <Area 
-                       type="monotone" 
-                       dataKey="views" 
-                       name="Views" 
-                       stroke="url(#splitGradient)" 
-                       strokeWidth={3} 
-                       fill="url(#fillGradient)" 
-                       isAnimationActive={false} 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Cross-Platform Pie Chart */}
-        <div className="glass-card p-8 border border-white/10">
-          <h3 className="text-lg font-black italic uppercase text-white tracking-widest mb-1">Platform Split</h3>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-6">View Distribution by Platform</p>
-
-          <div className="h-[250px]">
-            {platformDist.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">No platform data</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="99%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={platformDist}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {platformDist.map((entry: any, i: number) => (
-                      <Cell key={`cell-${i}`} fill={PLATFORM_COLORS[entry.name] || '#64748b'} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
-                    formatter={(val: any) => `${val}%`}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* Legend — Clickable */}
-          <div className="space-y-3 mt-4">
-            {platformDist.map((p: any) => (
-              <button
-                key={p.name}
-                onClick={() => setActivePlatform(activePlatform === p.name.toLowerCase() ? null : p.name.toLowerCase())}
-                className={`w-full flex items-center justify-between p-2 rounded-lg transition-all ${
-                  activePlatform === p.name.toLowerCase()
-                    ? 'bg-white/10 border border-white/20'
-                    : 'hover:bg-white/5 border border-transparent'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PLATFORM_COLORS[p.name] || '#64748b' }} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{p.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black italic text-white">{p.value}%</span>
-                  {activePlatform === p.name.toLowerCase()
-                    ? <ChevronUp className="w-3 h-3 text-slate-500" />
-                    : <ChevronDown className="w-3 h-3 text-slate-500" />
-                  }
-                </div>
-              </button>
-            ))}
           </div>
         </div>
       </div>
