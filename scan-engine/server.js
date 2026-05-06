@@ -7,7 +7,7 @@ const fetch = require('node-fetch');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
 const { DEFAULT_ACCOUNTS } = require('./defaultAccounts');
-const { initDiscordBot, sendApprovalRequest } = require('./discordBot');
+const { initDiscordBot, sendApprovalRequest, sendViralAlert } = require('./discordBot');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -43,6 +43,7 @@ const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 
 let discordWebhookUrl = '';
 let escalationApprovalRequired = false; // Default: Auto-escalate
+let campaignStartTimestamp = Date.now();
 
 const activeScans = new Map();
 
@@ -598,14 +599,58 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       totalShares: peakTotalShares,
     }].slice(-50);
 
+    // 4. SLA Tracking (Phase 18: Posting Frequency)
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    const postsLast24h = posts.filter(p => new Date(p.date) > oneDayAgo).length;
+    
+    scan.slaStatus = postsLast24h >= 2 ? 'HEALTHY' : 'FAILING';
+    scan.dailyPostCount = postsLast24h;
+    scan.lastSLAUpdate = now.toISOString();
+
+    console.log(`[ScanEngine] ✅ ${accountId} scan complete. SLA: ${scan.slaStatus} (${postsLast24h} posts/24h)`);
+
     if (!data.videoHistory) data.videoHistory = {};
     posts.forEach(p => {
       if (!data.videoHistory[p.id]) data.videoHistory[p.id] = [];
+      
+      const lifecycle = classifyPostLifecycle(p, data.videoHistory[p.id]);
+      if (lifecycle === 'DEAD') return; // Phase 18: Resource Optimization
+
       data.videoHistory[p.id] = [...data.videoHistory[p.id], {
         time: new Date().toISOString(),
         views: p.views,
       }].slice(-50);
     });
+
+    // 5. Phase 18: Payout & Financial Fencing
+    if (scan.campaignConfig && scan.campaignConfig.type !== 'None') {
+        const totalViews = peakTotalViews;
+        const config = scan.campaignConfig;
+        
+        // Calculate Payout
+        let earned = 0;
+        if (config.type === 'CPM') {
+            const rate = config.cpmRate || 0;
+            const threshold = config.threshold || 0;
+            const cap = config.cap || Infinity;
+            
+            const payableViews = Math.min(Math.max(totalViews - threshold, 0), cap);
+            earned = (payableViews / 1000) * rate;
+        }
+
+        // Update Scan Settlement State
+        scan.totalEarned = earned;
+        scan.payableViews = Math.min(Math.max(totalViews - (config.threshold || 0), 0), (config.cap || Infinity));
+        
+        // Log to Ledger if changed significantly
+        const lastAmount = scan.lastSettledAmount || 0;
+        if (Math.abs(earned - lastAmount) > 0.01) {
+            updateLedger(accountId, earned, totalViews);
+            scan.lastSettledAmount = earned;
+            scan.lastSettlementTime = new Date().toISOString();
+        }
+    }
 
     writeScanData(accountId, data);
     scan.scanCount++;
@@ -756,17 +801,24 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
          scan.pendingInterval = targetInterval;
          
          if (discordWebhookUrl) {
-            // Priority: Discord Bot (Buttons) -> Webhook (Link)
-            if (process.env.DISCORD_BOT_TOKEN) {
-               sendApprovalRequest(accountId, nextInterval, targetInterval);
-            } else {
-               fetch(discordWebhookUrl, {
-                   method: 'POST',
-                   headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({
-                       content: `🛑 **ESCALATION GATE: APPROVAL REQUIRED** 🛑\nNode: **${accountId}**\nSuggested Shift: **${nextInterval}m** -> **${targetInterval}m**\nReason: High Viral Momentum Detected.\n[APPROVE VIA DASHBOARD](${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings)`
-                   })
-               }).catch(e => console.error('[Discord] Approval alert failed:', e.message));
+            // Cooldown: 1 hour between alerts for the same node
+            const lastAlert = scan.lastViralAlertTime ? new Date(scan.lastViralAlertTime).getTime() : 0;
+            const now = Date.now();
+            if (now - lastAlert > 60 * 60 * 1000) {
+                scan.lastViralAlertTime = new Date().toISOString();
+                // Priority: Discord Bot (Buttons) -> Webhook (Link)
+                if (process.env.DISCORD_BOT_TOKEN) {
+                   sendApprovalRequest(accountId, nextInterval, targetInterval);
+                   sendViralAlert(accountId, platform, { zScore, multiplier, delta });
+                } else {
+                   fetch(discordWebhookUrl, {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({
+                           content: `🛑 **ESCALATION GATE: APPROVAL REQUIRED** 🛑\nNode: **${accountId}**\nSuggested Shift: **${nextInterval}m** -> **${targetInterval}m**\nReason: High Viral Momentum Detected.\n[APPROVE VIA DASHBOARD](${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings)`
+                       })
+                   }).catch(e => console.error('[Discord] Approval alert failed:', e.message));
+                }
             }
          }
          // Stay at current interval until approved
@@ -812,7 +864,8 @@ function saveAllState() {
       smartEngineEnabled,
       viralDetectionMode,
       discordWebhookUrl,
-      escalationApprovalRequired
+      escalationApprovalRequired,
+      campaignStartTimestamp
     },
     scans: scansRoot
   };
@@ -821,15 +874,30 @@ function saveAllState() {
 }
 
 // Initialize Discord Bot
-initDiscordBot(process.env.DISCORD_BOT_TOKEN, async (accountId, targetInterval) => {
-    const scan = activeScans.get(accountId);
-    if (!scan) return;
-    scan.currentInterval = targetInterval;
-    scan.pendingInterval = null;
-    scheduleNextScan(scan, targetInterval);
-    saveAllState();
-    console.log(`[DiscordBot] ✅ External approval for ${accountId}: Escalated to ${targetInterval}m.`);
-});
+initDiscordBot(
+    process.env.DISCORD_BOT_TOKEN, 
+    async (accountId, targetInterval) => {
+        const scan = activeScans.get(accountId);
+        if (!scan) return;
+        scan.currentInterval = targetInterval;
+        scan.pendingInterval = null;
+        scheduleNextScan(scan, targetInterval);
+        saveAllState();
+        console.log(`[DiscordBot] ✅ External approval for ${accountId}: Escalated to ${targetInterval}m.`);
+    },
+    async () => {
+        // getSummary Callback
+        const scans = Array.from(activeScans.values());
+        const total = scans.length;
+        const healthy = scans.filter(s => s.slaStatus === 'HEALTHY').length;
+        const viral = scans.filter(s => s.currentInterval <= 60).length;
+        
+        return {
+            brief: `**System Health**: ${healthy}/${total} Healthy\n**Viral Momentum**: ${viral} nodes in high-cadence mode.\n**Engine Status**: Operational`,
+            detailed: scans.map(s => `- **${s.accountId}**: ${s.slaStatus} | ${s.currentInterval}m | ${s.dailyPostCount} posts/24h`).join('\n') || 'No active scans.'
+        };
+    }
+);
 
 function scheduleNextScan(scan, overrideMinutes = null) {
   if (scan.timer) clearTimeout(scan.timer);
@@ -870,6 +938,7 @@ function restoreState() {
          viralDetectionMode = raw.settings.viralDetectionMode || 'off';
          discordWebhookUrl = raw.settings.discordWebhookUrl || discordWebhookUrl;
          escalationApprovalRequired = raw.settings.escalationApprovalRequired || false;
+         campaignStartTimestamp = raw.settings.campaignStartTimestamp || Date.now();
       } else {
          // Legacy mode
          scansToLoad = raw;
@@ -969,6 +1038,8 @@ app.get('/api/scans', (req, res) => {
           history: diskData.history || [],
           posts: (diskData.posts || []).slice(0, 200),
           platform: v.platform || diskData.platform || 'youtube',
+          campaignConfig: v.campaignConfig,
+          totalEarned: v.totalEarned || 0,
         });
       } catch (innerErr) {
         console.error(`[API] Error processing account ${k}:`, innerErr.message);
@@ -1240,6 +1311,46 @@ app.get('/api/hashtags/scan', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// POST /api/settings/campaign-start
+app.post('/api/settings/campaign-start', (req, res) => {
+  const { timestamp } = req.body;
+  if (!timestamp) return res.status(400).json({ error: 'Timestamp required' });
+  campaignStartTimestamp = parseInt(timestamp);
+  saveAllState();
+  res.json({ success: true, campaignStartTimestamp });
+});
+
+// POST /api/scans/config
+app.post('/api/scans/config', (req, res) => {
+  const { accountId, config } = req.body;
+  const scan = activeScans.get(accountId);
+  if (!scan) return res.status(404).json({ error: 'Scan not found' });
+  
+  scan.campaignConfig = config;
+  saveAllState();
+  res.json({ success: true });
+});
+
+function updateLedger(accountId, amount, views) {
+    const ledger = readLedger();
+    const entry = {
+        accountId,
+        timestamp: new Date().toISOString(),
+        totalViews: views,
+        amount,
+        currency: 'USD'
+    };
+    ledger.push(entry);
+    
+    // Keep last 1000 entries
+    const trimmed = ledger.slice(-1000);
+    fs.writeFileSync(LEDGER_FILE, JSON.stringify(trimmed, null, 2));
+}
+
+app.get('/api/ledger', (req, res) => {
+    res.json(readLedger());
 });
 
 app.listen(PORT, '0.0.0.0', () => {

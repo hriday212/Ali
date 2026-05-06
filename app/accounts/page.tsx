@@ -53,6 +53,8 @@ export default function AccountsPage() {
             status: 'connected',
             hasNew: false,
             avatarUrl: s.avatarUrl || '',
+            slaStatus: s.slaStatus,
+            dailyPostCount: s.dailyPostCount,
             channelId: '', 
             addedAt: new Date().toISOString(),
           }));
@@ -90,7 +92,11 @@ export default function AccountsPage() {
                 followers: fresh.followers, 
                 platform: fresh.platform,
                 name: fresh.name,
-                avatarUrl: fresh.avatarUrl
+                avatarUrl: fresh.avatarUrl,
+                slaStatus: fresh.slaStatus,
+                dailyPostCount: fresh.dailyPostCount,
+                campaignConfig: fresh.campaignConfig,
+                totalEarned: fresh.totalEarned
               };
             }
             return acc;

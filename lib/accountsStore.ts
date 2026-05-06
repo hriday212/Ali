@@ -12,6 +12,8 @@ export interface Account {
   avatarUrl?: string;
   channelId?: string; // YouTube channel ID for API calls
   addedAt: string;
+  slaStatus?: 'HEALTHY' | 'FAILING';
+  dailyPostCount?: number;
   settlements?: {
     date: string;
     viewLevel: number;
@@ -63,4 +65,14 @@ export function deleteAccount(id: string) {
 
 export function getAccountById(id: string): Account | null {
   return getAccounts().find(a => a.id === id) || null;
+}
+
+export function updateAccount(id: string, updates: Partial<Account>) {
+  const accounts = getAccounts();
+  const index = accounts.findIndex(a => a.id === id);
+  if (index !== -1) {
+    accounts[index] = { ...accounts[index], ...updates };
+    saveAccounts(accounts);
+  }
+  return accounts;
 }

@@ -3,11 +3,12 @@ const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle,
 let client = null;
 let adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
 let approvalChannelId = process.env.DISCORD_APPROVAL_CHANNEL_ID;
+let viralAlertsChannelId = process.env.DISCORD_VIRAL_ALERTS_CHANNEL_ID;
 
 /**
  * Initializes the Discord Bot if a token is provided
  */
-async function initDiscordBot(token, onApprove) {
+async function initDiscordBot(token, onApprove, getSummary) {
     if (!token) return null;
 
     client = new Client({
@@ -18,11 +19,45 @@ async function initDiscordBot(token, onApprove) {
         ]
     });
 
-    client.on('ready', () => {
+    client.on('ready', async () => {
         console.log(`[DiscordBot] Logged in as ${client.user.tag}`);
+        
+        // Register Slash Commands (Phase 18)
+        const commands = [
+            {
+                name: 'status',
+                description: 'Get high-level overview of the LinkMe Scan Engine.'
+            },
+            {
+                name: 'scans',
+                description: 'List all active monitoring nodes and their current health.'
+            }
+        ];
+
+        try {
+            await client.application.commands.set(commands);
+            console.log('[DiscordBot] Slash commands registered.');
+        } catch (e) {
+            console.error('[DiscordBot] Slash command registration failed:', e.message);
+        }
     });
 
     client.on('interactionCreate', async (interaction) => {
+        if (interaction.isCommand()) {
+            if (interaction.commandName === 'status' || interaction.commandName === 'scans') {
+                if (!getSummary) return interaction.reply('Summary callback not initialized.');
+                const summary = await getSummary();
+                
+                const embed = new EmbedBuilder()
+                    .setTitle('📊 Scan Engine Protocol Status')
+                    .setColor(0x00D1FF)
+                    .setDescription(interaction.commandName === 'status' ? summary.brief : summary.detailed)
+                    .setTimestamp();
+                
+                return interaction.reply({ embeds: [embed] });
+            }
+        }
+
         if (!interaction.isButton()) return;
 
         const [action, accountId, targetInterval] = interaction.customId.split(':');
@@ -104,4 +139,32 @@ async function sendApprovalRequest(accountId, current, target) {
     }
 }
 
-module.exports = { initDiscordBot, sendApprovalRequest };
+/**
+ * Sends a viral notification to the public alerts channel
+ */
+async function sendViralAlert(accountId, platform, growthData) {
+    if (!client || !viralAlertsChannelId) return;
+
+    try {
+        const channel = await client.channels.fetch(viralAlertsChannelId);
+        if (!channel) return;
+
+        const embed = new EmbedBuilder()
+            .setTitle('🔥 VIRAL SIGNAL DETECTED')
+            .setDescription(`Significant momentum spike detected for node **${accountId}** on ${platform.toUpperCase()}.`)
+            .setColor(0xFF4500)
+            .addFields(
+                { name: 'Velocity Spike', value: `+${growthData.delta.toLocaleString()} views`, inline: true },
+                { name: 'Growth Multiplier', value: `${growthData.multiplier.toFixed(1)}x`, inline: true },
+                { name: 'Z-Score Momentum', value: growthData.zScore.toFixed(2), inline: true }
+            )
+            .setThumbnail('https://cdn-icons-png.flaticon.com/512/1680/1680951.png')
+            .setTimestamp();
+
+        await channel.send({ embeds: [embed] });
+    } catch (err) {
+        console.error('[DiscordBot] Failed to send viral alert:', err.message);
+    }
+}
+
+module.exports = { initDiscordBot, sendApprovalRequest, sendViralAlert };

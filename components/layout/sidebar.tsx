@@ -23,7 +23,7 @@ function cn(...inputs: ClassValue[]) {
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, href: '/' },
   { name: 'Accounts', icon: Users, href: '/accounts' },
-  { name: 'Payments', icon: CreditCard, href: '/payments' },
+  { name: 'Financial Ledger', icon: CreditCard, href: '/payouts' },
   { name: 'Analytics', icon: BarChart3, href: '/analytics' },
   { name: 'Settings', icon: Settings, href: '/settings' },
 ];

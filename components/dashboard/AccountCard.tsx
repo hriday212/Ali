@@ -27,7 +27,15 @@ interface AccountCardProps {
     status: string;
     hasNew?: boolean;
     link: string;
-    avatarUrl?: string; // High-fidelity PFP
+    avatarUrl?: string;
+    dailyPostCount?: number;
+    campaignConfig?: {
+      type: string;
+      cpmRate?: number;
+      threshold?: number;
+      cap?: number;
+    };
+    totalEarned?: number;
   };
   onDelete: (id: string) => void;
   onUpdate?: (id: string, newLink: string) => void;
@@ -116,6 +124,18 @@ export default function AccountCard({ account, onDelete, onUpdate }: AccountCard
         </div>
       )}
 
+      {/* Campaign Badge */}
+      {account.campaignConfig?.type === 'CPM' && (
+        <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start">
+          <div className="px-2 py-0.5 bg-emerald-500 text-black text-[7px] font-black uppercase rounded-md shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+            CPM ACTIVE
+          </div>
+          <div className="px-2 py-0.5 bg-black/60 backdrop-blur-md border border-emerald-500/30 text-emerald-400 text-[9px] font-black italic rounded-md">
+            ${(account.totalEarned || 0).toFixed(2)}
+          </div>
+        </div>
+      )}
+
       {/* Profile / Platform Badge Container */}
       <div className="relative mb-5 z-10">
         <div className="w-24 h-24 bg-slate-900 rounded-3xl flex items-center justify-center ring-1 ring-white/10 shadow-3xl overflow-hidden group-hover:ring-white/40 transition-all duration-500">
@@ -143,6 +163,18 @@ export default function AccountCard({ account, onDelete, onUpdate }: AccountCard
         <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-slate-300 transition-colors">
           {account.followers} <span className="text-[10px] text-slate-600 italic">Network Reach</span>
         </p>
+        
+        {/* SLA Status Badge */}
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <div className={`px-2 py-0.5 rounded-md border text-[8px] font-black uppercase tracking-widest ${
+            account.slaStatus === 'HEALTHY' 
+              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+              : 'bg-red-500/10 border-red-500/20 text-red-400'
+          }`}>
+            SLA: {account.slaStatus || 'PENDING'}
+          </div>
+          <span className="text-[8px] font-bold text-slate-500 uppercase">{account.dailyPostCount || 0} Posts/24h</span>
+        </div>
       </div>
 
       {/* Action Suite (Optimized Visibility) */}

@@ -25,6 +25,8 @@ export default function SettingsPage() {
   const [isTogglingGate, setIsTogglingGate] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
   const [isApprovingId, setIsApprovingId] = useState<string | null>(null);
+  const [campaignStart, setCampaignStart] = useState<number>(Date.now());
+  const [isUpdatingCampaign, setIsUpdatingCampaign] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function SettingsPage() {
         if (data && data.discordWebhookUrl) setDiscordWebhook(data.discordWebhookUrl);
         if (data && data.viralDetectionMode) setViralDetectionMode(data.viralDetectionMode);
         if (data && typeof data.escalationApprovalRequired === 'boolean') setEscalationApprovalRequired(data.escalationApprovalRequired);
+        if (data && data.campaignStartTimestamp) setCampaignStart(data.campaignStartTimestamp);
       } catch (err) {}
     }
     loadStats();
@@ -148,7 +151,6 @@ export default function SettingsPage() {
       setIsApprovingId(null);
     }
   };
-
   const handleToggleEscalationGate = async () => {
     setIsTogglingGate(true);
     const newState = !escalationApprovalRequired;
@@ -164,6 +166,23 @@ export default function SettingsPage() {
       console.error('Failed to toggle escalation gate:', err);
     } finally {
       setIsTogglingGate(false);
+    }
+  };
+
+  const handleUpdateCampaignStart = async (timestamp: number) => {
+    setIsUpdatingCampaign(true);
+    try {
+      const res = await fetch(`${API_ROUTES.SCANS.replace('/api/scans', '/api/settings/campaign-start')}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp }),
+      });
+      const data = await res.json();
+      if (data.success) setCampaignStart(timestamp);
+    } catch (err) {
+      console.error('Failed to update campaign start:', err);
+    } finally {
+      setIsUpdatingCampaign(false);
     }
   };
 
@@ -402,6 +421,32 @@ export default function SettingsPage() {
               {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
               {isSyncing ? 'Dispatching...' : 'Force Global Sync'}
             </button>
+          </div>
+
+          {/* Campaign Lifecycle Configuration */}
+          <div className="glass-card p-8 border border-blue-500/20 bg-gradient-to-br from-blue-900/10 to-transparent">
+            <h2 className="text-lg font-black italic uppercase text-white tracking-widest mb-4 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-400" /> Campaign Lifecycle
+            </h2>
+            <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+              Set the global campaign start date. All payout calculations and "Period Comparison" charts will normalize based on this anchor point.
+            </p>
+            
+            <div className="space-y-4">
+               <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                  <div className="flex items-center justify-between mb-2">
+                     <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Active Anchor</span>
+                     <span className="text-[10px] font-black text-blue-400 italic">{new Date(campaignStart).toLocaleDateString()}</span>
+                  </div>
+                  <input 
+                    type="date"
+                    value={new Date(campaignStart).toISOString().split('T')[0]}
+                    onChange={(e) => handleUpdateCampaignStart(new Date(e.target.value).getTime())}
+                    className="w-full bg-transparent border-none text-white font-black uppercase tracking-tighter text-xl focus:outline-none"
+                  />
+               </div>
+               <p className="text-[7px] text-slate-600 uppercase tracking-widest text-center">Changes apply immediately to all client-facing analytics</p>
+            </div>
           </div>
 
           {/* API Pulse — Live Credit Monitor */}

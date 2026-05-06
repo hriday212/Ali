@@ -29,6 +29,7 @@ interface AnalyticsChartsProps {
   postMarkers?: { time: string, label: string }[];
   title?: string;
   description?: string;
+  campaignStartTimestamp?: number;
 }
 
 export function AnalyticsCharts({ 
@@ -36,7 +37,8 @@ export function AnalyticsCharts({
   platformDistribution, 
   postMarkers = [],
   title = "Views Analytics", 
-  description = "Real-time performance tracking" 
+  description = "Real-time performance tracking",
+  campaignStartTimestamp
 }: AnalyticsChartsProps) {
   const [mounted, setMounted] = React.useState(false);
   const [interval, setInterval] = useState<'6h' | '12h' | '24h' | '7d' | 'ALL'>('ALL');
@@ -56,7 +58,13 @@ export function AnalyticsCharts({
     if (interval === '12h') periodMs = 12 * 3600000;
     if (interval === '24h') periodMs = 24 * 3600000;
     if (interval === '7d') periodMs = 7 * 24 * 3600000;
-    if (interval === 'ALL') periodMs = now - (data[0].timestamp || now);
+    
+    // Phase 18: If ALL, use the campaign anchor
+    const effectiveStart = (interval === 'ALL' && campaignStartTimestamp) 
+      ? campaignStartTimestamp 
+      : (data[0]?.timestamp || now);
+
+    if (interval === 'ALL') periodMs = now - effectiveStart;
 
     const thisPeriodStart = now - periodMs;
     const lastPeriodStart = now - (periodMs * 2);

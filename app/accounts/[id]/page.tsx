@@ -58,7 +58,7 @@ import {
   SaveShareMatrix
 } from '@/components/dashboard/VisualizationSuite';
 import { SmartImage } from '@/components/ui/SmartImage';
-import { getAccountById, type Account } from '@/lib/accountsStore';
+import { getAccountById, updateAccount, type Account } from '@/lib/accountsStore';
 import { getPayouts, getPayoutsForAccount, type PayoutRecord } from '@/lib/payoutsStore';
 import { useAuth } from '@/lib/authStore';
 import { API_ROUTES } from '@/lib/apiConfig';
@@ -155,6 +155,14 @@ export default function AccountForensicPage() {
   const [settleAmount, setSettleAmount] = React.useState('0');
   const [customMark, setCustomMark] = React.useState('');
   const [customFromMark, setCustomFromMark] = React.useState('');
+  
+  // Campaign Config Modal State
+  const [showCampaignSettings, setShowCampaignSettings] = React.useState(false);
+  const [campaignType, setCampaignType] = React.useState<'CPM' | 'Retainer' | 'None'>('None');
+  const [cpmRate, setCpmRate] = React.useState('0');
+  const [viewThreshold, setViewThreshold] = React.useState('0');
+  const [viewCap, setViewCap] = React.useState('0');
+  const [isSavingConfig, setIsSavingConfig] = React.useState(false);
 
   // Load account from persistent store
   const [account, setAccount] = React.useState<Account | null>(null);
@@ -188,6 +196,14 @@ export default function AccountForensicPage() {
           setPayouts(res.payouts.filter((p: any) => p.accountId === found.id));
         }
       });
+
+      // Initialize local campaign state
+      if (found.campaignConfig) {
+        setCampaignType(found.campaignConfig.type);
+        setCpmRate(String(found.campaignConfig.cpmRate || 0));
+        setViewThreshold(String(found.campaignConfig.threshold || 0));
+        setViewCap(String(found.campaignConfig.cap || 0));
+      }
     }
   }, [params.id]);
 
@@ -456,6 +472,38 @@ export default function AccountForensicPage() {
       }
     } catch (err) {
       console.error('Video Settlement Failed:', err);
+    }
+  };
+
+  const saveCampaignConfig = async () => {
+    if (!account) return;
+    setIsSavingConfig(true);
+
+    const config = {
+      type: campaignType,
+      cpmRate: parseFloat(cpmRate) || 0,
+      threshold: parseInt(viewThreshold) || 0,
+      cap: parseInt(viewCap) || 0,
+      campaignStart: account.campaignConfig?.campaignStart || new Date().toISOString()
+    };
+
+    try {
+      // 1. Sync with Local Registry
+      updateAccount(account.id, { campaignConfig: config as any });
+      setAccount({ ...account, campaignConfig: config as any });
+
+      // 2. Sync with Backend Scan Engine
+      await safeFetchJson(`${API_ROUTES.BASE}/api/scans/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id, config })
+      });
+
+      setShowCampaignSettings(false);
+    } catch (err) {
+      console.error('Failed to save campaign config:', err);
+    } finally {
+      setIsSavingConfig(false);
     }
   };
 
@@ -766,6 +814,19 @@ export default function AccountForensicPage() {
                         <div><p className="text-lg font-black italic tracking-tighter leading-none">{formatNumber(totalLikes)}</p><p className="text-[7px] font-black opacity-20 uppercase mt-0.5">Likes</p></div>
                         <div><p className="text-lg font-black italic tracking-tighter leading-none">{formatNumber(totalComments)}</p><p className="text-[7px] font-black opacity-20 uppercase mt-0.5">Comments</p></div>
                       </div>
+                      {account.campaignConfig?.type === 'CPM' && (
+                        <div className="mt-4 pt-4 border-t border-white/5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 italic">Potential Yield</span>
+                            <span className="text-lg font-black italic tracking-tighter text-emerald-400">
+                              ${((Math.min(Math.max(totalViews - (account.campaignConfig.threshold || 0), 0), (account.campaignConfig.cap || Infinity)) / 1000) * (account.campaignConfig.cpmRate || 0)).toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="text-[6px] font-black uppercase tracking-widest text-slate-700 mt-1 italic">
+                            @{account.campaignConfig.cpmRate}/1k Views | Threshold {formatNumber(account.campaignConfig.threshold || 0)}
+                          </p>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>
@@ -785,6 +846,14 @@ export default function AccountForensicPage() {
                     <h2 className="text-[10px] font-black tracking-[0.2em] uppercase italic">Payout Ledger</h2>
                   </div>
                   <div className="flex items-center gap-4">
+                    {isAdmin && (
+                      <button 
+                        onClick={() => setShowCampaignSettings(true)}
+                        className="px-4 py-1.5 bg-white/5 border border-white/10 text-white text-[8px] font-black uppercase rounded-full hover:bg-white/10 transition-all"
+                      >
+                        Campaign Settings
+                      </button>
+                    )}
                     {isAdmin && (
                       <button 
                         onClick={() => setIsSettling(true)}
@@ -1254,6 +1323,109 @@ export default function AccountForensicPage() {
                     className={`flex-[2] py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_10px_20px_-5px_rgba(16,185,129,0.3)] ${isAdmin ? 'bg-emerald-500 text-black hover:bg-emerald-400' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
                   >
                     {isAdmin ? 'Clear Settlement' : 'Admin Only Access'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Campaign Settings Modal */}
+      <AnimatePresence>
+        {showCampaignSettings && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
+            onClick={() => setShowCampaignSettings(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              className="w-full max-w-md bg-slate-950 border border-white/10 rounded-[2.5rem] p-10 relative shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center">
+                  <Database className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter">Campaign Configuration</h3>
+                  <p className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">Set payment terms for node {account.id}</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3 block italic">Campaign Model</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['None', 'CPM', 'Retainer'].map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setCampaignType(t as any)}
+                        className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${campaignType === t ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {campaignType === 'CPM' && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">CPM Rate ($ per 1k views)</label>
+                      <input 
+                        type="number"
+                        value={cpmRate}
+                        onChange={(e) => setCpmRate(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-black italic outline-none focus:border-white/30 transition-all"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">View Threshold</label>
+                        <input 
+                          type="number"
+                          value={viewThreshold}
+                          onChange={(e) => setViewThreshold(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-black italic outline-none focus:border-white/30 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 block italic">View Cap</label>
+                        <input 
+                          type="number"
+                          value={viewCap}
+                          onChange={(e) => setViewCap(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-lg font-black italic outline-none focus:border-white/30 transition-all"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {campaignType === 'Retainer' && (
+                   <div className="p-6 bg-white/5 border border-white/5 rounded-2xl text-center">
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 italic">Retainer Logic Initializing in Phase 19...</p>
+                   </div>
+                )}
+
+                <div className="pt-6 flex gap-3">
+                  <button 
+                    onClick={() => setShowCampaignSettings(false)}
+                    className="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={saveCampaignConfig}
+                    disabled={isSavingConfig}
+                    className="flex-[2] py-4 bg-white text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all disabled:opacity-20 flex items-center justify-center gap-2"
+                  >
+                    {isSavingConfig ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Apply Configuration'}
                   </button>
                 </div>
               </div>
