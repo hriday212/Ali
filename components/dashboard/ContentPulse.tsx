@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Eye, Heart, MessageCircle, ExternalLink, Youtube, Music2, Instagram } from 'lucide-react';
+import { Play, Eye, Heart, MessageCircle, ExternalLink, Youtube, Music2, Instagram, AlertCircle, Zap } from 'lucide-react';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { safeFetchJson } from '@/lib/fetchUtils';
@@ -19,6 +19,8 @@ interface Post {
   nodeId: string;
   nodeName?: string;
   date: string;
+  validation?: { status: string; reason: string };
+  lifecycle?: string;
 }
 
 export function ContentPulse({ filterNodeId }: { filterNodeId?: string }) {
@@ -98,6 +100,19 @@ function ContentCard({ post, index }: { post: Post, index: number }) {
               <Play className="w-6 h-6 fill-current" />
             </div>
           </div>
+
+          {/* Bot Slayer Warning Tag */}
+          {post.validation?.status === 'SUSPICIOUS' && (
+            <div className="absolute bottom-4 left-4 right-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+               <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/90 backdrop-blur-xl border border-amber-400/50 rounded-xl shadow-2xl">
+                  <span className="text-black"><AlertCircle className="w-4 h-4" /></span>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black uppercase text-black leading-none">Suspicious Signal</span>
+                    <span className="text-[7px] font-bold text-black/70 uppercase tracking-tighter mt-0.5">May involve automated traffic</span>
+                  </div>
+               </div>
+            </div>
+          )}
         </div>
 
         {/* Content Area */}
@@ -110,9 +125,16 @@ function ContentCard({ post, index }: { post: Post, index: number }) {
                 {new Date(post.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
               </span>
             </div>
-            <h3 className="text-sm font-black italic uppercase leading-relaxed text-white line-clamp-2 group-hover:text-blue-400 transition-colors">
-              {post.title || 'Untitled Content Protocol'}
-            </h3>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h3 className="text-sm font-black italic uppercase leading-relaxed text-white line-clamp-2 group-hover:text-blue-400 transition-colors">
+                {post.title || 'Untitled Content Protocol'}
+              </h3>
+              {post.lifecycle === 'HOT' && (
+                <div className="flex-shrink-0 w-5 h-5 bg-orange-500 rounded-lg flex items-center justify-center shadow-[0_0_10px_rgba(249,115,22,0.4)]">
+                   <Zap className="w-3 h-3 text-white" />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 mt-6">

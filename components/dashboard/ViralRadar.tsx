@@ -18,6 +18,8 @@ interface Candidate {
   viewDelta: number;
   currentViews: number;
   time: string;
+  validation?: { status: string; reason: string };
+  lifecycle?: string;
 }
 
 export function ViralRadar() {
@@ -58,7 +60,9 @@ export function ViralRadar() {
                     platform: scan.platform || 'youtube',
                     viewDelta,
                     currentViews: latest.views,
-                    time: latest.time
+                    time: latest.time,
+                    validation: post ? post.validation : undefined,
+                    lifecycle: post ? post.lifecycle : undefined
                   });
                 }
               }
@@ -168,6 +172,13 @@ export function ViralRadar() {
                      <span className="text-[10px] font-black italic tracking-tighter">+{candidate.viewDelta.toLocaleString()}</span>
                    </div>
                  </div>
+
+                 {candidate.validation?.status === 'SUSPICIOUS' && (
+                   <div className="mx-0 mb-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2">
+                      <AlertCircle className="w-3 h-3 text-amber-500" />
+                      <span className="text-[8px] font-black uppercase text-amber-500/80 tracking-widest">Potential Automated Traffic Detection</span>
+                   </div>
+                 )}
                  
                  <div className="flex items-center justify-between z-10">
                    <div>

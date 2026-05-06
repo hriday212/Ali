@@ -12,7 +12,9 @@ import {
   ChevronRight,
   ChevronLeft,
   User,
-  Database
+  Database,
+  AlertCircle,
+  Zap
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -231,22 +233,31 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
                     <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Protocol Feed</h3>
                   </div>
                   <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-2">
-                    {MOCK_RECENT_POSTS.map((post) => (
+                    {(account.posts || []).slice(0, 5).map((post: any) => (
                       <div 
                         key={post.id} 
                         onClick={() => setSelectedPost(post)}
-                        className="flex items-center justify-between p-6 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 rounded-3xl cursor-pointer transition-all group"
+                        className="flex flex-col p-6 bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 rounded-3xl cursor-pointer transition-all group gap-4"
                       >
-                         <div className="flex items-center gap-6 min-w-0">
-                            <div className="w-10 h-10 bg-black border border-white/10 rounded-xl flex items-center justify-center flex-shrink-0 italic font-black text-xs text-slate-600 group-hover:text-white transition-colors">{post.id}</div>
-                            <div className="truncate">
-                               <p className="text-[11px] font-black text-white uppercase italic tracking-tighter truncate group-hover:text-white transition-colors">{post.title}</p>
-                               <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{post.date}</p>
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-6 min-w-0">
+                               <div className="w-10 h-10 bg-black border border-white/10 rounded-xl flex items-center justify-center flex-shrink-0 italic font-black text-xs text-slate-600 group-hover:text-white transition-colors">{post.platform?.[0].toUpperCase()}</div>
+                               <div className="truncate">
+                                  <p className="text-[11px] font-black text-white uppercase italic tracking-tighter truncate group-hover:text-white transition-colors">{post.title}</p>
+                                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{new Date(post.date).toLocaleDateString()}</p>
+                               </div>
+                            </div>
+                            <div className="text-right flex-shrink-0 ml-4">
+                               <p className="text-sm font-black text-white italic">{(post.views / 1000).toFixed(1)}K</p>
                             </div>
                          </div>
-                         <div className="text-right flex-shrink-0 ml-4">
-                            <p className="text-sm font-black text-white italic">{post.views}</p>
-                         </div>
+                         
+                         {post.validation?.status === 'SUSPICIOUS' && (
+                            <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2">
+                               <AlertCircle className="w-3 h-3 text-amber-500" />
+                               <span className="text-[8px] font-black uppercase text-amber-500/80 tracking-widest">Bot Slayer: Suspicious Activity Detected</span>
+                            </div>
+                         )}
                       </div>
                     ))}
                   </div>
@@ -266,13 +277,12 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
                        </div>
                     </div>
                     <div className="text-right">
-                       <p className="text-3xl font-black text-white italic tracking-tighter">{MOCK_RECENT_POSTS.length * 4}<span className="text-[10px] text-slate-600 ml-2 uppercase font-sans font-normal tracking-widest">Total Assets</span></p>
+                       <p className="text-3xl font-black text-white italic tracking-tighter">{(account.posts || []).length}<span className="text-[10px] text-slate-600 ml-2 uppercase font-sans font-normal tracking-widest">Total Assets</span></p>
                     </div>
                  </div>
 
-                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-                    {/* Repeated for demonstration */}
-                    {[...MOCK_RECENT_POSTS, ...MOCK_RECENT_POSTS, ...MOCK_RECENT_POSTS, ...MOCK_RECENT_POSTS].map((post, i) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                    {(account.posts || []).map((post: any, i: number) => (
                        <motion.div 
                         key={`${post.id}-${i}`}
                         whileHover={{ y: -6, scale: 1.02 }}
@@ -280,20 +290,30 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
                         className="glass-card group p-6 flex flex-col gap-6 cursor-pointer border-white/5 hover:border-white/20 transition-all overflow-hidden relative"
                        >
                           <div className="h-40 bg-slate-900 border border-white/5 rounded-2xl flex items-center justify-center relative overflow-hidden">
-                             <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.02] to-transparent" />
-                             <User className="w-10 h-10 text-slate-800" />
+                             {post.thumbnail ? (
+                                <img src={post.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                             ) : (
+                                <User className="w-10 h-10 text-slate-800" />
+                             )}
+                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                             
+                             {post.validation?.status === 'SUSPICIOUS' && (
+                                <div className="absolute top-3 left-3 px-2 py-1 bg-amber-500/90 backdrop-blur-md rounded-lg flex items-center gap-1.5 shadow-xl">
+                                   <AlertCircle className="w-3 h-3 text-black" />
+                                   <span className="text-[8px] font-black uppercase text-black">Bot Alert</span>
+                                </div>
+                             )}
                           </div>
                           <div className="space-y-2">
                              <p className="text-[11px] font-black text-white italic uppercase tracking-tighter truncate leading-none">{post.title}</p>
                              <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{post.date}</span>
-                                <span className="text-[10px] font-black text-white italic opacity-40 group-hover:opacity-100 transition-opacity">{post.views} reach</span>
+                                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{new Date(post.date).toLocaleDateString()}</span>
+                                <span className="text-[10px] font-black text-white italic opacity-40 group-hover:opacity-100 transition-opacity">{(post.views / 1000).toFixed(1)}K</span>
                              </div>
                           </div>
-                          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                        </motion.div>
                     ))}
-                 </div>
+                  </div>
               </div>
 
               {/* Forensic Sub-HUD Overlays */}
@@ -398,11 +418,26 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
                                    </div>
                                 </div>
                              </div>
-                             <div className="text-left md:text-right flex-shrink-0">
-                                <p className="text-[9px] font-black text-white uppercase tracking-[0.4em] mb-1 opacity-40 italic">Viral Integrity</p>
-                                <p className="text-3xl font-black text-white italic">8.4<span className="text-sm text-slate-600 ml-1 italic tracking-normal">/10</span></p>
-                             </div>
-                          </div>
+                              <div className="text-left md:text-right flex-shrink-0">
+                                 <p className="text-[9px] font-black text-white uppercase tracking-[0.4em] mb-1 opacity-40 italic">Viral Integrity</p>
+                                 <p className="text-3xl font-black text-white italic">
+                                    {selectedPost.validation?.status === 'SUSPICIOUS' ? '3.1' : '8.4'}
+                                    <span className="text-sm text-slate-600 ml-1 italic tracking-normal">/10</span>
+                                 </p>
+                              </div>
+                           </div>
+
+                           {selectedPost.validation?.status === 'SUSPICIOUS' && (
+                              <div className="mb-8 p-6 bg-amber-500/10 border border-amber-500/20 rounded-[2rem] flex items-center gap-6 animate-pulse">
+                                 <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center border border-amber-500/30">
+                                    <AlertCircle className="w-6 h-6 text-amber-500" />
+                                 </div>
+                                 <div>
+                                    <p className="text-sm font-black text-amber-500 uppercase italic tracking-tighter">Bot Slayer Warning: Suspicious Engagement Detected</p>
+                                    <p className="text-[10px] font-bold text-amber-500/60 uppercase tracking-widest mt-1">Ratio analysis suggests potential non-organic traffic. Manual audit recommended.</p>
+                                 </div>
+                              </div>
+                           )}
 
                           <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-8 overflow-y-auto custom-scrollbar pr-2 lg:pr-4">
                              {/* Mini Forensic Chart (Stabilized Viewport) */}
@@ -445,19 +480,19 @@ export default function AccountDetailModal({ isOpen, onClose, account }: Account
                                 </div>
 
                                 <div className="p-8 bg-white/[0.02] border border-white/5 rounded-[2.5rem] space-y-8 flex-1">
-                                   <div>
-                                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-5 italic">Interaction Protocol</p>
-                                      <div className="grid grid-cols-2 gap-4">
-                                         <div className="flex flex-col">
-                                            <p className="text-sm font-black text-white italic tracking-tight">84.2K</p>
-                                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-1">Likes Found</p>
-                                         </div>
-                                         <div className="flex flex-col">
-                                            <p className="text-sm font-black text-white italic tracking-tight">3.2K</p>
-                                            <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-1">Direct Shares</p>
-                                         </div>
-                                      </div>
-                                   </div>
+                                    <div>
+                                       <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-5 italic">Interaction Protocol</p>
+                                       <div className="grid grid-cols-2 gap-4">
+                                          <div className="flex flex-col">
+                                             <p className="text-sm font-black text-white italic tracking-tight">{(selectedPost.likes / 1000).toFixed(1)}K</p>
+                                             <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-1">Likes Found</p>
+                                          </div>
+                                          <div className="flex flex-col">
+                                             <p className="text-sm font-black text-white italic tracking-tight">{selectedPost.comments || 0}</p>
+                                             <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-1">Direct Comments</p>
+                                          </div>
+                                       </div>
+                                    </div>
                                    <div className="h-px bg-white/5 w-full" />
                                    <div>
                                       <div className="flex items-center justify-between mb-4">
