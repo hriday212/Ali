@@ -7,6 +7,7 @@ const fetch = require('node-fetch');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
 const { DEFAULT_ACCOUNTS } = require('./defaultAccounts');
+const { initDiscordBot, sendApprovalRequest } = require('./discordBot');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -40,10 +41,8 @@ const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 // -------------------------------------------------------
 
-let globalDefaultInterval = 30; // Minutes
-let smartEngineEnabled = false; // Default OFF
-let viralDetectionMode = 'off'; // 'off' | 'standard' | 'aggressive' — Default OFF
 let discordWebhookUrl = '';
+let escalationApprovalRequired = false; // Default: Auto-escalate
 
 const activeScans = new Map();
 
@@ -740,15 +739,42 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       const trendingInterval      = isAggressive ? 360  : 720;  // 6h vs 12h
       const restingInterval       = 1440; // 24h
 
+      let targetInterval = nextInterval;
       if (zScore > ultraViralZ || multiplier > ultraViralMultiplier || delta > ultraViralDelta) {
-        nextInterval = ultraViralInterval;
-        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🚀 Node ${accountId} SUPERNOVA (Z=${zScore.toFixed(1)}, M=${multiplier.toFixed(1)}x)! → ${ultraViralInterval}m.`);
+        targetInterval = ultraViralInterval;
       } else if (multiplier > 1.5 || delta > 10000) {
-        nextInterval = trendingInterval;
-        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🔥 Node ${accountId} TRENDING → ${trendingInterval}m.`);
+        targetInterval = trendingInterval;
       } else {
-        nextInterval = restingInterval;
-        console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 💤 Node ${accountId} resting → 24h.`);
+        targetInterval = restingInterval;
+      }
+
+      // Check if we need approval to ESCALATE (reduce interval)
+      const isEscalation = targetInterval < nextInterval;
+      
+      if (escalationApprovalRequired && isEscalation) {
+         console.log(`[SmartEngine] 🛑 Escalation Gate: Pending Approval for ${accountId} (${nextInterval}m -> ${targetInterval}m)`);
+         scan.pendingInterval = targetInterval;
+         
+         if (discordWebhookUrl) {
+            // Priority: Discord Bot (Buttons) -> Webhook (Link)
+            if (process.env.DISCORD_BOT_TOKEN) {
+               sendApprovalRequest(accountId, nextInterval, targetInterval);
+            } else {
+               fetch(discordWebhookUrl, {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({
+                       content: `🛑 **ESCALATION GATE: APPROVAL REQUIRED** 🛑\nNode: **${accountId}**\nSuggested Shift: **${nextInterval}m** -> **${targetInterval}m**\nReason: High Viral Momentum Detected.\n[APPROVE VIA DASHBOARD](${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings)`
+                   })
+               }).catch(e => console.error('[Discord] Approval alert failed:', e.message));
+            }
+         }
+         // Stay at current interval until approved
+      } else {
+         nextInterval = targetInterval;
+         scan.pendingInterval = null;
+         if (isEscalation) console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 🚀 Node ${accountId} ESCALATING → ${nextInterval}m.`);
+         else if (nextInterval > scan.currentInterval) console.log(`[SmartEngine:${viralDetectionMode.toUpperCase()}] 💤 Node ${accountId} cooling → ${nextInterval}m.`);
       }
     }
     
@@ -785,13 +811,26 @@ function saveAllState() {
       globalDefaultInterval,
       smartEngineEnabled,
       viralDetectionMode,
-      discordWebhookUrl
+      discordWebhookUrl,
+      escalationApprovalRequired
     },
     scans: scansRoot
   };
   
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
+
+// Initialize Discord Bot
+const { initDiscordBot } = require('./discordBot');
+initDiscordBot(process.env.DISCORD_BOT_TOKEN, async (accountId, targetInterval) => {
+    const scan = activeScans.get(accountId);
+    if (!scan) return;
+    scan.currentInterval = targetInterval;
+    scan.pendingInterval = null;
+    scheduleNextScan(scan, targetInterval);
+    saveAllState();
+    console.log(`[DiscordBot] ✅ External approval for ${accountId}: Escalated to ${targetInterval}m.`);
+});
 
 function scheduleNextScan(scan, overrideMinutes = null) {
   if (scan.timer) clearTimeout(scan.timer);
@@ -831,6 +870,7 @@ function restoreState() {
          smartEngineEnabled = raw.settings.smartEngineEnabled !== undefined ? raw.settings.smartEngineEnabled : false;
          viralDetectionMode = raw.settings.viralDetectionMode || 'off';
          discordWebhookUrl = raw.settings.discordWebhookUrl || discordWebhookUrl;
+         escalationApprovalRequired = raw.settings.escalationApprovalRequired || false;
       } else {
          // Legacy mode
          scansToLoad = raw;
@@ -935,7 +975,7 @@ app.get('/api/scans', (req, res) => {
         console.error(`[API] Error processing account ${k}:`, innerErr.message);
       }
     });
-    res.json({ scans, globalDefaultInterval, smartEngineEnabled, viralDetectionMode, discordWebhookUrl });
+    res.json({ scans, globalDefaultInterval, smartEngineEnabled, viralDetectionMode, discordWebhookUrl, escalationApprovalRequired });
   } catch (error) {
     console.error('[API] Fatal error in /api/scans:', error);
     res.status(500).json({ error: 'Internal server error', scans: [] });
@@ -1030,6 +1070,32 @@ app.post('/api/scans/:accountId/videos/:videoId/toggle-payment', (req, res) => {
   
   writeScanData(accountId, data);
   res.json({ success: true, paid: !!paid });
+});
+
+// NEW: Approve Pending Escalation
+app.post('/api/scans/:accountId/approve-escalation', (req, res) => {
+  const { accountId } = req.params;
+  const scan = activeScans.get(accountId);
+  if (!scan || !scan.pendingInterval) return res.status(404).json({ error: 'No pending escalation' });
+  
+  const target = scan.pendingInterval;
+  scan.currentInterval = target;
+  scan.pendingInterval = null;
+  
+  scheduleNextScan(scan, target);
+  saveAllState();
+  
+  console.log(`[ScanEngine] ✅ Manual approval for ${accountId}: Escalated to ${target}m.`);
+  res.json({ success: true, newInterval: target });
+});
+
+// NEW: Toggle Escalation Gate
+app.post('/api/settings/escalation-gate', (req, res) => {
+  const { enabled } = req.body;
+  escalationApprovalRequired = !!enabled;
+  saveAllState();
+  console.log(`[ScanEngine] ⚙️ Escalation Gate ${escalationApprovalRequired ? 'ENABLED' : 'DISABLED'}.`);
+  res.json({ success: true, escalationApprovalRequired });
 });
 
 // NEW: Per-Account Campaign Settings

@@ -21,17 +21,24 @@ export default function SettingsPage() {
   const [isSettingViralMode, setIsSettingViralMode] = useState(false);
   const [discordWebhook, setDiscordWebhook] = useState('');
   const [isUpdatingWebhook, setIsUpdatingWebhook] = useState(false);
+  const [escalationApprovalRequired, setEscalationApprovalRequired] = useState(false);
+  const [isTogglingGate, setIsTogglingGate] = useState(false);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [isApprovingId, setIsApprovingId] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const data = await safeFetchJson(API_ROUTES.SCANS);
-        if (data && data.scans) setNodeCount(data.scans.length);
+        if (data && data.scans) {
+          setNodeCount(data.scans.length);
+          setPendingApprovals(data.scans.filter((s: any) => s.pendingInterval));
+        }
         if (data && typeof data.smartEngineEnabled === 'boolean') setSmartEngineEnabled(data.smartEngineEnabled);
         if (data && data.globalDefaultInterval) setActiveCadence(data.globalDefaultInterval);
         if (data && data.discordWebhookUrl) setDiscordWebhook(data.discordWebhookUrl);
         if (data && data.viralDetectionMode) setViralDetectionMode(data.viralDetectionMode);
+        if (data && typeof data.escalationApprovalRequired === 'boolean') setEscalationApprovalRequired(data.escalationApprovalRequired);
       } catch (err) {}
     }
     loadStats();
@@ -108,7 +115,6 @@ export default function SettingsPage() {
       setIsSettingViralMode(false);
     }
   };
-
   const handleUpdateWebhook = async () => {
     setIsUpdatingWebhook(true);
     try {
@@ -122,6 +128,23 @@ export default function SettingsPage() {
       console.error('Failed to update webhook:', err);
     } finally {
       setTimeout(() => setIsUpdatingWebhook(false), 1000);
+    }
+  };
+
+  const handleApproveEscalation = async (accountId: string) => {
+    setIsApprovingId(accountId);
+    try {
+      const res = await fetch(`${API_ROUTES.SCANS}/${accountId}/approve-escalation`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPendingApprovals(prev => prev.filter(a => a.accountId !== accountId));
+      }
+    } catch (err) {
+      console.error('Failed to approve escalation:', err);
+    } finally {
+      setIsApprovingId(null);
     }
   };
 
@@ -144,6 +167,59 @@ export default function SettingsPage() {
         <h1 className="text-4xl md:text-6xl font-black italic text-white tracking-tighter uppercase mb-4">Command Center</h1>
         <p className="text-slate-400 text-lg leading-relaxed">Global network controls and API token threshold management.</p>
       </div>
+
+      {/* Pending Approvals Hub */}
+      <AnimatePresence>
+        {pendingApprovals.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="p-8 bg-amber-500/10 border border-amber-500/20 rounded-[2.5rem] mb-12 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+               <AlertTriangle className="w-40 h-40 text-amber-500" />
+            </div>
+            <div className="flex items-center gap-4 mb-8">
+               <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center border border-amber-500/30">
+                  <Shield className="w-6 h-6 text-amber-500" />
+               </div>
+               <div>
+                  <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">Pending Viral Escalations</h2>
+                  <p className="text-[10px] font-bold text-amber-500/60 uppercase tracking-widest mt-1">Manual Approval Gate Active</p>
+               </div>
+            </div>
+            
+            <div className="space-y-4">
+               {pendingApprovals.map((app) => (
+                 <div key={app.accountId} className="flex flex-col md:flex-row items-center justify-between p-6 bg-black/40 border border-white/5 rounded-3xl group hover:border-white/10 transition-all gap-6">
+                    <div className="flex items-center gap-6">
+                       <div className="w-14 h-14 bg-slate-800 rounded-2xl overflow-hidden ring-1 ring-white/10">
+                          {app.avatarUrl ? <img src={app.avatarUrl} alt="" className="w-full h-full object-cover" /> : <Database className="w-full h-full p-4 text-slate-600" />}
+                       </div>
+                       <div>
+                          <p className="text-sm font-black text-white uppercase italic tracking-tighter">{app.name || app.accountId}</p>
+                          <div className="flex items-center gap-3 mt-1">
+                             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{app.platform}</span>
+                             <div className="w-1 h-1 bg-white/10 rounded-full" />
+                             <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">Shift: {app.currentInterval}m → {app.pendingInterval}m</span>
+                          </div>
+                       </div>
+                    </div>
+                    <button
+                      onClick={() => handleApproveEscalation(app.accountId)}
+                      disabled={isApprovingId === app.accountId}
+                      className="w-full md:w-auto px-10 py-4 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase text-[10px] tracking-[0.3em] rounded-2xl shadow-xl shadow-amber-500/10 transition-all active:scale-95 flex items-center justify-center gap-3"
+                    >
+                       {isApprovingId === app.accountId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                       Approve Frequency Shift
+                    </button>
+                 </div>
+               ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
@@ -213,7 +289,7 @@ export default function SettingsPage() {
             </button>
 
             {/* Viral Detection Mode Selector */}
-            <div className="space-y-2">
+            <div className="space-y-2 mb-8">
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3">Viral Detection Sensitivity</p>
               {([
                 { mode: 'off' as const, label: 'Off', desc: 'No automatic escalation. Fixed cadence only.', color: 'text-slate-400', border: 'border-slate-700', activeBg: 'bg-slate-800' },
@@ -237,6 +313,29 @@ export default function SettingsPage() {
                   )}
                 </button>
               ))}
+            </div>
+
+            {/* NEW: Escalation Gate Toggle */}
+            <div className="pt-6 border-t border-white/5">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                 <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white italic">Escalation Approval Gate</p>
+                    <p className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter mt-1">Require manual confirmation for viral shifts</p>
+                 </div>
+                 <button
+                   onClick={handleToggleEscalationGate}
+                   disabled={isTogglingGate || !smartEngineEnabled}
+                   className={`relative w-10 h-5 rounded-full transition-colors ${escalationApprovalRequired ? 'bg-amber-500' : 'bg-slate-800'}`}
+                 >
+                    <motion.div 
+                      animate={{ x: escalationApprovalRequired ? 20 : 2 }} 
+                      className="absolute top-1 left-0 w-3 h-3 bg-white rounded-full shadow-lg" 
+                    />
+                 </button>
+              </div>
+              <p className="text-[7px] text-slate-600 uppercase leading-relaxed tracking-widest">
+                When active, the system will send a Discord alert and wait for your dashboard approval before escalating polling frequency for viral nodes.
+              </p>
             </div>
 
             {!smartEngineEnabled && (
