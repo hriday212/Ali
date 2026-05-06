@@ -40,6 +40,7 @@ const STATE_FILE = path.join(DATA_DIR, 'active-scans.json');
 const USAGE_FILE = path.join(DATA_DIR, 'usage-history.json');
 const LEDGER_FILE = path.join(DATA_DIR, 'ledger.json');
 // -------------------------------------------------------
+ensureDataDir();
 
 let discordWebhookUrl = '';
 let escalationApprovalRequired = false; // Default: Auto-escalate
@@ -686,7 +687,6 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
         dailyCounts[d] = (dailyCounts[d] || 0) + 1;
     });
 
-    const now = new Date();
     let anyFailure = false;
     let failureReason = "";
 
@@ -966,7 +966,7 @@ async function autoStartDefaults() {
   for (const acc of DEFAULT_ACCOUNTS) {
     const scan = { ...acc, scanCount: 0, lastScanTime: null, nextScanAt: null };
     startScanInternal(scan);
-    await executeScan(acc.accountId, acc.accountLink, acc.platform);
+    executeScan(acc.accountId, acc.accountLink, acc.platform);
   }
 }
 

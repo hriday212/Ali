@@ -36,6 +36,7 @@ interface AccountCardProps {
       cap?: number;
     };
     totalEarned?: number;
+    slaStatus?: 'HEALTHY' | 'FAILING';
   };
   onDelete: (id: string) => void;
   onUpdate?: (id: string, newLink: string) => void;
