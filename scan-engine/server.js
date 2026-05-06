@@ -321,10 +321,11 @@ async function scanTikTok(accountId, accountLink) {
     if (idx === 0) console.log(`[TikTok Debug] Item fields:`, Object.keys(item));
     // Broaden cover detection for various scraper versions
     const rawThumb = item.covers?.default || item.cover || item.videoCover || item.originCover || item.coverUrl || item.videoMeta?.coverUrl || item.dynamicCover || item.videoCoverUrl || '';
+    const safeThumb = rawThumb ? `https://wsrv.nl/?url=${encodeURIComponent(rawThumb)}&w=400&h=600&fit=cover&output=webp` : '';
     return {
       id: item.id || item.webVideoUrl || String(Math.random()),
       title: item.text || '',
-      thumbnail: rawThumb || '',
+      thumbnail: safeThumb,
       views: item.playCount || item.stats?.playCount || 0,
       likes: item.diggCount || item.stats?.diggCount || 0,
       comments: item.commentCount || item.stats?.commentCount || 0,
@@ -355,10 +356,11 @@ async function scanInstagram(accountId, accountLink) {
   const posts = (items || []).map(item => {
     // Broaden cover detection for various scraper versions
     const rawThumb = item.displayUrl || item.imageUrl || item.thumbnailUrl || item.displayResource || (item.displayResources?.length ? item.displayResources[0].src : '');
+    const safeThumb = rawThumb ? `https://wsrv.nl/?url=${encodeURIComponent(rawThumb)}&w=400&h=600&fit=cover&output=webp` : '';
     return {
       id: item.id || item.shortCode || String(Math.random()),
       title: item.caption || item.alt || '',
-      thumbnail: rawThumb || '',
+      thumbnail: safeThumb,
       // Fallback: If it's a photo post, use likes as a proxy for 'reach/views' for the pie chart
       views: item.videoViewCount || item.videoPlayCount || ( (item.likesCount || item.likes || 0) * 5 ),
       likes: item.likesCount || item.likes || 0,
