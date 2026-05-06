@@ -489,36 +489,57 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     scan.scanCount++;
     scan.lastScanTime = new Date().toISOString();
 
-    // --- 2. SLA Compliance Check (Phase 2) ---
-    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const recentPosts = posts.filter(p => p.date >= last24h).length;
-    
+    // --- 2. SLA Compliance Check (Phase 2: Granular Daily Audit) ---
     if (!scan.slaLogs) scan.slaLogs = [];
-    if (recentPosts < 2) {
-      const logEntry = {
-        time: new Date().toISOString(),
-        status: 'FAILED',
-        reason: `Only ${recentPosts} posts in last 24h (Target: 2)`,
-        postsCount: recentPosts
-      };
-      // Prevent duplicate logs for the same failure period (check if last log was recent)
-      const lastLog = scan.slaLogs[scan.slaLogs.length - 1];
-      const oneHourAgo = Date.now() - 3600000;
-      if (!lastLog || new Date(lastLog.time).getTime() < oneHourAgo) {
-        scan.slaLogs.push(logEntry);
-        console.log(`[SLA] ⚠️ Node ${accountId} failed compliance: ${recentPosts}/2 posts.`);
-      }
+    
+    // Group posts by local date (YYYY-MM-DD)
+    const dailyCounts = {};
+    posts.forEach(p => {
+        if (!p.date) return;
+        const d = p.date.split('T')[0];
+        dailyCounts[d] = (dailyCounts[d] || 0) + 1;
+    });
+
+    const now = new Date();
+    let anyFailure = false;
+    let failureReason = "";
+
+    // Check last 3 full days (excluding today as it's still in progress)
+    for (let i = 1; i <= 3; i++) {
+        const checkDate = new Date(now);
+        checkDate.setDate(now.getDate() - i);
+        const dStr = checkDate.toISOString().split('T')[0];
+        const count = dailyCounts[dStr] || 0;
+        
+        if (count < 2) {
+            anyFailure = true;
+            failureReason = `Node missed target on ${dStr}: Only ${count}/2 posts.`;
+            break;
+        }
+    }
+
+    const lastLog = scan.slaLogs[scan.slaLogs.length - 1];
+    if (anyFailure) {
+        // Log if new failure or different reason
+        if (!lastLog || lastLog.status !== 'FAILED' || lastLog.reason !== failureReason) {
+            scan.slaLogs.push({
+                time: new Date().toISOString(),
+                status: 'FAILED',
+                reason: failureReason,
+                postsCount: 0 // Placeholder as it varies per day
+            });
+            console.log(`[SLA] ⚠️ Node ${accountId} failed compliance: ${failureReason}`);
+        }
     } else {
-      // Optional: log successful compliance
-      const lastLog = scan.slaLogs[scan.slaLogs.length - 1];
-      if (lastLog && lastLog.status === 'FAILED') {
-        scan.slaLogs.push({
-            time: new Date().toISOString(),
-            status: 'RECOVERED',
-            reason: `${recentPosts} posts in last 24h. Compliance restored.`,
-            postsCount: recentPosts
-        });
-      }
+        if (lastLog && lastLog.status === 'FAILED') {
+            scan.slaLogs.push({
+                time: new Date().toISOString(),
+                status: 'RECOVERED',
+                reason: `All recent days meet minimum 2-post requirement.`,
+                postsCount: 2
+            });
+            console.log(`[SLA] ✅ Node ${accountId} recovered compliance.`);
+        }
     }
     // Keep logs manageable
     scan.slaLogs = scan.slaLogs.slice(-20);
