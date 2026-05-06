@@ -103,6 +103,16 @@ export default function ForecastPage() {
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   
   useEffect(() => {
+    const savedRange = localStorage.getItem('forecast_activeRange');
+    const savedPlatform = localStorage.getItem('forecast_activeGlobalPlatform');
+    const savedStart = localStorage.getItem('forecast_customStart');
+    const savedEnd = localStorage.getItem('forecast_customEnd');
+    
+    if (savedRange) setActiveRange(savedRange as RangeKey);
+    if (savedPlatform) setActiveGlobalPlatform(savedPlatform);
+    if (savedStart) setCustomStart(savedStart);
+    if (savedEnd) setCustomEnd(savedEnd);
+
     async function loadData(isInitial: boolean) {
       if (isInitial) setLoading(true);
       try {
@@ -118,6 +128,13 @@ export default function ForecastPage() {
     const interval = setInterval(() => loadData(false), 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('forecast_activeRange', activeRange);
+    localStorage.setItem('forecast_activeGlobalPlatform', activeGlobalPlatform);
+    localStorage.setItem('forecast_customStart', customStart);
+    localStorage.setItem('forecast_customEnd', customEnd);
+  }, [activeRange, activeGlobalPlatform, customStart, customEnd]);
 
   // Compute date ranges
   const rangeDays = RANGE_OPTIONS.find(r => r.key === activeRange)?.days || 7;
@@ -342,9 +359,21 @@ export default function ForecastPage() {
 
   if (loading) {
     return (
-      <div className="h-[60vh] flex flex-col items-center justify-center gap-6">
-        <Loader2 className="w-12 h-12 text-blue-500 animate-spin opacity-50" />
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 animate-pulse">Loading Forecast Intelligence...</p>
+      <div className="max-w-7xl mx-auto space-y-8 pb-24">
+        <div className="space-y-4">
+          <div className="h-12 w-64 bg-white/5 rounded-2xl animate-pulse" />
+          <div className="h-4 w-96 bg-white/5 rounded-xl animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-32 bg-white/5 rounded-3xl animate-pulse" />
+          ))}
+        </div>
+        <div className="h-[400px] bg-white/5 rounded-[2.5rem] animate-pulse" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="h-[450px] bg-white/5 rounded-[2.5rem] animate-pulse" />
+          <div className="h-[450px] bg-white/5 rounded-[2.5rem] animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -487,8 +516,129 @@ export default function ForecastPage() {
         <KpiCard label="Total Shares" value={currentKPIs.shares} prevValue={prevKPIs.shares} icon={Share2} color="text-emerald-400" delay={0.25} />
       </div>
 
-      {/* Hourly Activity Pattern (New Premium Chart) */}
-      <div className="glass-card p-8 border border-white/10 overflow-hidden relative" data-export-id="hourly-chart">
+      {/* ── NEW SECTION: MOMENTUM LEADERBOARDS ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+         {/* Top 5 Momentum Accounts */}
+         <div className="glass-card p-10 border border-white/10 flex flex-col min-h-[450px]">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                  <TrendingUp className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black italic uppercase text-white tracking-widest">Momentum Alpha</h3>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Top 5 Accounts by Period Gain</p>
+                </div>
+              </div>
+              <Zap className="w-4 h-4 text-slate-800 animate-pulse" />
+            </div>
+
+            <div className="flex-1 space-y-3">
+              {timeSeries.length > 0 && (hourlyPattern.some(h => h.current > 0) || hourlyPattern.some(h => h.previous > 0)) ? (
+                (() => {
+                  // Re-calculating top accounts to ensure they are the ones with actual activity in the period
+                  const accounts = (allScans || []).map(s => {
+                    const history = s.history || [];
+                    const currentH = filterHistoryByRange(history, currentStart, currentEnd);
+                    let gain = 0;
+                    if (currentH.length > 1) {
+                      gain = (currentH[currentH.length - 1].totalViews || 0) - (currentH[0].totalViews || 0);
+                    } else if (currentH.length === 1) {
+                      gain = currentH[0].totalViews || 0;
+                    }
+                    return { id: s.accountId, platform: s.platform, gain, followers: s.lastFollowers || 0 };
+                  })
+                  .filter(a => a.gain > 0)
+                  .sort((a, b) => b.gain - a.gain)
+                  .slice(0, 5);
+
+                  if (accounts.length === 0) return <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest">No Period Activity Detected</div>;
+
+                  return accounts.map((acc, idx) => (
+                    <motion.div 
+                      key={acc.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 * idx }}
+                      onClick={() => window.location.href = `/accounts/${encodeURIComponent(acc.id)}`}
+                      className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-white/20 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-5">
+                        <div className="text-xl font-black italic text-slate-800 group-hover:text-blue-500 transition-colors w-6">#{idx + 1}</div>
+                        <div>
+                          <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">{acc.id.split('|')[0]}</p>
+                          <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">{acc.platform} Node • {acc.followers.toLocaleString()} Reach</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-black italic text-white tracking-tighter">+{acc.gain >= 1000 ? (acc.gain / 1000).toFixed(1) + 'K' : acc.gain}</p>
+                        <p className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest">Views Added</p>
+                      </div>
+                    </motion.div>
+                  ));
+                })()
+              ) : (
+                <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest italic">Syncing Network State...</div>
+              )}
+            </div>
+         </div>
+
+         {/* Top 5 Viral Posts */}
+         <div className="glass-card p-10 border border-white/10 flex flex-col min-h-[450px]">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-pink-500/10 border border-pink-500/20 rounded-2xl">
+                  <TrendingUp className="w-5 h-5 text-pink-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black italic uppercase text-white tracking-widest">Viral Signature</h3>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Top 5 Posts by Total Views</p>
+                </div>
+              </div>
+              <div className="px-3 py-1 bg-pink-500/10 border border-pink-500/20 rounded-full text-[8px] font-black text-pink-400 uppercase tracking-widest italic">Hot Drops</div>
+            </div>
+
+            <div className="flex-1 space-y-3">
+              {(() => {
+                const posts = (allScans || [])
+                  .flatMap(s => (s.posts || []).map((p: any) => ({ ...p, accountId: s.accountId, platform: s.platform })))
+                  .sort((a, b) => (b.views || 0) - (a.views || 0))
+                  .slice(0, 5);
+
+                if (posts.length === 0) return <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest">No Posts Detected</div>;
+
+                return posts.map((post, idx) => (
+                  <motion.div 
+                    key={post.id + idx}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * idx }}
+                    className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] transition-all group"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-900 border border-white/5 flex-shrink-0">
+                        {post.thumbnail && <img src={`https://wsrv.nl/?url=${encodeURIComponent(post.thumbnail)}&w=100&output=webp`} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-1 right-1 text-[7px] font-black text-white">{post.platform === 'youtube' ? 'YT' : 'TT'}</div>
+                      </div>
+                      <div className="truncate">
+                        <p className="text-[10px] font-black italic uppercase tracking-tighter text-white truncate group-hover:text-pink-400 transition-colors leading-tight mb-1">{post.title}</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">{post.accountId.split('|')[0]}</p>
+                      </div>
+                    </div>
+                    <div className="text-right ml-4 flex-shrink-0">
+                      <p className="text-sm font-black italic text-white tracking-tighter">{post.views >= 1000000 ? (post.views / 1000000).toFixed(1) + 'M' : post.views >= 1000 ? (post.views / 1000).toFixed(0) + 'K' : post.views}</p>
+                      <p className="text-[7px] font-black text-slate-700 uppercase tracking-widest italic">Views</p>
+                    </div>
+                  </motion.div>
+                ));
+              })()}
+            </div>
+         </div>
+      </div>
+
+      {/* Activity Pattern Chart */}
+      <div className="glass-card p-10 border border-white/10 overflow-hidden relative" data-export-id="hourly-chart">
         <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
           <TrendingUp className="w-48 h-48 text-blue-500" />
         </div>

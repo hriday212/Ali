@@ -775,7 +775,6 @@ app.post('/api/scans/:accountId/sync', async (req, res) => {
   executeScan(accountId, scan.accountLink, scan.platform, true);
   res.json({ success: true });
 });
-
 // NEW: Video Payment Settlement
 app.post('/api/scans/:accountId/videos/:videoId/toggle-payment', (req, res) => {
   const { accountId, videoId } = req.params;
@@ -800,6 +799,23 @@ app.post('/api/scans/:accountId/videos/:videoId/toggle-payment', (req, res) => {
   
   writeScanData(accountId, data);
   res.json({ success: true, paid: !!paid });
+});
+
+// NEW: Per-Account Campaign Settings
+app.post('/api/scans/:accountId/campaign', (req, res) => {
+  const { accountId } = req.params;
+  const { campaignStartDate, cpmThreshold, perPostCap } = req.body;
+  
+  const scan = activeScans.get(accountId);
+  if (!scan) return res.status(404).json({ error: 'Node not found' });
+  
+  scan.campaignStartDate = campaignStartDate;
+  scan.cpmThreshold = parseInt(cpmThreshold) || 0;
+  scan.perPostCap = parseInt(perPostCap) || 0;
+  
+  saveAllState();
+  console.log(`[ScanEngine] ⚙️ Campaign settings updated for ${accountId}: Start=${campaignStartDate}, Threshold=${cpmThreshold}, Cap=${perPostCap}`);
+  res.json({ success: true, settings: { campaignStartDate, cpmThreshold, perPostCap } });
 });
 
 app.post('/api/settings/force-sync', async (req, res) => {
