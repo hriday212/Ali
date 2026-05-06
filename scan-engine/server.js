@@ -44,20 +44,26 @@ const { exec } = require('child_process');
 async function emergencyExport() {
   console.log('[Emergency] 📦 Starting data extraction from:', DATA_DIR);
   const tarPath = '/tmp/clypso_backup.tar.gz';
-  // Use tar which is built into all linux systems
   exec(`tar -czf ${tarPath} ${DATA_DIR}`, (err) => {
     if (err) return console.error('[Emergency] ❌ Tar failed:', err.message);
-    console.log('[Emergency] ✅ Archive created. Uploading to transfer.sh...');
-    exec(`curl --upload-file ${tarPath} https://transfer.sh/clypso_backup.tar.gz`, (err, stdout) => {
+    console.log('[Emergency] ✅ Archive created. Uploading to file.io...');
+    // Use file.io instead
+    exec(`curl -F "file=@${tarPath}" https://file.io`, (err, stdout) => {
       if (err) return console.error('[Emergency] ❌ Upload failed:', err.message);
-      console.log('\n\n================================================');
-      console.log('🚀 EMERGENCY BACKUP READY!');
-      console.log('DOWNLOAD LINK:', stdout.trim());
-      console.log('================================================\n\n');
+      try {
+        const res = JSON.parse(stdout);
+        console.log('\n\n================================================');
+        console.log('🚀 EMERGENCY BACKUP READY!');
+        console.log('DOWNLOAD LINK:', res.link);
+        console.log('EXPIRATION: 14 Days / 1 Download');
+        console.log('================================================\n\n');
+      } catch (e) {
+        console.log('[Emergency] Upload result:', stdout);
+      }
     });
   });
 }
-setTimeout(emergencyExport, 5000); // Run after 5s to ensure disk is mounted
+setTimeout(emergencyExport, 8000); // Run after 8s
 // ---------------------------------
 
 function readLedger() {
