@@ -548,10 +548,10 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     // Default fallback interval
     let nextInterval = scan.intervalMinutes || globalDefaultInterval;
     
-    if (smartEngineEnabled && data.history && data.history.length > 1) {
+    if (data.history && data.history.length > 1) {
       const latest = data.history[data.history.length - 1].totalViews;
-      const previous = data.history[data.history.length - 2].totalViews;
-      const delta = Math.max(0, latest - previous);
+      const previousTotal = data.history[data.history.length - 2].totalViews;
+      const delta = Math.max(0, latest - previousTotal);
       
       const timeOld = new Date(data.history[data.history.length - 2].time).getTime();
       const timeNew = new Date(data.history[data.history.length - 1].time).getTime();
@@ -566,27 +566,45 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       
       // Testing Phase: 6 Hour resting baseline (was 3 days)
       const baseInterval = 360; 
+
+      // --- 3. Enhanced Viral Detection Logic ---
+      if (discordWebhookUrl) {
+          // A. Milestone Detection
+          const milestones = [100000, 500000, 1000000, 5000000, 10000000];
+          const hitMilestone = milestones.find(m => previousTotal < m && latest >= m);
+          
+          if (hitMilestone) {
+              fetch(discordWebhookUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      content: `🏆 **MILESTONE REACHED** 🏆\nNode: **${accountId}**\nAccount has crossed **${hitMilestone.toLocaleString()}** total views!\nPlatform: ${platform.toUpperCase()}\nLink: ${accountLink}`
+                  })
+              }).catch(e => console.error('[Discord] Milestone failed:', e.message));
+          }
+
+          // B. Velocity Spike Detection
+          if (multiplier > 8 && delta > 25000) {
+              fetch(discordWebhookUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      content: `⚡ **VELOCITY SPIKE DETECTED** ⚡\nNode: **${accountId}**\nGrowth rate is **${multiplier.toFixed(1)}x** above baseline!\nDelta: +${delta.toLocaleString()} views in last cycle\nLink: ${accountLink}`
+                  })
+              }).catch(e => console.error('[Discord] Spike failed:', e.message));
+          }
+      }
       
-      if (multiplier > 5 || delta > 50000) {
-        nextInterval = 180; // 3 Hours (Ultra Viral)
-        console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 3h.`);
-        
-        // Discord Alert
-        if (discordWebhookUrl) {
-          fetch(discordWebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              content: `🚀 **ULTRA VIRAL ALERT** 🚀\nNode: **${accountId}**\nViews Gained: +${delta.toLocaleString()} in last ${scan.intervalMinutes}m\nMultiplier: ${multiplier.toFixed(1)}x average rate\nLink: ${accountLink}`
-            })
-          }).catch(err => console.error('[Discord] Webhook failed:', err.message));
-        }
-      } else if (multiplier > 2 || delta > 10000) {
-        nextInterval = 720; // 12 Hours (Viral Traction)
-        console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 12h.`);
+      // C. Interval Escalation Logic
+      if (multiplier > 5 || delta > 100000) {
+        nextInterval = 120; // 2 Hours (Ultra Viral)
+        console.log(`[SmartEngine] 🚀 Node ${accountId} went ULTRA VIRAL (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 2h.`);
+      } else if (multiplier > 2 || delta > 25000) {
+        nextInterval = 360; // 6 Hours (Viral Traction)
+        console.log(`[SmartEngine] 🔥 Node ${accountId} is trending (M=${multiplier.toFixed(1)}x, Delta=${delta})! Escalating to 6h.`);
       } else {
-        nextInterval = baseInterval; // 6 Hours Resting Stage
-        console.log(`[SmartEngine] 💤 Node ${accountId} resting (M=${multiplier.toFixed(1)}x). Setting to ${nextInterval / 60}h.`);
+        nextInterval = 1440; // 24 Hours Resting Stage
+        console.log(`[SmartEngine] 💤 Node ${accountId} resting (M=${multiplier.toFixed(1)}x). Setting to 24h.`);
       }
     }
     

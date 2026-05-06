@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Rocket, TrendingUp, AlertCircle, Youtube, Instagram, Music2, ArrowUpRight } from 'lucide-react';
 import { API_ROUTES } from '@/lib/apiConfig';
+import { SmartImage } from '@/components/ui/SmartImage';
 import { safeFetchJson } from '@/lib/fetchUtils';
 
 interface Candidate {
@@ -148,15 +149,11 @@ export function ViralRadar() {
                  <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 blur-xl group-hover:bg-emerald-500/20 transition-all rounded-full pointer-events-none" />
                  
                  <div className="flex items-center gap-3 z-10 mb-2">
-                   {candidate.thumbnail ? (
-                     <img src={candidate.thumbnail} alt="" referrerPolicy="no-referrer" className="w-12 h-12 rounded-lg object-cover border border-white/10" />
-                   ) : (
-                     <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                       {candidate.platform === 'youtube' && <Youtube className="w-5 h-5 text-red-500" />}
-                       {candidate.platform === 'tiktok' && <Music2 className="w-5 h-5 text-white" />}
-                       {candidate.platform === 'instagram' && <Instagram className="w-5 h-5 text-pink-500" />}
-                     </div>
-                   )}
+                    <SmartImage 
+                      src={candidate.thumbnail || ''} 
+                      alt="" 
+                      className="w-12 h-12 rounded-lg border border-white/10" 
+                    />
                    <div className="min-w-0 flex-1">
                      <p className="text-[10px] font-black uppercase text-white truncate italic tracking-tight mb-1">{candidate.title}</p>
                      <p className="text-[7px] font-black tracking-widest text-slate-500 uppercase flex items-center gap-1">

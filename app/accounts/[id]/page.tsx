@@ -57,6 +57,7 @@ import {
   EcosystemGravity,
   SaveShareMatrix
 } from '@/components/dashboard/VisualizationSuite';
+import { SmartImage } from '@/components/ui/SmartImage';
 import { getAccountById, type Account } from '@/lib/accountsStore';
 import { getPayouts, getPayoutsForAccount, type PayoutRecord } from '@/lib/payoutsStore';
 import { useAuth } from '@/lib/authStore';
@@ -928,7 +929,7 @@ export default function AccountForensicPage() {
                     }`}
                 >
                   <Shield className="w-3 h-3" />
-                  SLA ({slaLogs.length})
+                  Post Logs ({slaLogs.length})
                 </button>
               </div>
 
@@ -943,6 +944,35 @@ export default function AccountForensicPage() {
                       exit={{ opacity: 0, y: -10 }}
                       className="space-y-3"
                     >
+                      <div className="flex items-center justify-between mb-4 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
+                        <div>
+                          <h3 className="text-xs font-black uppercase tracking-widest text-white">Post Log History</h3>
+                          <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mt-1">Audit of daily minimum requirement (2 posts/day)</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            const headers = ['Timestamp', 'Status', 'Message'];
+                            const rows = slaLogs.map(log => [
+                              new Date(log.time).toLocaleString(),
+                              log.status,
+                              log.reason.replace(/,/g, ';')
+                            ]);
+                            const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                            const link = document.createElement("a");
+                            link.href = URL.createObjectURL(blob);
+                            link.setAttribute("download", `post_logs_${account?.id}_${new Date().toISOString().split('T')[0]}.csv`);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                          className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center gap-2 transition-all group"
+                        >
+                          <Download className="w-3 h-3 text-slate-400 group-hover:text-white" />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 group-hover:text-white">Export CSV</span>
+                        </button>
+                      </div>
+
                       {slaLogs.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full py-20 gap-4 opacity-30">
                           <AlertCircle className="w-8 h-8" />
@@ -990,11 +1020,11 @@ export default function AccountForensicPage() {
                           <div className={`w-full bg-slate-900 border border-white/5 rounded-lg flex items-center justify-center relative overflow-hidden flex-shrink-0 ${
                             post.type === 'short' ? 'aspect-[4/5]' : 'aspect-video'
                           }`}>
-                            {post.thumbnail ? (
-                              <img src={`https://wsrv.nl/?url=${encodeURIComponent(post.thumbnail)}&w=400&output=webp`} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                            ) : (
-                              <Film className="w-4 h-4 text-slate-800" />
-                            )}
+                            <SmartImage 
+                              src={post.thumbnail} 
+                              alt={post.title}
+                              className="w-full h-full"
+                            />
                             <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[6px] font-black uppercase tracking-wider ${post.type === 'short' ? 'bg-white/20 text-white' : 'bg-black/40 text-white/60'}`}>
                               {post.type === 'short' ? '⚡ Short' : '▶ Video'}
                             </div>

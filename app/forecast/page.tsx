@@ -5,12 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BarChart3, Calendar, TrendingUp, TrendingDown, Eye, Heart, MessageCircle, 
   Share2, ArrowUpRight, ArrowDownRight, Minus, Loader2, ChevronDown, ChevronUp,
-  Youtube, Music2, Instagram, X, Globe, FileDown, Zap
+  Youtube, Music2, Instagram, X, Globe, FileDown, Zap, Flame
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line
 } from 'recharts';
+import { SmartImage } from '@/components/ui/SmartImage';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { safeFetchJson } from '@/lib/fetchUtils';
 
@@ -617,7 +618,11 @@ export default function ForecastPage() {
                   >
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-900 border border-white/5 flex-shrink-0">
-                        {post.thumbnail && <img src={`https://wsrv.nl/?url=${encodeURIComponent(post.thumbnail)}&w=100&output=webp`} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />}
+                        <SmartImage 
+                          src={post.thumbnail} 
+                          alt={post.title}
+                          className="w-full h-full"
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-1 right-1 text-[7px] font-black text-white">{post.platform === 'youtube' ? 'YT' : 'TT'}</div>
                       </div>

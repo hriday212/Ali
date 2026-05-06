@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Eye, Heart, MessageCircle, ExternalLink, Youtube, Music2, Instagram } from 'lucide-react';
 import { API_ROUTES } from '@/lib/apiConfig';
+import { SmartImage } from '@/components/ui/SmartImage';
 import { safeFetchJson } from '@/lib/fetchUtils';
 
 interface Post {
@@ -79,10 +80,10 @@ function ContentCard({ post, index }: { post: Post, index: number }) {
       <div className="glass-card overflow-hidden h-[420px] flex flex-col transition-all duration-500 group-hover:bg-white/[0.05] group-hover:border-white/20">
         {/* Thumbnail Area */}
         <div className="relative h-56 overflow-hidden">
-          <img 
-            src={post.thumbnail || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=225&fit=crop'} 
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          <SmartImage 
+            src={post.thumbnail || ''} 
             alt={post.title}
+            className="w-full h-full"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
           
