@@ -666,7 +666,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
         // Log to Ledger if changed significantly
         const lastAmount = scan.lastSettledAmount || 0;
         if (Math.abs(earned - lastAmount) > 0.01) {
-            updateLedger(accountId, earned, totalViews);
+            updateLedger(accountId, earned, totalViews, config.type);
             scan.lastSettledAmount = earned;
             scan.lastSettlementTime = new Date().toISOString();
         }
@@ -771,6 +771,9 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
           const zThreshold = isAggressive ? 2.5 : 4.0;
           
           if (zScore > zThreshold || (multiplier > 8 && delta > 25000)) {
+              // 0. Log to Ledger (Phase 18: Audit Trail)
+              updateLedger(accountId, 0, delta, 'Viral Candidate', { zScore, multiplier });
+
               // 1. Webhook Fallback
               if (discordWebhookUrl) {
                   fetch(discordWebhookUrl, {
@@ -1338,13 +1341,14 @@ app.post('/api/scans/config', (req, res) => {
   res.json({ success: true });
 });
 
-function updateLedger(accountId, amount, views) {
+function updateLedger(accountId, amount, views, type) {
     const ledger = readLedger();
     const entry = {
         accountId,
         timestamp: new Date().toISOString(),
         totalViews: views,
         amount,
+        type: type || 'None',
         currency: 'USD'
     };
     ledger.push(entry);

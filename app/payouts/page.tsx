@@ -48,31 +48,53 @@ interface LedgerEntry {
 export default function PayoutsPage() {
   const router = useRouter();
   const [ledger, setLedger] = React.useState<LedgerEntry[]>([]);
+  const [scans, setScans] = React.useState<any[]>([]);
+  const [selectedNode, setSelectedNode] = React.useState<any>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isUpdating, setIsUpdating] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const [filter, setFilter] = React.useState('ALL');
 
+  const fetchData = async () => {
+    try {
+      const [ledgerData, scanData] = await Promise.all([
+        safeFetchJson(API_ROUTES.PAYOUTS),
+        safeFetchJson(`${API_ROUTES.SCANS}`)
+      ]);
+      
+      if (ledgerData && ledgerData.payouts) setLedger(ledgerData.payouts);
+      if (scanData && scanData.scans) setScans(scanData.scans);
+    } catch (err) {
+      console.error('Failed to fetch data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   React.useEffect(() => {
-    const fetchLedger = async () => {
-      try {
-        const data = await safeFetchJson(API_ROUTES.PAYOUTS);
-        if (data && data.payouts) {
-          setLedger(data.payouts);
-        }
-      } catch (err) {
-        console.error('Failed to fetch ledger:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchLedger();
+    fetchData();
   }, []);
+
+  const handleUpdateConfig = async (accountId: string, config: any) => {
+    setIsUpdating(true);
+    try {
+      await safeFetchJson(`${API_ROUTES.SCANS}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, config })
+      });
+      await fetchData();
+      setSelectedNode(null);
+    } catch (err) {
+      console.error('Failed to update node config:', err);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const filteredLedger = ledger.filter(entry => {
     const matchesSearch = entry.accountId.toLowerCase().includes(search.toLowerCase()) || 
                          (entry.videoTitle || '').toLowerCase().includes(search.toLowerCase());
-    if (filter === 'ALL') return matchesSearch;
-    // Add logic for filtering by account/platform if needed
     return matchesSearch;
   });
 
@@ -98,11 +120,10 @@ export default function PayoutsPage() {
       </div>
 
       <div className="relative z-10 max-w-[1600px] mx-auto">
-        {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 bg-white/[0.02] border border-white/10 rounded-[2.5rem] p-10 backdrop-blur-xl">
           <div className="flex items-center gap-6">
             <button 
-              onClick={() => router.push('/accounts')}
+              onClick={() => router.push('/')}
               className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center hover:bg-white/10 transition-all group"
             >
               <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -115,33 +136,169 @@ export default function PayoutsPage() {
               <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Automated Payout & Audit Terminal</p>
             </div>
           </div>
-
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => {
-                const headers = ['Account ID', 'Timestamp', 'Views', 'Amount', 'Currency', 'Video Title'];
-                const rows = ledger.map(e => [
-                  e.accountId,
-                  new Date(e.timestamp).toLocaleString(),
-                  e.totalViews,
-                  e.amount,
-                  e.currency,
-                  (e.videoTitle || 'N/A').replace(/,/g, ';')
-                ]);
-                const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `clypso_ledger_${new Date().toISOString().split('T')[0]}.csv`;
-                a.click();
-              }}
-              className="px-8 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-white/10 transition-all"
-            >
-              <Download className="w-4 h-4" /> Export Audit
-            </button>
+             <button className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-3">
+                <Download className="w-4 h-4" /> Export Report
+             </button>
           </div>
         </header>
+
+        {/* --- Node Governance & Model Switcher --- */}
+        <div className="mb-12">
+           <div className="flex items-center gap-4 mb-6">
+              <Database className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] italic">Node Governance</h2>
+           </div>
+           <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+              {scans.map((scan) => (
+                <motion.div
+                  key={scan.accountId}
+                  whileHover={{ scale: 1.05 }}
+                  onClick={() => setSelectedNode(scan)}
+                  className={`flex-shrink-0 w-48 p-5 glass-card border-white/10 cursor-pointer transition-all hover:border-white/30 ${selectedNode?.accountId === scan.accountId ? 'ring-2 ring-emerald-500 border-emerald-500/50 bg-emerald-500/5' : ''}`}
+                >
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white truncate mb-1">{scan.accountId}</p>
+                  <div className="flex items-center justify-between mt-3">
+                     <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-sm uppercase italic tracking-widest ${scan.campaignConfig?.type === 'Retainer' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                        {scan.campaignConfig?.type || 'No Model'}
+                     </span>
+                     <span className="text-[10px] font-black italic tracking-tighter text-slate-400">${(scan.totalEarned || 0).toFixed(0)}</span>
+                  </div>
+                </motion.div>
+              ))}
+           </div>
+        </div>
+
+        {/* Configuration Modal */}
+        <AnimatePresence>
+          {selectedNode && (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-black/80"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                className="w-full max-w-lg glass-card p-10 border-white/20 shadow-2xl relative"
+              >
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="text-xl font-black italic tracking-tighter uppercase">Configure Node</h3>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mt-1">{selectedNode.accountId}</p>
+                  </div>
+                  <button onClick={() => setSelectedNode(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-500 hover:text-white">✕</button>
+                </div>
+
+                {/* Model Selector Toggle */}
+                <div className="flex p-1 bg-white/5 border border-white/10 rounded-xl mb-8">
+                  {['CPM', 'Retainer', 'None'].map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        const newConfig = { ...selectedNode.campaignConfig, type };
+                        setSelectedNode({ ...selectedNode, campaignConfig: newConfig });
+                      }}
+                      className={`flex-1 py-3 text-[9px] font-black uppercase tracking-[0.2em] rounded-lg transition-all ${selectedNode.campaignConfig?.type === type ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-white'}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-6">
+                  {selectedNode.campaignConfig?.type === 'CPM' && (
+                    <div className="grid grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4">
+                      <div>
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">CPM Rate ($)</label>
+                        <input 
+                          type="number" 
+                          value={selectedNode.campaignConfig?.cpmRate || 10}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setSelectedNode({ ...selectedNode, campaignConfig: { ...selectedNode.campaignConfig, cpmRate: val } });
+                          }}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-500/50 transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">Threshold (Views)</label>
+                        <input 
+                          type="number" 
+                          value={selectedNode.campaignConfig?.threshold || 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            setSelectedNode({ ...selectedNode, campaignConfig: { ...selectedNode.campaignConfig, threshold: val } });
+                          }}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-500/50 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedNode.campaignConfig?.type === 'Retainer' && (
+                    <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">Retainer Amt ($)</label>
+                          <input 
+                            type="number" 
+                            value={selectedNode.campaignConfig?.retainerAmount || 100}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setSelectedNode({ ...selectedNode, campaignConfig: { ...selectedNode.campaignConfig, retainerAmount: val } });
+                            }}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">Post Quota (24h)</label>
+                          <input 
+                            type="number" 
+                            value={selectedNode.campaignConfig?.postsQuota || 2}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              setSelectedNode({ ...selectedNode, campaignConfig: { ...selectedNode.campaignConfig, postsQuota: val } });
+                            }}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] mb-2 block">Min Views for Retainer</label>
+                        <input 
+                          type="number" 
+                          value={selectedNode.campaignConfig?.minViews || 5000}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            setSelectedNode({ ...selectedNode, campaignConfig: { ...selectedNode.campaignConfig, minViews: val } });
+                          }}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedNode.campaignConfig?.type === 'None' && (
+                    <div className="py-12 text-center opacity-40">
+                      <ShieldCheck className="w-12 h-12 mx-auto mb-4" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">No payout model active for this node</p>
+                    </div>
+                  )}
+
+                  <div className="pt-6">
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => handleUpdateConfig(selectedNode.accountId, selectedNode.campaignConfig)}
+                      className="w-full py-4 bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] rounded-xl hover:bg-emerald-500 transition-colors disabled:opacity-50"
+                    >
+                      {isUpdating ? 'Synchronizing Engine...' : 'Apply Protocol Configuration'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        </AnimatePresence>
 
         {/* Top KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
@@ -224,12 +381,24 @@ export default function PayoutsPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-[11px] font-black uppercase italic text-white group-hover:text-emerald-400 transition-colors leading-none mb-2">
-                            {entry.videoTitle || `Node Settlement: ${entry.accountId}`}
+                            {entry.type === 'Viral Candidate' ? `⚠️ Velocity Spike: ${entry.accountId}` : (entry.videoTitle || `Node Settlement: ${entry.accountId}`)}
                           </p>
                           <div className="flex items-center gap-3">
                             <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">{new Date(entry.timestamp).toLocaleString()}</span>
                             <div className="w-1 h-1 bg-white/10 rounded-full" />
                             <span className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest">{formatNumber(entry.totalViews)} views verified</span>
+                            {entry.type && (
+                              <>
+                                <div className="w-1 h-1 bg-white/10 rounded-full" />
+                                <span className={`text-[7px] font-black px-1.5 py-0.5 rounded-sm uppercase italic tracking-widest ${
+                                  entry.type === 'Viral Candidate' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                  entry.type === 'Retainer' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                                  'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                }`}>
+                                  {entry.type}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
