@@ -14,6 +14,7 @@ export interface Account {
   addedAt: string;
   slaStatus?: 'HEALTHY' | 'FAILING';
   dailyPostCount?: number;
+  totalEarned?: number;
   settlements?: {
     date: string;
     viewLevel: number;
