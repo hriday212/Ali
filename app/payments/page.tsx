@@ -27,7 +27,7 @@ interface PayoutNode {
   };
 }
 
-export default function PayoutsPage() {
+export default function PaymentsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [nodes, setNodes] = useState<PayoutNode[]>([]);
@@ -385,14 +385,7 @@ export default function PayoutsPage() {
                       <td className="p-6 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button 
-                            onClick={() => {
-                              setEditingNode(node);
-                              setCampaignData({
-                                startDate: node.campaignStartDate ? new Date(node.campaignStartDate).toISOString().split('T')[0] : '',
-                                cpmThreshold: node.cpmThreshold || 0,
-                                perPostCap: node.perPostCap || 0
-                              });
-                            }}
+                            onClick={() => setEditingNode(node)}
                             className="inline-flex items-center justify-center p-2 bg-slate-800 hover:bg-slate-700 border border-white/5 rounded-lg text-slate-400 transition-all"
                           >
                             <Settings2 className="w-4 h-4" />
