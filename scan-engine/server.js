@@ -771,13 +771,21 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
           const zThreshold = isAggressive ? 2.5 : 4.0;
           
           if (zScore > zThreshold || (multiplier > 8 && delta > 25000)) {
-              fetch(discordWebhookUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                      content: `⚡ **SUPERNOVA DETECTED** ⚡\nNode: **${accountId}**\nZ-Score: **${zScore.toFixed(2)}** (Threshold: ${zThreshold})\nGrowth is **${multiplier.toFixed(1)}x** above baseline!\nDelta: +${delta.toLocaleString()} views\nLink: ${accountLink}`
-                  })
-              }).catch(e => console.error('[Discord] Anomaly alert failed:', e.message));
+              // 1. Webhook Fallback
+              if (discordWebhookUrl) {
+                  fetch(discordWebhookUrl, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          content: `⚡ **SUPERNOVA DETECTED** ⚡\nNode: **${accountId}**\nZ-Score: **${zScore.toFixed(2)}** (Threshold: ${zThreshold})\nGrowth is **${multiplier.toFixed(1)}x** above baseline!\nDelta: +${delta.toLocaleString()} views\nLink: ${accountLink}`
+                      })
+                  }).catch(e => console.error('[Discord] Anomaly alert failed:', e.message));
+              }
+
+              // 2. Bot Channel Alert (Phase 18: Primary)
+              if (process.env.DISCORD_BOT_TOKEN) {
+                  sendViralAlert(accountId, platform, { delta, multiplier, zScore });
+              }
           }
 
           // C. Bot Slayer Alerts
@@ -892,31 +900,6 @@ function saveAllState() {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-// Initialize Discord Bot
-initDiscordBot(
-    process.env.DISCORD_BOT_TOKEN, 
-    async (accountId, targetInterval) => {
-        const scan = activeScans.get(accountId);
-        if (!scan) return;
-        scan.currentInterval = targetInterval;
-        scan.pendingInterval = null;
-        scheduleNextScan(scan, targetInterval);
-        saveAllState();
-        console.log(`[DiscordBot] ✅ External approval for ${accountId}: Escalated to ${targetInterval}m.`);
-    },
-    async () => {
-        // getSummary Callback
-        const scans = Array.from(activeScans.values());
-        const total = scans.length;
-        const healthy = scans.filter(s => s.slaStatus === 'HEALTHY').length;
-        const viral = scans.filter(s => s.currentInterval <= 60).length;
-        
-        return {
-            brief: `**System Health**: ${healthy}/${total} Healthy\n**Viral Momentum**: ${viral} nodes in high-cadence mode.\n**Engine Status**: Operational`,
-            detailed: scans.map(s => `- **${s.accountId}**: ${s.slaStatus} | ${s.currentInterval}m | ${s.dailyPostCount} posts/24h`).join('\n') || 'No active scans.'
-        };
-    }
-);
 
 function scheduleNextScan(scan, overrideMinutes = null) {
   if (scan.timer) clearTimeout(scan.timer);
@@ -1377,6 +1360,41 @@ app.get('/api/ledger', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Scan Engine running on http://0.0.0.0:${PORT}`);
+  
+  // Initialize Discord Bot (Phase 18 Integration)
+  initDiscordBot(
+    process.env.DISCORD_BOT_TOKEN, 
+    async (accountId, targetInterval) => {
+        const scan = activeScans.get(accountId);
+        if (!scan) return;
+        scan.currentInterval = targetInterval;
+        scan.pendingInterval = null;
+        scheduleNextScan(scan, targetInterval);
+        saveAllState();
+        console.log(`[DiscordBot] ✅ External approval for ${accountId}: Escalated to ${targetInterval}m.`);
+    },
+    async () => {
+        // Summary Generator for Bot Commands
+        let totalViews = 0, totalNodes = activeScans.size, totalEarned = 0;
+        let healthy = 0, failing = 0;
+        
+        const details = Array.from(activeScans.values()).map(s => {
+            const data = readScanData(s.accountId);
+            const views = data.history?.[data.history.length - 1]?.totalViews || 0;
+            totalViews += views;
+            totalEarned += s.totalEarned || 0;
+            if (s.slaStatus === 'HEALTHY') healthy++; else failing++;
+            
+            return `• **${s.accountId}**: ${views.toLocaleString()} views | SLA: ${s.slaStatus} | Mode: ${s.campaignConfig?.type || 'None'}`;
+        }).join('\n');
+
+        return {
+            brief: `📡 **Network Overview**\nNodes: ${totalNodes}\nReach: ${(totalViews / 1000000).toFixed(2)}M views\nYield: $${totalEarned.toFixed(2)}\nHealth: ${healthy}H / ${failing}F`,
+            detailed: `🔍 **Node Forensic Audit**\n${details || 'No active nodes detected.'}`
+        };
+    }
+  );
+
   autoStartDefaults().catch(console.error);
 });
 
