@@ -34,8 +34,26 @@ async function initDiscordBot(token, onApprove, getSummary) {
             },
             {
                 name: 'audit',
-                description: 'Detailed SLA audit for the network or a specific node.',
+                description: 'Detailed Vitality audit for the network or a specific node.',
                 options: [
+                    {
+                        name: 'timeframe',
+                        type: 3, // STRING
+                        description: 'Select audit window (Today, 7D, 30D, ALL)',
+                        required: false,
+                        choices: [
+                            { name: 'Today', value: 'today' },
+                            { name: '7 Days', value: '7d' },
+                            { name: '30 Days', value: '30d' },
+                            { name: 'All Time', value: 'all' }
+                        ]
+                    },
+                    {
+                        name: 'date',
+                        type: 3, // STRING
+                        description: 'Audit a specific date (YYYY-MM-DD)',
+                        required: false
+                    },
                     {
                         name: 'node_id',
                         type: 3, // STRING
@@ -70,14 +88,16 @@ async function initDiscordBot(token, onApprove, getSummary) {
                 if (!getSummary) return interaction.reply('Summary callback not initialized.');
                 
                 const nodeId = interaction.options.getString('node_id');
-                const summary = await getSummary(nodeId);
+                const timeframe = interaction.options.getString('timeframe') || '24h';
+                const dateParam = interaction.options.getString('date');
+                const summary = await getSummary(nodeId, timeframe, dateParam);
                 
                 if (nodeId && summary.error) {
                     return interaction.reply({ content: `❌ **Error**: ${summary.error}`, ephemeral: true });
                 }
 
                 const embed = new EmbedBuilder()
-                    .setTitle(nodeId ? `🔍 Node Audit: ${nodeId}` : '📊 Scan Engine Protocol Status')
+                    .setTitle(nodeId ? `🔍 Node Audit: ${nodeId} (${dateParam || timeframe.toUpperCase()})` : `📊 Network Vitality Report (${dateParam || timeframe.toUpperCase()})`)
                     .setColor(nodeId ? 0x00FF99 : 0x00D1FF)
                     .setDescription(interaction.commandName === 'status' ? summary.brief : (nodeId ? summary.nodeDetail : summary.detailed))
                     .setTimestamp();

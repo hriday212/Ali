@@ -1382,26 +1382,57 @@ app.listen(PORT, '0.0.0.0', () => {
         saveAllState();
         console.log(`[DiscordBot] ✅ External approval for ${accountId}: Escalated to ${targetInterval}m.`);
     },
-    async (nodeId) => {
+    async (nodeId, timeframe, dateParam) => {
+        let cutoffDate = new Date();
+        let days = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : timeframe === 'all' ? 3650 : 1;
+        
+        if (dateParam) {
+            cutoffDate = new Date(dateParam);
+            days = 1;
+        } else {
+            cutoffDate.setDate(cutoffDate.getDate() - days);
+        }
+
+        const nextDay = new Date(cutoffDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
         // Handle Single Node Audit
         if (nodeId) {
             const scan = activeScans.get(nodeId);
             if (!scan) return { error: 'Account not found in active registry.' };
             
             const data = readScanData(nodeId);
-            const views = data.history?.[data.history.length - 1]?.totalViews || 0;
-            const postCount = data.posts?.length || 0;
-            const health = (scan.slaStatus || 'HEALTHY') === 'HEALTHY' ? '✅ HEALTHY' : '⚠️ FAILING';
+            const history = data.history || [];
+            
+            // Calculate growth in timeframe/date
+            let startPoint, endPoint;
+            if (dateParam) {
+                startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+                endPoint = history.find(h => new Date(h.timestamp) >= nextDay) || history[history.length - 1];
+            } else {
+                startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+                endPoint = history[history.length - 1];
+            }
+            
+            const viewsGain = (endPoint?.totalViews || 0) - (startPoint?.totalViews || 0);
+            const postsInWindow = (data.posts || []).filter(p => {
+                const pDate = new Date(p.date);
+                if (dateParam) return pDate >= cutoffDate && pDate < nextDay;
+                return pDate >= cutoffDate;
+            });
+
+            const postCount = postsInWindow.length;
+            const health = postCount >= 2 ? '✅ FULL VITALITY' : '⚠️ DIMINISHED';
             const platformEmoji = scan.platform === 'youtube' ? '🔴' : scan.platform === 'tiktok' ? '⚫' : '🟣';
 
             return {
-                nodeDetail: `📡 **Node Vitality Intelligence Audit**\n` +
+                nodeDetail: `📡 **Node Vitality Intelligence Audit** (${dateParam || timeframe.toUpperCase()})\n` +
                            `> Node: \`${scan.name || nodeId}\`\n` +
                            `> Platform: ${platformEmoji} **${scan.platform.toUpperCase()}**\n` +
                            `> Status: ${health}\n` +
-                           `> Total Reach: \`${views.toLocaleString()}\` views\n` +
-                           `> Content: \`${postCount}\` posts synced\n` +
-                           `> Yield: \`$${(scan.totalEarned || 0).toFixed(2)}\` earned\n` +
+                           `> Period Reach: \`+${viewsGain.toLocaleString()}\` views\n` +
+                           `> Period Content: \`${postCount}\` posts synced\n` +
+                           `> Yield: \`$${(scan.totalEarned || 0).toFixed(2)}\` total earned\n` +
                            `> Cadence: \`Every ${scan.currentInterval || globalDefaultInterval}m\`\n\n` +
                            `🔗 [View Profile](${scan.accountLink})`,
                 thumbnail: scan.avatarUrl || null
@@ -1411,6 +1442,7 @@ app.listen(PORT, '0.0.0.0', () => {
         // Summary Generator for Bot Commands (Global)
         let totalViews = 0, totalNodes = activeScans.size, totalEarned = 0;
         let healthy = 0, failing = 0;
+        let periodViewsGain = 0;
         
         const sortedScans = Array.from(activeScans.values())
             .sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0));
@@ -1426,15 +1458,35 @@ app.listen(PORT, '0.0.0.0', () => {
         
         sortedScans.forEach(s => {
             const data = readScanData(s.accountId);
-            const views = data.history?.[data.history.length - 1]?.totalViews || 0;
+            const history = data.history || [];
+            
+            let startPoint, endPoint;
+            if (dateParam) {
+                startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+                endPoint = history.find(h => new Date(h.timestamp) >= nextDay) || history[history.length - 1];
+            } else {
+                startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+                endPoint = history[history.length - 1];
+            }
+            
+            const views = endPoint?.totalViews || 0;
+            const gain = views - (startPoint?.totalViews || 0);
+            
             totalViews += views;
+            periodViewsGain += gain;
             totalEarned += s.totalEarned || 0;
-            const status = s.slaStatus || 'HEALTHY';
             
+            const postsInWindow = (data.posts || []).filter(p => {
+                const pDate = new Date(p.date);
+                if (dateParam) return pDate >= cutoffDate && pDate < nextDay;
+                return pDate >= cutoffDate;
+            });
+
+            const isHealthy = postsInWindow.length >= 2;
             const icon = getEmoji(s.platform);
-            const entry = `${icon} \`${(s.name || s.accountId).substring(0,12).padEnd(12)}\` | **${(views/1000).toFixed(1)}k**`;
+            const entry = `${icon} \`${(s.name || s.accountId).substring(0,12).padEnd(12)}\` | **+${(gain/1000).toFixed(1)}k**`;
             
-            if (status === 'HEALTHY') {
+            if (isHealthy) {
                 healthy++;
                 passedList.push(entry);
             } else {
@@ -1448,10 +1500,10 @@ app.listen(PORT, '0.0.0.0', () => {
                         `[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`;
 
         return {
-            brief: `📡 **Network Overview**\n` +
+            brief: `📡 **Network Vitality Report** (${dateParam || timeframe.toUpperCase()})\n` +
                    `> Nodes: \`${totalNodes}\` active\n` +
-                   `> Reach: \`${(totalViews / 1000000).toFixed(2)}M\` views\n` +
-                   `> Yield: \`$${totalEarned.toFixed(2)}\` earned\n` +
+                   `> Period Reach: \`+${(periodViewsGain / 1000000).toFixed(2)}M\` views\n` +
+                   `> Total Yield: \`$${totalEarned.toFixed(2)}\` earned\n` +
                    `> Health: \`${healthy} ✅ / ${failing} ⚠️\``,
             detailed
         };
