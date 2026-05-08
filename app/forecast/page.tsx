@@ -637,78 +637,161 @@ export default function ForecastPage() {
                     </div>
                   </motion.div>
                 ));
-              })()}
+      {/* Comparative Bar Chart (Full Width) */}
+      <div className="glass-card p-8 border border-white/10" data-export-id="comparison-charts">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-black italic uppercase text-white tracking-widest">Period Comparison</h3>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Current vs Previous Period Views</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-sm bg-blue-500" />
+              <span className="text-[8px] font-black uppercase text-slate-500">Current</span>
             </div>
-         </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-sm bg-white/10" />
+              <span className="text-[8px] font-black uppercase text-slate-500">Previous</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-[320px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
+          {timeSeries.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Insufficient data — accumulating scan history...</p>
+            </div>
+          ) : (
+            <div className="min-w-[600px] h-full px-2 lg:px-0">
+              <ResponsiveContainer width="99%" height="100%">
+                <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="splitGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#475569" />
+                      <stop offset="50%" stopColor="#475569" />
+                      <stop offset="50%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#3b82f6" />
+                    </linearGradient>
+                    <linearGradient id="fillGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#475569" stopOpacity={0.05} />
+                      <stop offset="50%" stopColor="#475569" stopOpacity={0.05} />
+                      <stop offset="50%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} minTickGap={20} />
+                  <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                  <Tooltip
+                    cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }}
+                    contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
+                    itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
+                    labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
+                  />
+                  <Area 
+                      type="monotone" 
+                      dataKey="views" 
+                      name="Views" 
+                      stroke="url(#splitGradient)" 
+                      strokeWidth={3} 
+                      fill="url(#fillGradient)" 
+                      isAnimationActive={false} 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Bottom Grid: Bar Chart + Pie Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-export-id="comparison-charts">
-        
-        {/* Comparative Bar Chart */}
-        <div className="lg:col-span-2 glass-card p-8 border border-white/10">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-black italic uppercase text-white tracking-widest">Period Comparison</h3>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Current vs Previous Period Views</p>
+      {/* Activity & Platform Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 glass-card p-10 border border-white/10 overflow-hidden relative" data-export-id="hourly-chart">
+          <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
+            <TrendingUp className="w-48 h-48 text-blue-500" />
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                <TrendingUp className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black italic uppercase text-white tracking-widest leading-none">Activity by Hour</h3>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-1.5 flex items-center gap-1.5">
+                  View Volume • Grouped by Hour of Day
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
+
+            <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-blue-500" />
-                <span className="text-[8px] font-black uppercase text-slate-500">Current</span>
+                <div className="w-3 h-3 rounded-full bg-blue-500/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+                <span className="text-[9px] font-black uppercase text-slate-400">Current Period</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-white/10" />
-                <span className="text-[8px] font-black uppercase text-slate-500">Previous</span>
+                <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500 border-dashed animate-pulse" />
+                <span className="text-[9px] font-black uppercase text-slate-400">Previous Period</span>
               </div>
             </div>
           </div>
 
-          <div className="h-[320px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
-            {timeSeries.length === 0 ? (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">Insufficient data — accumulating scan history...</p>
-              </div>
-            ) : (
-              <div className="min-w-[600px] h-full px-2 lg:px-0">
-                <ResponsiveContainer width="99%" height="100%">
-                  <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                    <defs>
-                      <linearGradient id="splitGradient" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#475569" />
-                        <stop offset="50%" stopColor="#475569" />
-                        <stop offset="50%" stopColor="#3b82f6" />
-                        <stop offset="100%" stopColor="#3b82f6" />
-                      </linearGradient>
-                      <linearGradient id="fillGradient" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#475569" stopOpacity={0.05} />
-                        <stop offset="50%" stopColor="#475569" stopOpacity={0.05} />
-                        <stop offset="50%" stopColor="#3b82f6" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} minTickGap={20} />
-                    <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
-                    <Tooltip
-                      cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 1 }}
-                      contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px' }}
-                      itemStyle={{ color: '#fff', fontSize: 11, fontWeight: 900 }}
-                      labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}
-                    />
-                    <Area 
-                       type="monotone" 
-                       dataKey="views" 
-                       name="Views" 
-                       stroke="url(#splitGradient)" 
-                       strokeWidth={3} 
-                       fill="url(#fillGradient)" 
-                       isAnimationActive={false} 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+          <div className="h-[300px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
+            <div className="w-full min-w-[700px] h-full px-2 lg:px-0">
+              <ResponsiveContainer width="99%" height="100%">
+                <AreaChart data={hourlyPattern} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={true} horizontal={true} />
+                <XAxis 
+                  dataKey="hour" 
+                  tick={{ fill: '#475569', fontSize: 9, fontWeight: 900 }} 
+                  axisLine={false} 
+                  tickLine={false}
+                  interval={1}
+                />
+                <YAxis 
+                  tick={{ fill: '#475569', fontSize: 9 }} 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '16px', padding: '12px' }}
+                  itemStyle={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}
+                  labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, marginBottom: '8px' }}
+                  cursor={{ stroke: '#ffffff10', strokeWidth: 1 }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="current" 
+                  stroke="#3b82f6" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorCurrent)" 
+                  isAnimationActive={false}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="previous" 
+                  stroke="#10b981" 
+                  strokeWidth={2} 
+                  strokeDasharray="5 5"
+                  fillOpacity={1} 
+                  fill="url(#colorPrev)" 
+                  isAnimationActive={false}
+                />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
@@ -748,7 +831,6 @@ export default function ForecastPage() {
             )}
           </div>
 
-          {/* Legend — Clickable */}
           <div className="space-y-3 mt-4">
             {platformDist.map((p: any) => (
               <button
@@ -777,94 +859,119 @@ export default function ForecastPage() {
         </div>
       </div>
 
-      {/* Activity Pattern Chart */}
-      <div className="glass-card p-10 border border-white/10 overflow-hidden relative" data-export-id="hourly-chart">
-        <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
-          <TrendingUp className="w-48 h-48 text-blue-500" />
-        </div>
+      {/* Bottom Grid: Momentum Leaderboards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+         <div className="glass-card p-10 border border-white/10 flex flex-col min-h-[450px]">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                  <TrendingUp className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black italic uppercase text-white tracking-widest">Momentum Alpha</h3>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Top 5 Accounts by Period Gain</p>
+                </div>
+              </div>
+              <Zap className="w-4 h-4 text-slate-800 animate-pulse" />
+            </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-              <TrendingUp className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <h3 className="text-xl font-black italic uppercase text-white tracking-widest leading-none">Activity by Hour</h3>
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 mt-1.5 flex items-center gap-1.5">
-                View Volume • Grouped by Hour of Day
-              </p>
-            </div>
-          </div>
+            <div className="flex-1 space-y-3">
+              {timeSeries.length > 0 && (hourlyPattern.some(h => h.current > 0) || hourlyPattern.some(h => h.previous > 0)) ? (
+                (() => {
+                  const accounts = (allScans || []).map(s => {
+                    const history = s.history || [];
+                    const currentH = filterHistoryByRange(history, currentStart, currentEnd);
+                    let gain = 0;
+                    if (currentH.length > 1) {
+                      gain = (currentH[currentH.length - 1].totalViews || 0) - (currentH[0].totalViews || 0);
+                    } else if (currentH.length === 1) {
+                      gain = currentH[0].totalViews || 0;
+                    }
+                    return { id: s.accountId, platform: s.platform, gain, followers: s.lastFollowers || 0 };
+                  })
+                  .filter(a => a.gain > 0)
+                  .sort((a, b) => b.gain - a.gain)
+                  .slice(0, 5);
 
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-              <span className="text-[9px] font-black uppercase text-slate-400">Current Period</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500 border-dashed animate-pulse" />
-              <span className="text-[9px] font-black uppercase text-slate-400">Previous Period</span>
-            </div>
-          </div>
-        </div>
+                  if (accounts.length === 0) return <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest">No Period Activity Detected</div>;
 
-        <div className="h-[300px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
-          <div className="w-full min-w-[700px] h-full px-2 lg:px-0">
-            <ResponsiveContainer width="99%" height="100%">
-              <AreaChart data={hourlyPattern} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={true} horizontal={true} />
-              <XAxis 
-                dataKey="hour" 
-                tick={{ fill: '#475569', fontSize: 9, fontWeight: 900 }} 
-                axisLine={false} 
-                tickLine={false}
-                interval={1}
-              />
-              <YAxis 
-                tick={{ fill: '#475569', fontSize: 9 }} 
-                axisLine={false} 
-                tickLine={false} 
-                tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}
-              />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '16px', padding: '12px' }}
-                itemStyle={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}
-                labelStyle={{ color: '#94a3b8', fontSize: 10, fontWeight: 900, marginBottom: '8px' }}
-                cursor={{ stroke: '#ffffff10', strokeWidth: 1 }}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="current" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
-                fillOpacity={1} 
-                fill="url(#colorCurrent)" 
-                isAnimationActive={false}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="previous" 
-                stroke="#10b981" 
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                fillOpacity={1} 
-                fill="url(#colorPrev)" 
-                isAnimationActive={false}
-              />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+                  return accounts.map((acc, idx) => (
+                    <motion.div 
+                      key={acc.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 * idx }}
+                      onClick={() => window.location.href = `/accounts/${encodeURIComponent(acc.id)}`}
+                      className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-white/20 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-5">
+                        <div className="text-xl font-black italic text-slate-800 group-hover:text-blue-500 transition-colors w-6">#{idx + 1}</div>
+                        <div>
+                          <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">{acc.id.split('|')[0]}</p>
+                          <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">{acc.platform} Node • {acc.followers.toLocaleString()} Reach</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-black italic text-white tracking-tighter">+{acc.gain >= 1000 ? (acc.gain / 1000).toFixed(1) + 'K' : acc.gain}</p>
+                        <p className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest">Views Added</p>
+                      </div>
+                    </motion.div>
+                  ));
+                })()
+              ) : (
+                <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest italic">Syncing Network State...</div>
+              )}
+            </div>
+         </div>
+
+         <div className="glass-card p-10 border border-white/10 flex flex-col min-h-[450px]">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-pink-500/10 border border-pink-500/20 rounded-2xl">
+                  <TrendingUp className="w-5 h-5 text-pink-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black italic uppercase text-white tracking-widest">Viral Signature</h3>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Top 5 Posts by Total Views</p>
+                </div>
+              </div>
+              <div className="px-3 py-1 bg-pink-500/10 border border-pink-500/20 rounded-full text-[8px] font-black text-pink-400 uppercase tracking-widest italic">Hot Drops</div>
+            </div>
+
+            <div className="flex-1 space-y-3">
+              {(() => {
+                const posts = (allScans || []).flatMap(s => (s.posts || []).map((p: any) => ({ ...p, nodeId: s.accountId })))
+                .sort((a, b) => (b.views || 0) - (a.views || 0))
+                .slice(0, 5);
+
+                if (posts.length === 0) return <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest">No Posts Detected</div>;
+
+                return posts.map((post, idx) => (
+                  <motion.div 
+                    key={post.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * idx }}
+                    className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl group hover:bg-white/[0.04] transition-all"
+                  >
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="w-16 h-10 rounded-lg overflow-hidden border border-white/5 bg-white/5 flex-shrink-0">
+                        <img src={post.thumbnail || ''} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-black uppercase text-white truncate pr-2 leading-tight">{post.title || 'Untitled'}</p>
+                        <p className="text-[7px] font-black text-slate-600 uppercase tracking-widest mt-1 truncate italic">{post.nodeId}</p>
+                      </div>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-sm font-black italic text-white tracking-tighter">{post.views >= 1000000 ? (post.views / 1000000).toFixed(1) + 'M' : post.views >= 1000 ? (post.views / 1000).toFixed(0) + 'K' : post.views}</p>
+                      <p className="text-[7px] font-black text-slate-700 uppercase tracking-widest">Views</p>
+                    </div>
+                  </motion.div>
+                ));
+              })()}
+            </div>
+         </div>
       </div>
 
       {/* Platform Drill-Down Panel */}
