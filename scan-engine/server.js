@@ -165,8 +165,8 @@ async function runApifyActor(actorId, input) {
     
     const url = `https://api.apify.com/v2/acts/${formattedId}/run-sync-get-dataset-items?token=${token}&timeout=180`;
     
-    // PRE-FLIGHT COST CHECK
-    const estimatedCost = actorId.includes('tiktok') ? 0.20 : 0.10;
+    // PRE-FLIGHT COST CHECK (Lowered to $0.01 for maximum uptime)
+    const estimatedCost = 0.01;
     try {
       const limitsRes = await fetch(`https://api.apify.com/v2/users/me/limits?token=${token}`);
       if (limitsRes.ok) {
@@ -559,9 +559,10 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       return;
     }
 
-    // Tiered Depth Optimization: If node is resting (interval > 12h), scrape less history
+    // Tiered Depth Optimization: (Phase 18: Credit Efficiency)
+    // Resting nodes (interval > 12h) only check 25 posts. Active nodes check 100.
     const isResting = (scan.currentInterval || 0) >= 720;
-    const scrapeLimit = isResting ? 50 : 200;
+    const scrapeLimit = isResting ? 25 : 100;
 
     let result = { posts: [] };
     if (platform === 'youtube') result = await scanYouTube(accountId, accountLink, scrapeLimit);
@@ -1107,11 +1108,22 @@ app.post('/api/settings/global-interval', (req, res) => {
 });
 
 app.post('/api/settings/force-sync', async (req, res) => {
-  console.log(`[ScanEngine] ⚡ Admin initiated FORCE GLOBAL SYNC. Scraping ${activeScans.size} nodes immediately.`);
-  activeScans.forEach((scan, accountId) => {
-    executeScan(accountId, scan.accountLink, scan.platform, true); 
-  });
-  res.json({ success: true });
+  console.log(`[ScanEngine] ⚡ Admin initiated STAGGERED GLOBAL SYNC. Scraping ${activeScans.size} nodes sequentially.`);
+  
+  // Respond immediately to keep UI snappy
+  res.json({ success: true, message: 'Sequential sync sequence started.' });
+
+  const accounts = Array.from(activeScans.entries());
+  for (const [accountId, scan] of accounts) {
+    try {
+      // Execute scan sequentially to prevent memory limit crashes
+      await executeScan(accountId, scan.accountLink, scan.platform, true);
+      // Wait 2s between nodes to avoid hitting Apify's parallel run memory limit
+      await new Promise(r => setTimeout(r, 2000));
+    } catch (e) {
+      console.error(`[ScanEngine] Error in staggered sync for ${accountId}:`, e.message);
+    }
+  }
 });
 
 // NEW: Per-Account Sync
@@ -1193,14 +1205,7 @@ app.post('/api/scans/:accountId/campaign', (req, res) => {
   res.json({ success: true, settings: { campaignStartDate, cpmThreshold, perPostCap } });
 });
 
-app.post('/api/settings/force-sync', async (req, res) => {
-  console.log(`[ScanEngine] ⚡ Admin initiated FORCE GLOBAL SYNC. Scraping ${activeScans.size} nodes immediately.`);
-  activeScans.forEach((scan, accountId) => {
-    // Execute immediate scan without clearing or resetting the main background timer
-    executeScan(accountId, scan.accountLink, scan.platform, true); 
-  });
-  res.json({ success: true });
-});
+// Removed duplicate force-sync route
 
 // New: Global content feed
 app.get('/api/scans/latest-posts', (req, res) => {

@@ -23,9 +23,20 @@ function formatNumber(n: number | string): string {
   return num.toLocaleString();
 }
 
+type RangeKey = 'today' | '24h' | '7d' | '30d' | '90d' | '1y' | 'all' | 'custom';
+
+const RANGE_OPTIONS: { key: RangeKey; label: string; days: number }[] = [
+  { key: 'today', label: 'Today', days: 1 },
+  { key: '7d', label: '7 Days', days: 7 },
+  { key: '30d', label: '30 Days', days: 30 },
+  { key: '1y', label: '1 Year', days: 365 },
+  { key: 'all', label: 'All Time', days: 3650 },
+];
+
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [search, setSearch] = useState('');
+  const [activeRange, setActiveRange] = useState<RangeKey>('7d');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newUrl, setNewUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -370,7 +381,24 @@ export default function AccountsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+            {/* Timeframe Audit Switcher */}
+            <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5 overflow-x-auto hide-scrollbar">
+              {RANGE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setActiveRange(opt.key)}
+                  className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                    activeRange === opt.key
+                      ? 'bg-white text-black shadow-lg shadow-white/10'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
             <button 
               onClick={() => setIsBulkModalOpen(true)}
               className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full transition-all flex items-center gap-2"

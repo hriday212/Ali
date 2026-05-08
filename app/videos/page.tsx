@@ -63,6 +63,16 @@ function getNodeDisplayName(nodeId: string, link: string): string {
   }
 }
 
+type RangeKey = 'today' | '24h' | '7d' | '30d' | '90d' | '1y' | 'all' | 'custom';
+
+const RANGE_OPTIONS: { key: RangeKey; label: string; days: number }[] = [
+  { key: 'today', label: 'Today', days: 1 },
+  { key: '7d', label: '7 Days', days: 7 },
+  { key: '30d', label: '30 Days', days: 30 },
+  { key: '1y', label: '1 Year', days: 365 },
+  { key: 'all', label: 'All Time', days: 3650 },
+];
+
 export default function GlobalVideosPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -71,13 +81,14 @@ export default function GlobalVideosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activePlatform, setActivePlatform] = useState<string>('all');
   const [activeType, setActiveType] = useState<'all' | 'video' | 'short' | 'viral'>('all');
+  const [activeRange, setActiveRange] = useState<RangeKey>('7d');
   const [visibleCount, setVisibleCount] = useState(30);
 
   useEffect(() => {
     async function loadLatest() {
       setLoading(true);
       try {
-        const data = await safeFetchJson(`${API_ROUTES.SCANS}/latest-posts?limit=500`);
+        const data = await safeFetchJson(`${API_ROUTES.SCANS}/latest-posts?limit=1000`);
         if (data && data.posts) {
           // Identify shorts vs videos
           const mappedPosts = data.posts.map((p: any) => ({
@@ -114,14 +125,29 @@ export default function GlobalVideosPage() {
     }
   };
 
+  // Compute date range for filtering
+  const rangeDays = RANGE_OPTIONS.find(r => r.key === activeRange)?.days || 3650;
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - rangeDays);
+
   let filteredPosts = posts.filter(post => {
+    // 1. Search Query
     if (searchQuery && !post.title.toLowerCase().includes(searchQuery.toLowerCase()) && !post.nodeId?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    
+    // 2. Platform
     if (activePlatform !== 'all' && post.platform !== activePlatform) return false;
     
+    // 3. Type
     // @ts-ignore
     if (activeType === 'short' && !post.isShort) return false;
     // @ts-ignore
     if (activeType === 'video' && post.isShort) return false;
+
+    // 4. Timeframe (New)
+    if (activeRange !== 'all' && post.date) {
+        const pDate = new Date(post.date);
+        if (pDate < cutoffDate) return false;
+    }
 
     return true;
   });
