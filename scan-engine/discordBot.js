@@ -87,13 +87,16 @@ async function initDiscordBot(token, onApprove, getSummary) {
             if (interaction.commandName === 'status' || interaction.commandName === 'scans' || interaction.commandName === 'audit') {
                 if (!getSummary) return interaction.reply('Summary callback not initialized.');
                 
+                // Defer reply to prevent 3s timeout
+                await interaction.deferReply();
+
                 const nodeId = interaction.options.getString('node_id');
                 const timeframe = interaction.options.getString('timeframe') || '24h';
                 const dateParam = interaction.options.getString('date');
                 const summary = await getSummary(nodeId, timeframe, dateParam);
                 
                 if (nodeId && summary.error) {
-                    return interaction.reply({ content: `❌ **Error**: ${summary.error}`, ephemeral: true });
+                    return interaction.editReply({ content: `❌ **Error**: ${summary.error}` });
                 }
 
                 const embed = new EmbedBuilder()
@@ -104,7 +107,7 @@ async function initDiscordBot(token, onApprove, getSummary) {
                 
                 if (nodeId && summary.thumbnail) embed.setThumbnail(summary.thumbnail);
 
-                return interaction.reply({ embeds: [embed] });
+                return interaction.editReply({ embeds: [embed] });
             }
         }
 
