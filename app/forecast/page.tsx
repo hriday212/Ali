@@ -287,10 +287,12 @@ export default function ForecastPage() {
 
     // Build the contiguous timeline (Dual-line for comparison)
     const mergedTimeSeries = [];
+    const currentPeriodBaseline = timelineMap[rangeDays] || 0;
+    
     for (let i = 0; i < rangeDays; i++) {
       mergedTimeSeries.push({
         day: `Day ${i + 1}`,
-        current: timelineMap[rangeDays + i],
+        current: Math.max(0, timelineMap[rangeDays + i] - currentPeriodBaseline),
         previous: timelineMap[i]
       });
     }
@@ -882,10 +884,12 @@ export default function ForecastPage() {
                     const history = s.history || [];
                     const currentH = filterHistoryByRange(history, currentStart, currentEnd);
                     let gain = 0;
-                    if (currentH.length > 1) {
-                      gain = (currentH[currentH.length - 1].totalViews || 0) - (currentH[0].totalViews || 0);
-                    } else if (currentH.length === 1) {
-                      gain = currentH[0].totalViews || 0;
+                    if (currentH.length > 0) {
+                      const first = currentH[0];
+                      const latest = currentH[currentH.length - 1];
+                      const isNewVideo = history[0] === first;
+                      const baseline = isNewVideo ? 0 : (first.totalViews || 0);
+                      gain = Math.max(0, (latest.totalViews || 0) - baseline);
                     }
                     return { ...s, gain };
                   })
