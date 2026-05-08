@@ -62,7 +62,12 @@ function KpiCard({ label, value, prevValue, icon: Icon, color, delay }: {
   };
 
   return (
-    <div className="glass-card p-6 border border-white/10 hover:border-white/20 transition-all relative overflow-hidden group">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className="glass-card p-6 border border-white/10 hover:border-white/20 transition-all relative overflow-hidden group"
+    >
       <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
         <Icon className={`w-20 h-20 ${color}`} />
       </div>
@@ -88,7 +93,7 @@ function KpiCard({ label, value, prevValue, icon: Icon, color, delay }: {
           {isFlat ? '0%' : `${isUp ? '+' : ''}${pctChange.toFixed(1)}%`}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -280,12 +285,13 @@ export default function ForecastPage() {
       raw: value,
     }));
 
-    // Build the contiguous timeline
+    // Build the contiguous timeline (Dual-line for comparison)
     const mergedTimeSeries = [];
-    for (let i = 0; i < totalDays; i++) {
+    for (let i = 0; i < rangeDays; i++) {
       mergedTimeSeries.push({
-        day: i < rangeDays ? `P-${i+1}` : `C-${i + 1 - rangeDays}`,
-        views: timelineMap[i]
+        day: `Day ${i + 1}`,
+        current: timelineMap[rangeDays + i],
+        previous: timelineMap[i]
       });
     }
 
@@ -307,8 +313,7 @@ export default function ForecastPage() {
         const h = history[i];
         const hTime = new Date(h.time).getTime();
         if (hTime >= currentStart.getTime() && hTime <= currentEnd.getTime()) {
-          const originalIndex = history.indexOf(h);
-          const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
+          const prevH = i > 0 ? history[i - 1] : null;
           const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : (h.totalViews || 0);
           const hr = new Date(h.time).getHours();
           const label = hourLabels[hr];
@@ -321,8 +326,7 @@ export default function ForecastPage() {
         const h = history[i];
         const hTime = new Date(h.time).getTime();
         if (hTime >= prevStart.getTime() && hTime <= prevEnd.getTime()) {
-          const originalIndex = history.indexOf(h);
-          const prevH = originalIndex > 0 ? history[originalIndex - 1] : null;
+          const prevH = i > 0 ? history[i - 1] : null;
           const delta = prevH ? Math.max(0, (h.totalViews || 0) - (prevH.totalViews || 0)) : (h.totalViews || 0);
           const hr = new Date(h.time).getHours();
           const label = hourLabels[hr];
@@ -517,130 +521,6 @@ export default function ForecastPage() {
         <KpiCard label="Total Shares" value={currentKPIs.shares} prevValue={prevKPIs.shares} icon={Share2} color="text-emerald-400" delay={0.25} />
       </div>
 
-      {/* ── NEW SECTION: MOMENTUM LEADERBOARDS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-         {/* Top 5 Momentum Accounts */}
-         <div className="glass-card p-10 border border-white/10 flex flex-col min-h-[450px]">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
-                  <TrendingUp className="w-5 h-5 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black italic uppercase text-white tracking-widest">Momentum Alpha</h3>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Top 5 Accounts by Period Gain</p>
-                </div>
-              </div>
-              <Zap className="w-4 h-4 text-slate-800 animate-pulse" />
-            </div>
-
-            <div className="flex-1 space-y-3">
-              {timeSeries.length > 0 && (hourlyPattern.some(h => h.current > 0) || hourlyPattern.some(h => h.previous > 0)) ? (
-                (() => {
-                  // Re-calculating top accounts to ensure they are the ones with actual activity in the period
-                  const accounts = (allScans || []).map(s => {
-                    const history = s.history || [];
-                    const currentH = filterHistoryByRange(history, currentStart, currentEnd);
-                    let gain = 0;
-                    if (currentH.length > 1) {
-                      gain = (currentH[currentH.length - 1].totalViews || 0) - (currentH[0].totalViews || 0);
-                    } else if (currentH.length === 1) {
-                      gain = currentH[0].totalViews || 0;
-                    }
-                    return { id: s.accountId, platform: s.platform, gain, followers: s.lastFollowers || 0 };
-                  })
-                  .filter(a => a.gain > 0)
-                  .sort((a, b) => b.gain - a.gain)
-                  .slice(0, 5);
-
-                  if (accounts.length === 0) return <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest">No Period Activity Detected</div>;
-
-                  return accounts.map((acc, idx) => (
-                    <motion.div 
-                      key={acc.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 * idx }}
-                      onClick={() => window.location.href = `/accounts/${encodeURIComponent(acc.id)}`}
-                      className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-white/20 transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-5">
-                        <div className="text-xl font-black italic text-slate-800 group-hover:text-blue-500 transition-colors w-6">#{idx + 1}</div>
-                        <div>
-                          <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">{acc.id.split('|')[0]}</p>
-                          <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">{acc.platform} Node • {acc.followers.toLocaleString()} Reach</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-black italic text-white tracking-tighter">+{acc.gain >= 1000 ? (acc.gain / 1000).toFixed(1) + 'K' : acc.gain}</p>
-                        <p className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest">Views Added</p>
-                      </div>
-                    </motion.div>
-                  ));
-                })()
-              ) : (
-                <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest italic">Syncing Network State...</div>
-              )}
-            </div>
-         </div>
-
-         {/* Top 5 Viral Posts */}
-         <div className="glass-card p-10 border border-white/10 flex flex-col min-h-[450px]">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-pink-500/10 border border-pink-500/20 rounded-2xl">
-                  <TrendingUp className="w-5 h-5 text-pink-400" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black italic uppercase text-white tracking-widest">Viral Signature</h3>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-1">Top 5 Posts by Total Views</p>
-                </div>
-              </div>
-              <div className="px-3 py-1 bg-pink-500/10 border border-pink-500/20 rounded-full text-[8px] font-black text-pink-400 uppercase tracking-widest italic">Hot Drops</div>
-            </div>
-
-            <div className="flex-1 space-y-3">
-              {(() => {
-                const posts = (allScans || [])
-                  .flatMap(s => (s.posts || []).map((p: any) => ({ ...p, accountId: s.accountId, platform: s.platform })))
-                  .sort((a, b) => (b.views || 0) - (a.views || 0))
-                  .slice(0, 5);
-
-                if (posts.length === 0) return <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest">No Posts Detected</div>;
-
-                return posts.map((post, idx) => (
-                  <motion.div 
-                    key={post.id + idx}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 * idx }}
-                    className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] transition-all group"
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-900 border border-white/5 flex-shrink-0">
-                        <SmartImage 
-                          src={post.thumbnail} 
-                          alt={post.title}
-                          className="w-full h-full"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                        <div className="absolute bottom-1 right-1 text-[7px] font-black text-white">{post.platform === 'youtube' ? 'YT' : 'TT'}</div>
-                      </div>
-                      <div className="truncate">
-                        <p className="text-[10px] font-black italic uppercase tracking-tighter text-white truncate group-hover:text-pink-400 transition-colors leading-tight mb-1">{post.title}</p>
-                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">{post.accountId.split('|')[0]}</p>
-                      </div>
-                    </div>
-                    <div className="text-right ml-4 flex-shrink-0">
-                      <p className="text-sm font-black italic text-white tracking-tighter">{post.views >= 1000000 ? (post.views / 1000000).toFixed(1) + 'M' : post.views >= 1000 ? (post.views / 1000).toFixed(0) + 'K' : post.views}</p>
-                      <p className="text-[7px] font-black text-slate-700 uppercase tracking-widest italic">Views</p>
-                    </div>
-                  </motion.div>
-                ));
-              })()}
-            </div>
-         </div>
-      </div>
       {/* Comparative Bar Chart (Full Width) */}
       <div className="glass-card p-8 border border-white/10" data-export-id="comparison-charts">
         <div className="flex items-center justify-between mb-6">
@@ -670,20 +550,16 @@ export default function ForecastPage() {
               <ResponsiveContainer width="99%" height="100%">
                 <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <defs>
-                    <linearGradient id="splitGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#475569" />
-                      <stop offset="50%" stopColor="#475569" />
-                      <stop offset="50%" stopColor="#3b82f6" />
-                      <stop offset="100%" stopColor="#3b82f6" />
+                    <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                     </linearGradient>
-                    <linearGradient id="fillGradient" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#475569" stopOpacity={0.05} />
-                      <stop offset="50%" stopColor="#475569" stopOpacity={0.05} />
-                      <stop offset="50%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
+                    <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={true} horizontal={true} />
                   <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} minTickGap={20} />
                   <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                   <Tooltip
@@ -694,11 +570,21 @@ export default function ForecastPage() {
                   />
                   <Area 
                       type="monotone" 
-                      dataKey="views" 
-                      name="Views" 
-                      stroke="url(#splitGradient)" 
+                      dataKey="current" 
+                      name="Current Period" 
+                      stroke="#3b82f6" 
                       strokeWidth={3} 
-                      fill="url(#fillGradient)" 
+                      fill="url(#colorCurrent)" 
+                      isAnimationActive={false} 
+                  />
+                  <Area 
+                      type="monotone" 
+                      dataKey="previous" 
+                      name="Previous Period" 
+                      stroke="#10b981" 
+                      strokeWidth={2} 
+                      strokeDasharray="5 5"
+                      fill="url(#colorPrev)" 
                       isAnimationActive={false} 
                   />
                 </AreaChart>
@@ -880,50 +766,31 @@ export default function ForecastPage() {
             </div>
 
             <div className="flex-1 space-y-3">
-              {timeSeries.length > 0 && (hourlyPattern.some(h => h.current > 0) || hourlyPattern.some(h => h.previous > 0)) ? (
-                (() => {
-                  const accounts = (allScans || []).map(s => {
-                    const history = s.history || [];
-                    const currentH = filterHistoryByRange(history, currentStart, currentEnd);
-                    let gain = 0;
-                    if (currentH.length > 1) {
-                      gain = (currentH[currentH.length - 1].totalViews || 0) - (currentH[0].totalViews || 0);
-                    } else if (currentH.length === 1) {
-                      gain = currentH[0].totalViews || 0;
-                    }
-                    return { id: s.accountId, platform: s.platform, gain, followers: s.lastFollowers || 0 };
-                  })
-                  .filter(a => a.gain > 0)
-                  .sort((a, b) => b.gain - a.gain)
-                  .slice(0, 5);
-
-                  if (accounts.length === 0) return <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest">No Period Activity Detected</div>;
-
-                  return accounts.map((acc, idx) => (
-                    <motion.div 
-                      key={acc.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 * idx }}
-                      onClick={() => window.location.href = `/accounts/${encodeURIComponent(acc.id)}`}
-                      className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-white/20 transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-5">
-                        <div className="text-xl font-black italic text-slate-800 group-hover:text-blue-500 transition-colors w-6">#{idx + 1}</div>
-                        <div>
-                          <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">{acc.id.split('|')[0]}</p>
-                          <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">{acc.platform} Node • {acc.followers.toLocaleString()} Reach</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-black italic text-white tracking-tighter">+{acc.gain >= 1000 ? (acc.gain / 1000).toFixed(1) + 'K' : acc.gain}</p>
-                        <p className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest">Views Added</p>
-                      </div>
-                    </motion.div>
-                  ));
-                })()
-              ) : (
+              {topAccounts.length === 0 ? (
                 <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest italic">Syncing Network State...</div>
+              ) : (
+                topAccounts.map((acc, idx) => (
+                  <motion.div 
+                    key={acc.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * idx }}
+                    onClick={() => window.location.href = `/accounts/${encodeURIComponent(acc.id)}`}
+                    className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-white/20 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-5">
+                      <div className="text-xl font-black italic text-slate-800 group-hover:text-blue-500 transition-colors w-6">#{idx + 1}</div>
+                      <div>
+                        <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">{acc.id.split('|')[0]}</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">{acc.platform} Node • {acc.followers.toLocaleString()} Reach</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-black italic text-white tracking-tighter">+{acc.views >= 1000 ? (acc.views / 1000).toFixed(1) + 'K' : acc.views}</p>
+                      <p className="text-[8px] font-black text-blue-500/50 uppercase tracking-widest">Period Gain</p>
+                    </div>
+                  </motion.div>
+                ))
               )}
             </div>
          </div>
@@ -943,37 +810,39 @@ export default function ForecastPage() {
             </div>
 
             <div className="flex-1 space-y-3">
-              {(() => {
-                const posts = (allScans || []).flatMap(s => (s.posts || []).map((p: any) => ({ ...p, nodeId: s.accountId })))
-                .sort((a, b) => (b.views || 0) - (a.views || 0))
-                .slice(0, 5);
-
-                if (posts.length === 0) return <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest">No Posts Detected</div>;
-
-                return posts.map((post, idx) => (
+              {topPosts.length === 0 ? (
+                <div className="h-full flex items-center justify-center opacity-20 text-[10px] font-black uppercase tracking-widest italic">No Viral Activity in Period</div>
+              ) : (
+                topPosts.map((post, idx) => (
                   <motion.div 
-                    key={post.id}
+                    key={post.id + idx}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.1 * idx }}
-                    className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl group hover:bg-white/[0.04] transition-all"
+                    className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] transition-all group"
                   >
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-16 h-10 rounded-lg overflow-hidden border border-white/5 bg-white/5 flex-shrink-0">
-                        <img src={post.thumbnail || ''} alt="" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative w-16 h-10 rounded-xl overflow-hidden bg-slate-900 border border-white/5 flex-shrink-0">
+                        <SmartImage 
+                          src={post.thumbnail} 
+                          alt={post.title}
+                          className="w-full h-full"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-1 right-1 text-[7px] font-black text-white">{post.platform === 'youtube' ? 'YT' : 'TT'}</div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-black uppercase text-white truncate pr-2 leading-tight">{post.title || 'Untitled'}</p>
-                        <p className="text-[7px] font-black text-slate-600 uppercase tracking-widest mt-1 truncate italic">{post.nodeId}</p>
+                      <div className="truncate">
+                        <p className="text-[10px] font-black italic uppercase tracking-tighter text-white truncate group-hover:text-pink-400 transition-colors leading-tight mb-1">{post.title}</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">{post.accountId.split('|')[0]}</p>
                       </div>
                     </div>
-                    <div className="text-right ml-4">
+                    <div className="text-right ml-4 flex-shrink-0">
                       <p className="text-sm font-black italic text-white tracking-tighter">{post.views >= 1000000 ? (post.views / 1000000).toFixed(1) + 'M' : post.views >= 1000 ? (post.views / 1000).toFixed(0) + 'K' : post.views}</p>
-                      <p className="text-[7px] font-black text-slate-700 uppercase tracking-widest">Views</p>
+                      <p className="text-[7px] font-black text-slate-700 uppercase tracking-widest italic">Peak Impact</p>
                     </div>
                   </motion.div>
-                ));
-              })()}
+                ))
+              )}
             </div>
          </div>
       </div>
@@ -1007,68 +876,77 @@ export default function ForecastPage() {
 
               {/* Platform-specific aggregate KPIs */}
               {(() => {
-                const platformScans = allScans.filter(s => s.platform === activePlatform);
-                const totalViews = platformScans.reduce((s, n) => s + (n.lastViews || 0), 0);
-                const totalLikes = platformScans.reduce((s, n) => s + (n.lastLikes || 0), 0);
-                const totalComments = platformScans.reduce((s, n) => s + (n.lastComments || 0), 0);
+                const platformNodes = allScans
+                  .filter(s => s.platform === activePlatform)
+                  .map(s => {
+                    const history = s.history || [];
+                    const currentH = filterHistoryByRange(history, currentStart, currentEnd);
+                    let gain = 0;
+                    if (currentH.length > 1) {
+                      gain = (currentH[currentH.length - 1].totalViews || 0) - (currentH[0].totalViews || 0);
+                    } else if (currentH.length === 1) {
+                      gain = currentH[0].totalViews || 0;
+                    }
+                    return { ...s, gain };
+                  })
+                  .filter(s => s.gain > 0)
+                  .sort((a, b) => b.gain - a.gain);
+
+                const totalPeriodViews = platformNodes.reduce((s, n) => s + n.gain, 0);
                 const formatNum = (n: number) => n >= 1_000_000 ? `${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n/1_000).toFixed(1)}K` : n.toLocaleString();
 
                 return (
                   <>
                     <div className="grid grid-cols-3 gap-4 mb-6">
                       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 text-center">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Views</p>
-                        <p className="text-2xl font-black italic tracking-tighter text-white">{formatNum(totalViews)}</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Period Growth</p>
+                        <p className="text-2xl font-black italic tracking-tighter text-white">+{formatNum(totalPeriodViews)}</p>
                       </div>
                       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 text-center">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Likes</p>
-                        <p className="text-2xl font-black italic tracking-tighter text-white">{formatNum(totalLikes)}</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Active Nodes</p>
+                        <p className="text-2xl font-black italic tracking-tighter text-white">{platformNodes.length}</p>
                       </div>
                       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 text-center">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Comments</p>
-                        <p className="text-2xl font-black italic tracking-tighter text-white">{formatNum(totalComments)}</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">Avg Momentum</p>
+                        <p className="text-2xl font-black italic tracking-tighter text-white">
+                          +{platformNodes.length > 0 ? formatNum(Math.floor(totalPeriodViews / platformNodes.length)) : 0}
+                        </p>
                       </div>
                     </div>
 
                     {/* Node Table */}
-                    <div className="space-y-2">
-                      {platformScans.sort((a, b) => (b.lastViews || 0) - (a.lastViews || 0)).map((node: any) => (
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                      {platformNodes.map((node: any) => (
                         <div
                           key={node.accountId}
                           onClick={() => window.location.href = `/accounts/${encodeURIComponent(node.accountId)}`}
                           className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:border-white/20 hover:bg-white/[0.04] cursor-pointer transition-all group"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                              {activePlatform === 'youtube' && <Youtube className="w-4 h-4 text-red-500" />}
-                              {activePlatform === 'tiktok' && <Music2 className="w-4 h-4 text-cyan-400" />}
-                              {activePlatform === 'instagram' && <Instagram className="w-4 h-4 text-pink-500" />}
+                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                              <SmartImage src={node.lastThumbnail} alt="" className="w-full h-full" />
                             </div>
                             <div>
                               <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">
                                 {node.accountId.split('|')[0]}
                               </p>
                               <p className="text-[8px] font-bold uppercase tracking-widest text-slate-600">
-                                {node.scanCount || 0} scans • Last: {node.lastScanTime ? new Date(node.lastScanTime).toLocaleTimeString() : 'Never'}
+                                {node.lastFollowers?.toLocaleString()} REACH • {node.posts?.length || 0} POSTS
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-6">
                             <div className="text-right">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Views</p>
-                              <p className="text-sm font-black italic text-white">{formatNum(node.lastViews || 0)}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Likes</p>
-                              <p className="text-sm font-black italic text-white">{formatNum(node.lastLikes || 0)}</p>
+                              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Period Gain</p>
+                              <p className="text-sm font-black italic text-white">+{formatNum(node.gain)}</p>
                             </div>
                             <ArrowUpRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
                           </div>
                         </div>
                       ))}
-                      {platformScans.length === 0 && (
-                        <div className="py-8 text-center">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">No {activePlatform} nodes detected in the network</p>
+                      {platformNodes.length === 0 && (
+                        <div className="py-20 text-center opacity-30">
+                          <p className="text-xs font-black uppercase tracking-[0.3em]">No Period Momentum Found</p>
                         </div>
                       )}
                     </div>
