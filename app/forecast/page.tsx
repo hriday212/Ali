@@ -157,7 +157,7 @@ export default function ForecastPage() {
   const { start: prevStart, end: prevEnd } = getPreviousPeriod(currentStart, currentEnd);
 
   // Aggregate data across all nodes for both periods
-  const { currentKPIs, prevKPIs, platformDist, timeSeries, hourlyPattern } = useMemo(() => {
+  const { currentKPIs, prevKPIs, platformDist, timeSeries, hourlyPattern, topAccounts, topPosts } = useMemo(() => {
     let cViews = 0, cLikes = 0, cComments = 0, cShares = 0;
     let pViews = 0, pLikes = 0, pComments = 0, pShares = 0;
     const platViews: Record<string, number> = {};
