@@ -774,7 +774,7 @@ export default function ForecastPage() {
                     <div className="flex items-center gap-5">
                       <div className="text-xl font-black italic text-slate-800 group-hover:text-blue-500 transition-colors w-6">#{idx + 1}</div>
                       <div>
-                        <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">{acc.id.split('|')[0]}</p>
+                        <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">{acc.name ? acc.name.split('|')[0] : acc.id.split('|')[0]}</p>
                         <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">{acc.platform} Node • {acc.followers.toLocaleString()} Reach</p>
                       </div>
                     </div>
@@ -826,7 +826,7 @@ export default function ForecastPage() {
                       </div>
                       <div className="truncate">
                         <p className="text-[10px] font-black italic uppercase tracking-tighter text-white truncate group-hover:text-pink-400 transition-colors leading-tight mb-1">{post.title}</p>
-                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">{post.accountId.split('|')[0]}</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">{post.accountName ? post.accountName.split('|')[0] : post.accountId.split('|')[0]}</p>
                       </div>
                     </div>
                     <div className="text-right ml-4 flex-shrink-0">
@@ -923,7 +923,7 @@ export default function ForecastPage() {
                             </div>
                             <div>
                               <p className="text-sm font-black italic uppercase tracking-tighter text-white group-hover:text-blue-400 transition-colors">
-                                {node.accountId.split('|')[0]}
+                                {node.name ? node.name.split('|')[0] : node.accountId.split('|')[0]}
                               </p>
                               <p className="text-[8px] font-bold uppercase tracking-widest text-slate-600">
                                 {node.lastFollowers?.toLocaleString()} REACH • {node.posts?.length || 0} POSTS
