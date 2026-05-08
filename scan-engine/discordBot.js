@@ -19,7 +19,7 @@ async function initDiscordBot(token, onApprove, getSummary) {
         ]
     });
 
-    client.on('clientReady', async () => {
+    client.on('ready', async () => {
         console.log(`[DiscordBot] Logged in as ${client.user.tag}`);
         
         // Register Slash Commands (Phase 18)
@@ -84,30 +84,46 @@ async function initDiscordBot(token, onApprove, getSummary) {
 
     client.on('interactionCreate', async (interaction) => {
         if (interaction.isCommand()) {
+            console.log(`[DiscordBot] Command Received: /${interaction.commandName}`);
+            
             if (interaction.commandName === 'status' || interaction.commandName === 'scans' || interaction.commandName === 'audit') {
-                if (!getSummary) return interaction.reply('Summary callback not initialized.');
-                
-                // Defer reply to prevent 3s timeout
-                await interaction.deferReply();
+                try {
+                    // Defer reply INSTANTLY to prevent 3s timeout
+                    await interaction.deferReply();
+                    console.log(`[DiscordBot] Interaction Deferred: /${interaction.commandName}`);
 
-                const nodeId = interaction.options.getString('node_id');
-                const timeframe = interaction.options.getString('timeframe') || '24h';
-                const dateParam = interaction.options.getString('date');
-                const summary = await getSummary(nodeId, timeframe, dateParam);
-                
-                if (nodeId && summary.error) {
-                    return interaction.editReply({ content: `❌ **Error**: ${summary.error}` });
+                    if (!getSummary) {
+                        return interaction.editReply('❌ **System Error**: Summary engine not connected.');
+                    }
+
+                    const nodeId = interaction.options.getString('node_id');
+                    const timeframe = interaction.options.getString('timeframe') || '24h';
+                    const dateParam = interaction.options.getString('date');
+                    
+                    console.log(`[DiscordBot] Processing Audit: ${nodeId || 'GLOBAL'} (${timeframe})`);
+                    const summary = await getSummary(nodeId, timeframe, dateParam);
+                    
+                    if (nodeId && summary.error) {
+                        return interaction.editReply({ content: `❌ **Error**: ${summary.error}` });
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(nodeId ? `🔍 Node Audit: ${nodeId} (${dateParam || timeframe.toUpperCase()})` : `📊 Network Vitality Report (${dateParam || timeframe.toUpperCase()})`)
+                        .setColor(nodeId ? 0x00FF99 : 0x00D1FF)
+                        .setDescription(interaction.commandName === 'status' ? summary.brief : (nodeId ? summary.nodeDetail : summary.detailed))
+                        .setTimestamp();
+                    
+                    if (nodeId && summary.thumbnail) embed.setThumbnail(summary.thumbnail);
+
+                    await interaction.editReply({ embeds: [embed] });
+                    console.log(`[DiscordBot] Command Fulfilled: /${interaction.commandName}`);
+                } catch (err) {
+                    console.error(`[DiscordBot] Command Failed: /${interaction.commandName}`, err);
+                    if (interaction.deferred) {
+                        await interaction.editReply('❌ **Vitality Protocol Failure**: An internal error occurred during forensic audit.');
+                    }
                 }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(nodeId ? `🔍 Node Audit: ${nodeId} (${dateParam || timeframe.toUpperCase()})` : `📊 Network Vitality Report (${dateParam || timeframe.toUpperCase()})`)
-                    .setColor(nodeId ? 0x00FF99 : 0x00D1FF)
-                    .setDescription(interaction.commandName === 'status' ? summary.brief : (nodeId ? summary.nodeDetail : summary.detailed))
-                    .setTimestamp();
-                
-                if (nodeId && summary.thumbnail) embed.setThumbnail(summary.thumbnail);
-
-                return interaction.editReply({ embeds: [embed] });
+                return;
             }
         }
 
