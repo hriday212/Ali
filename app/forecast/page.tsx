@@ -637,6 +637,10 @@ export default function ForecastPage() {
                     </div>
                   </motion.div>
                 ));
+              })()}
+            </div>
+         </div>
+      </div>
       {/* Comparative Bar Chart (Full Width) */}
       <div className="glass-card p-8 border border-white/10" data-export-id="comparison-charts">
         <div className="flex items-center justify-between mb-6">
@@ -706,7 +710,7 @@ export default function ForecastPage() {
 
       {/* Activity & Platform Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 glass-card p-10 border border-white/10 overflow-hidden relative" data-export-id="hourly-chart">
+        <div className="lg:col-span-2 glass-card p-10 border border-white/10 overflow-hidden relative flex flex-col" data-export-id="hourly-chart">
           <div className="absolute top-0 right-0 p-8 pointer-events-none opacity-[0.03]">
             <TrendingUp className="w-48 h-48 text-blue-500" />
           </div>
@@ -736,7 +740,7 @@ export default function ForecastPage() {
             </div>
           </div>
 
-          <div className="h-[300px] w-full overflow-x-auto hide-scrollbar touch-pan-x">
+          <div className="h-[300px] w-full overflow-x-auto hide-scrollbar touch-pan-x flex-1">
             <div className="w-full min-w-[700px] h-full px-2 lg:px-0">
               <ResponsiveContainer width="99%" height="100%">
                 <AreaChart data={hourlyPattern} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -796,11 +800,11 @@ export default function ForecastPage() {
         </div>
 
         {/* Cross-Platform Pie Chart */}
-        <div className="glass-card p-8 border border-white/10">
+        <div className="glass-card p-8 border border-white/10 flex flex-col">
           <h3 className="text-lg font-black italic uppercase text-white tracking-widest mb-1">Platform Split</h3>
           <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-6">View Distribution by Platform</p>
 
-          <div className="h-[250px]">
+          <div className="h-[250px] flex-1">
             {platformDist.length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">No platform data</p>
