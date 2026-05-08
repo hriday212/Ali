@@ -1395,7 +1395,7 @@ app.listen(PORT, '0.0.0.0', () => {
             const platformEmoji = scan.platform === 'youtube' ? '🔴' : scan.platform === 'tiktok' ? '⚫' : '🟣';
 
             return {
-                nodeDetail: `📡 **Node Intelligence Audit**\n` +
+                nodeDetail: `📡 **Node Vitality Intelligence Audit**\n` +
                            `> Node: \`${scan.name || nodeId}\`\n` +
                            `> Platform: ${platformEmoji} **${scan.platform.toUpperCase()}**\n` +
                            `> Status: ${health}\n` +
@@ -1422,28 +1422,30 @@ app.listen(PORT, '0.0.0.0', () => {
             return '⚪';
         };
 
-        const details = sortedScans.slice(0, 15).map(s => {
+        const passedList = [], failedList = [];
+        
+        sortedScans.forEach(s => {
             const data = readScanData(s.accountId);
             const views = data.history?.[data.history.length - 1]?.totalViews || 0;
             totalViews += views;
             totalEarned += s.totalEarned || 0;
             const status = s.slaStatus || 'HEALTHY';
-            if (status === 'HEALTHY') healthy++; else failing++;
             
             const icon = getEmoji(s.platform);
-            const health = status === 'HEALTHY' ? '✅' : '⚠️';
-            return `${icon} \`${(s.name || s.accountId).substring(0,14).padEnd(14)}\` | **${(views/1000).toFixed(1)}k** | ${health}`;
-        }).join('\n');
+            const entry = `${icon} \`${(s.name || s.accountId).substring(0,12).padEnd(12)}\` | **${(views/1000).toFixed(1)}k**`;
+            
+            if (status === 'HEALTHY') {
+                healthy++;
+                passedList.push(entry);
+            } else {
+                failing++;
+                failedList.push(entry);
+            }
+        });
 
-        // Add stats for nodes not in the top 15
-        if (sortedScans.length > 15) {
-            sortedScans.slice(15).forEach(s => {
-                const data = readScanData(s.accountId);
-                totalViews += data.history?.[data.history.length - 1]?.totalViews || 0;
-                totalEarned += s.totalEarned || 0;
-                if ((s.slaStatus || 'HEALTHY') === 'HEALTHY') healthy++; else failing++;
-            });
-        }
+        const detailed = `✅ **VITALITY COMPLIANCE** (${healthy})\n${passedList.slice(0, 10).join('\n')}${passedList.length > 10 ? `\n*+ ${passedList.length - 10} more...*` : ''}\n\n` +
+                        `⚠️ **DIMINISHED VITALITY** (${failing})\n${failedList.length > 0 ? failedList.slice(0, 10).join('\n') : '*All nodes currently at full vitality.*'}${failedList.length > 10 ? `\n*+ ${failedList.length - 10} more...*` : ''}\n\n` +
+                        `[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`;
 
         return {
             brief: `📡 **Network Overview**\n` +
@@ -1451,7 +1453,7 @@ app.listen(PORT, '0.0.0.0', () => {
                    `> Reach: \`${(totalViews / 1000000).toFixed(2)}M\` views\n` +
                    `> Yield: \`$${totalEarned.toFixed(2)}\` earned\n` +
                    `> Health: \`${healthy} ✅ / ${failing} ⚠️\``,
-            detailed: `🔍 **Forensic Node Audit (Top 15)**\n${details}${sortedScans.length > 15 ? `\n*+ ${sortedScans.length - 15} more nodes...*` : ''}\n\n[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`
+            detailed
         };
     }
   );

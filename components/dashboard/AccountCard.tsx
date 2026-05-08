@@ -175,14 +175,14 @@ export default function AccountCard({ account, onDelete, onUpdate }: AccountCard
           {account.followers} <span className="text-[10px] text-slate-600 italic">Network Reach</span>
         </p>
         
-        {/* SLA Status Badge */}
+        {/* Vitality Status Badge */}
         <div className="flex items-center justify-center gap-2 mt-2">
           <div className={`px-2 py-0.5 rounded-md border text-[8px] font-black uppercase tracking-widest ${
             account.slaStatus === 'HEALTHY' 
               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
               : 'bg-red-500/10 border-red-500/20 text-red-400'
           }`}>
-            SLA: {account.slaStatus || 'PENDING'}
+            VITALITY: {account.slaStatus === 'HEALTHY' ? 'FULL' : 'DIMINISHED'}
           </div>
           <span className="text-[8px] font-bold text-slate-500 uppercase">{account.dailyPostCount || 0} Posts/24h</span>
         </div>

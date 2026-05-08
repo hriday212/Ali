@@ -382,7 +382,7 @@ export default function AccountsPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-            {/* Timeframe Audit Switcher */}
+            {/* Vitality Audit Switcher */}
             <div className="flex items-center gap-1 bg-white/[0.03] border border-white/10 rounded-2xl p-1.5 overflow-x-auto hide-scrollbar">
               {RANGE_OPTIONS.map((opt) => (
                 <button
