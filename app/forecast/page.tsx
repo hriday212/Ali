@@ -285,15 +285,12 @@ export default function ForecastPage() {
       raw: value,
     }));
 
-    // Build the contiguous timeline (Dual-line for comparison)
+    // Build the contiguous timeline
     const mergedTimeSeries = [];
-    const currentPeriodBaseline = timelineMap[rangeDays] || 0;
-    
-    for (let i = 0; i < rangeDays; i++) {
+    for (let i = 0; i < totalDays; i++) {
       mergedTimeSeries.push({
-        day: `Day ${i + 1}`,
-        current: Math.max(0, timelineMap[rangeDays + i] - currentPeriodBaseline),
-        previous: timelineMap[i]
+        day: i < rangeDays ? `P-${i+1}` : `C-${i + 1 - rangeDays}`,
+        views: timelineMap[i]
       });
     }
 
@@ -552,16 +549,20 @@ export default function ForecastPage() {
               <ResponsiveContainer width="99%" height="100%">
                 <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                   <defs>
-                    <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <linearGradient id="splitGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#475569" />
+                      <stop offset="50%" stopColor="#475569" />
+                      <stop offset="50%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#3b82f6" />
                     </linearGradient>
-                    <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <linearGradient id="fillGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#475569" stopOpacity={0.05} />
+                      <stop offset="50%" stopColor="#475569" stopOpacity={0.05} />
+                      <stop offset="50%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={true} horizontal={true} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                   <XAxis dataKey="day" tick={{ fill: '#475569', fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} minTickGap={20} />
                   <YAxis tick={{ fill: '#475569', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                   <Tooltip
@@ -572,21 +573,11 @@ export default function ForecastPage() {
                   />
                   <Area 
                       type="monotone" 
-                      dataKey="current" 
-                      name="Current Period" 
-                      stroke="#3b82f6" 
+                      dataKey="views" 
+                      name="Views" 
+                      stroke="url(#splitGradient)" 
                       strokeWidth={3} 
-                      fill="url(#colorCurrent)" 
-                      isAnimationActive={false} 
-                  />
-                  <Area 
-                      type="monotone" 
-                      dataKey="previous" 
-                      name="Previous Period" 
-                      stroke="#10b981" 
-                      strokeWidth={2} 
-                      strokeDasharray="5 5"
-                      fill="url(#colorPrev)" 
+                      fill="url(#fillGradient)" 
                       isAnimationActive={false} 
                   />
                 </AreaChart>
