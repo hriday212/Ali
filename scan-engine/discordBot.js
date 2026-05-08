@@ -31,6 +31,18 @@ async function initDiscordBot(token, onApprove, getSummary) {
             {
                 name: 'scans',
                 description: 'List all active monitoring nodes and their current health.'
+            },
+            {
+                name: 'audit',
+                description: 'Detailed SLA audit for the network or a specific node.',
+                options: [
+                    {
+                        name: 'node_id',
+                        type: 3, // STRING
+                        description: 'Optional: Audit a specific node ID',
+                        required: false
+                    }
+                ]
             }
         ];
 
@@ -54,16 +66,24 @@ async function initDiscordBot(token, onApprove, getSummary) {
 
     client.on('interactionCreate', async (interaction) => {
         if (interaction.isCommand()) {
-            if (interaction.commandName === 'status' || interaction.commandName === 'scans') {
+            if (interaction.commandName === 'status' || interaction.commandName === 'scans' || interaction.commandName === 'audit') {
                 if (!getSummary) return interaction.reply('Summary callback not initialized.');
-                const summary = await getSummary();
                 
+                const nodeId = interaction.options.getString('node_id');
+                const summary = await getSummary(nodeId);
+                
+                if (nodeId && summary.error) {
+                    return interaction.reply({ content: `❌ **Error**: ${summary.error}`, ephemeral: true });
+                }
+
                 const embed = new EmbedBuilder()
-                    .setTitle('📊 Scan Engine Protocol Status')
-                    .setColor(0x00D1FF)
-                    .setDescription(interaction.commandName === 'status' ? summary.brief : summary.detailed)
+                    .setTitle(nodeId ? `🔍 Node Audit: ${nodeId}` : '📊 Scan Engine Protocol Status')
+                    .setColor(nodeId ? 0x00FF99 : 0x00D1FF)
+                    .setDescription(interaction.commandName === 'status' ? summary.brief : (nodeId ? summary.nodeDetail : summary.detailed))
                     .setTimestamp();
                 
+                if (nodeId && summary.thumbnail) embed.setThumbnail(summary.thumbnail);
+
                 return interaction.reply({ embeds: [embed] });
             }
         }

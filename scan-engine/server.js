@@ -1382,8 +1382,33 @@ app.listen(PORT, '0.0.0.0', () => {
         saveAllState();
         console.log(`[DiscordBot] ✅ External approval for ${accountId}: Escalated to ${targetInterval}m.`);
     },
-    async () => {
-        // Summary Generator for Bot Commands
+    async (nodeId) => {
+        // Handle Single Node Audit
+        if (nodeId) {
+            const scan = activeScans.get(nodeId);
+            if (!scan) return { error: 'Account not found in active registry.' };
+            
+            const data = readScanData(nodeId);
+            const views = data.history?.[data.history.length - 1]?.totalViews || 0;
+            const postCount = data.posts?.length || 0;
+            const health = (scan.slaStatus || 'HEALTHY') === 'HEALTHY' ? '✅ HEALTHY' : '⚠️ FAILING';
+            const platformEmoji = scan.platform === 'youtube' ? '🔴' : scan.platform === 'tiktok' ? '⚫' : '🟣';
+
+            return {
+                nodeDetail: `📡 **Node Intelligence Audit**\n` +
+                           `> Node: \`${scan.name || nodeId}\`\n` +
+                           `> Platform: ${platformEmoji} **${scan.platform.toUpperCase()}**\n` +
+                           `> Status: ${health}\n` +
+                           `> Total Reach: \`${views.toLocaleString()}\` views\n` +
+                           `> Content: \`${postCount}\` posts synced\n` +
+                           `> Yield: \`$${(scan.totalEarned || 0).toFixed(2)}\` earned\n` +
+                           `> Cadence: \`Every ${scan.currentInterval || globalDefaultInterval}m\`\n\n` +
+                           `🔗 [View Profile](${scan.accountLink})`,
+                thumbnail: scan.avatarUrl || null
+            };
+        }
+
+        // Summary Generator for Bot Commands (Global)
         let totalViews = 0, totalNodes = activeScans.size, totalEarned = 0;
         let healthy = 0, failing = 0;
         
@@ -1407,7 +1432,7 @@ app.listen(PORT, '0.0.0.0', () => {
             
             const icon = getEmoji(s.platform);
             const health = status === 'HEALTHY' ? '✅' : '⚠️';
-            return `${icon} \`${s.accountId.padEnd(16)}\` | **${(views/1000).toFixed(1)}k** | ${health}`;
+            return `${icon} \`${(s.name || s.accountId).substring(0,14).padEnd(14)}\` | **${(views/1000).toFixed(1)}k** | ${health}`;
         }).join('\n');
 
         // Add stats for nodes not in the top 15
