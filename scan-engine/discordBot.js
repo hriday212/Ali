@@ -171,6 +171,12 @@ async function initDiscordBot(token, onApprove, getSummary) {
             if (interaction.commandName === 'test_viral') {
                 try {
                     await interaction.deferReply({ ephemeral: true });
+                    
+                    // Check Admin Role
+                    if (adminRoleId && !interaction.member.roles.cache.has(adminRoleId)) {
+                        return interaction.editReply('❌ **Access Denied**: Admin role required.');
+                    }
+
                     if (!getSummary) return interaction.editReply('❌ System not connected.');
                     
                     // We need to find a node with growth to show real data
@@ -193,6 +199,12 @@ async function initDiscordBot(token, onApprove, getSummary) {
             if (interaction.commandName === 'test_attendance') {
                 try {
                     await interaction.deferReply({ ephemeral: true });
+                    
+                    // Check Admin Role
+                    if (adminRoleId && !interaction.member.roles.cache.has(adminRoleId)) {
+                        return interaction.editReply('❌ **Access Denied**: Admin role required.');
+                    }
+
                     if (!getSummary) return interaction.editReply('❌ System not connected.');
                     
                     const summary = await getSummary(null, '24h', null);
@@ -212,6 +224,12 @@ async function initDiscordBot(token, onApprove, getSummary) {
             if (interaction.commandName === 'test_approval') {
                 try {
                     await interaction.deferReply({ ephemeral: true });
+                    
+                    // Check Admin Role
+                    if (adminRoleId && !interaction.member.roles.cache.has(adminRoleId)) {
+                        return interaction.editReply('❌ **Access Denied**: Admin role required.');
+                    }
+
                     await sendApprovalRequest('TEST_ACCOUNT', 60, 15);
                     await interaction.editReply('✅ **Mock Escalation Request Sent** to the approval channel.');
                 } catch (err) {

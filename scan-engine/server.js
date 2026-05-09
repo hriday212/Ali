@@ -1416,12 +1416,11 @@ app.listen(PORT, '0.0.0.0', () => {
 
         return {
             nodeDetail: `📡 **Account Audit** (${dateParam || timeframe.toUpperCase()})\n` +
-                       `> Account: \`${scan.name || nodeId}\`\n` +
+                       `> Account: [${scan.name || nodeId}](${scan.accountLink})\n` +
                        `> Platform: ${platformEmoji} **${scan.platform.toUpperCase()}**\n` +
                        `> Status: ${health}\n` +
                        `> Reach: \`+${viewsGain.toLocaleString()}\` views\n` +
-                       `> Content: \`${postCount}\` posts synced\n` +
-                       `🔗 [View Profile](${scan.accountLink})`,
+                       `> Content: \`${postCount}\` posts synced\n`,
             thumbnail: scan.avatarUrl || null
         };
     }
@@ -1473,8 +1472,9 @@ app.listen(PORT, '0.0.0.0', () => {
 
         const isHealthy = postsInWindow.length >= 2;
         const statusIcon = isHealthy ? '✅' : '⚠️';
-        const entry = `${icon} \`${(s.name || s.accountId).substring(0,25).padEnd(25)}\` | **+${(gain/1000).toFixed(1)}k**`;
-        inventoryList.push(`${statusIcon} ${icon} \`${(s.name || s.accountId).substring(0,30).padEnd(30)}\``);
+        const nameLabel = s.name || s.accountId;
+        const entry = `${icon} [${nameLabel}](${s.accountLink}) | **+${(gain/1000).toFixed(1)}k**`;
+        inventoryList.push(`${statusIcon} ${icon} [${nameLabel}](${s.accountLink})`);
         if (isHealthy) { healthy++; passedList.push(entry); } else { failing++; failedList.push(entry); }
     });
 
