@@ -1421,7 +1421,6 @@ app.listen(PORT, '0.0.0.0', () => {
                        `> Status: ${health}\n` +
                        `> Reach: \`+${viewsGain.toLocaleString()}\` views\n` +
                        `> Content: \`${postCount}\` posts synced\n` +
-                       `> Earned: \`$${(scan.totalEarned || 0).toFixed(2)}\` total\n\n` +
                        `🔗 [View Profile](${scan.accountLink})`,
             thumbnail: scan.avatarUrl || null
         };
@@ -1430,7 +1429,7 @@ app.listen(PORT, '0.0.0.0', () => {
     // Global Summary
     let totalViews = 0, totalNodes = activeScans.size, totalEarned = 0;
     let healthy = 0, failing = 0, periodViewsGain = 0;
-    const sortedScans = Array.from(activeScans.values()).sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0));
+    const sortedScans = Array.from(activeScans.values());
 
     const getEmoji = (p) => {
         if (p === 'youtube') return '🔴';
@@ -1455,7 +1454,6 @@ app.listen(PORT, '0.0.0.0', () => {
         const gain = views - (startPoint?.totalViews || 0);
         totalViews += views;
         periodViewsGain += gain;
-        totalEarned += s.totalEarned || 0;
         const postsInWindow = (data.posts || []).filter(p => {
             const pDate = new Date(p.date);
             if (dateParam) return pDate >= cutoffDate && pDate < nextDay;
@@ -1473,7 +1471,6 @@ app.listen(PORT, '0.0.0.0', () => {
         brief: `📊 **Account Status** (${dateParam || timeframe.toUpperCase()})\n` +
                `> Accounts: \`${totalNodes}\` active\n` +
                `> Reach: \`+${(periodViewsGain / 1000000).toFixed(2)}M\` views\n` +
-               `> Earned: \`$${totalEarned.toFixed(2)}\` total\n` +
                `> Health: \`${healthy} ✅ / ${failing} ⚠️\``,
         inventory: `📋 **All Accounts** (${totalNodes})\n` +
                    `${inventoryList.slice(0, 15).join('\n')}\n` +

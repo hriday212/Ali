@@ -279,9 +279,8 @@ async function sendDailyDigest(summaryData) {
             .setDescription(`Overview of network performance for the last 24 hours.`)
             .setColor(0x00D1FF)
             .addFields(
-                { name: 'Total Views', value: summaryData.brief.split('\n')[2].replace('> Period Reach: ', ''), inline: true },
-                { name: 'Total Earned', value: summaryData.brief.split('\n')[3].replace('> Total Yield: ', ''), inline: true },
-                { name: 'Status', value: summaryData.brief.split('\n')[4].replace('> Health: ', ''), inline: true }
+                { name: 'Total Views', value: summaryData.brief.split('\n')[2].replace('> Total Reach: ', ''), inline: true },
+                { name: 'Status', value: summaryData.brief.split('\n')[3].replace('> Health: ', ''), inline: true }
             )
             .setTimestamp();
 
