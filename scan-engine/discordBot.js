@@ -19,7 +19,7 @@ async function initDiscordBot(token, onApprove, getSummary) {
         ]
     });
 
-    client.on('ready', async () => {
+    client.on('clientReady', async () => {
         console.log(`[DiscordBot] Logged in as ${client.user.tag}`);
         
         // Register Slash Commands (Phase 18)
