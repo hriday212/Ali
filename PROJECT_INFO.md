@@ -1,12 +1,12 @@
 # Clypso Project Information
 
 ## 🔐 Authentication Credentials
-For the demo role-based access control, use the following credentials:
+Credentials for role-based access control are configured via environment variables. See `.env.local` for details.
 
-| Role | Email | Password |
+| Role | Environment Variable (User) | Environment Variable (Pass) |
 |---|---|---|
-| **Admin** | `admin@clypso.io` | `LinkMe@Admin1` |
-| **Client** | `client@clypso.io` | `LinkMe@Client1` |
+| **Admin** | `NEXT_PUBLIC_ADMIN_USER` | `NEXT_PUBLIC_ADMIN_PASS` |
+| **Client** | `NEXT_PUBLIC_CLIENT_USER` | `NEXT_PUBLIC_CLIENT_PASS` |
 
 ---
 

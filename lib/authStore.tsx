@@ -21,10 +21,11 @@ interface AuthContextType {
 }
 
 // Secure credentials pulled from environment variables for handover
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_USER || 'admin@clypso.io';
-const ADMIN_PASS  = process.env.NEXT_PUBLIC_ADMIN_PASS || 'LinkMe@Admin1';
-const CLIENT_EMAIL = process.env.NEXT_PUBLIC_CLIENT_USER || 'client@clypso.io';
-const CLIENT_PASS  = process.env.NEXT_PUBLIC_CLIENT_PASS || 'LinkMe@Client1';
+// Secure credentials pulled from environment variables for handover
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_USER || '';
+const ADMIN_PASS  = process.env.NEXT_PUBLIC_ADMIN_PASS || '';
+const CLIENT_EMAIL = process.env.NEXT_PUBLIC_CLIENT_USER || '';
+const CLIENT_PASS  = process.env.NEXT_PUBLIC_CLIENT_PASS || '';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 

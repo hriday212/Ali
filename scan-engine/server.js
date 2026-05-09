@@ -193,7 +193,7 @@ async function runApifyActor(actorId, input) {
     
     if (!response.ok) {
       const errText = await response.text();
-      logUsage(`TOKEN_${apifyKeyIdx + 1}`, actorId, 0, 'error', errText);
+      logUsage(`TOKEN_${apifyKeyIdx}`, actorId, 0, 'error', errText);
       // SMART FALLBACK: Evict token if it has billing/usage hit
       if (errText.includes('Monthly usage') || errText.includes('not-enough-usage') || errText.includes('exceed your remaining usage')) {
         const deadToken = token;
@@ -209,7 +209,7 @@ async function runApifyActor(actorId, input) {
       throw new Error(`Apify error (${formattedId}): ${errText}`);
     }
     
-    logUsage(`TOKEN_${apifyKeyIdx + 1}`, actorId, estimatedCost, 'success');
+    logUsage(`TOKEN_${apifyKeyIdx}`, actorId, estimatedCost, 'success');
     return await response.json();
   }
   throw new Error(`Apify error: All available tokens are completely exhausted for this cycle.`);
@@ -248,8 +248,6 @@ async function getChannelVideos(channelId, maxResults = 50) {
     // Google API caps at 50 per request, so we loop if we need more
     while (allVideoIds.length < maxResults) {
         const pageSize = Math.min(50, maxResults - allVideoIds.length);
-        const url = `https://api.apify.com/v2/acts/streamers~youtube-scraper/run-sync-get-dataset-items?token=${getApifyToken()}`; // wait, why apify?
-        // Ah, the existing code was using direct fetch to google!
         const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${pageSize}&pageToken=${nextPageToken}&key=${getYouTubeKey()}`;
         trackYoutubeQuota(1);
         const playlistRes = await fetch(playlistUrl);
