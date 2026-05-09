@@ -76,6 +76,10 @@ async function initDiscordBot(token, onApprove, getSummary) {
                 description: 'TEST: Send a mock escalation request'
             },
             {
+                name: 'test_summary',
+                description: 'TEST: Send a mock daily network summary'
+            },
+            {
                 name: 'force_sync',
                 description: 'ADMIN: Force an immediate global sync for all accounts'
             }
@@ -220,6 +224,27 @@ async function initDiscordBot(token, onApprove, getSummary) {
                     await interaction.editReply('✅ **Real Attendance Log Sent** to the post-log channel.');
                 } catch (err) {
                     console.error('[DiscordBot] Attendance test failed:', err);
+                }
+                return;
+            }
+
+            // Handle /test_summary
+            if (interaction.commandName === 'test_summary') {
+                try {
+                    await interaction.deferReply({ ephemeral: true });
+                    
+                    // Check Admin Role
+                    if (adminRoleId && !interaction.member.roles.cache.has(adminRoleId)) {
+                        return interaction.editReply('❌ **Access Denied**: Admin role required.');
+                    }
+
+                    if (!getSummary) return interaction.editReply('❌ System not connected.');
+                    
+                    const summary = await getSummary(null, '24h', null);
+                    await sendDailyDigest(summary);
+                    await interaction.editReply('✅ **Real-Data Daily Summary Sent** to the alerts channel.');
+                } catch (err) {
+                    console.error('[DiscordBot] Summary test failed:', err);
                 }
                 return;
             }
