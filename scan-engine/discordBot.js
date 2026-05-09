@@ -86,42 +86,63 @@ async function initDiscordBot(token, onApprove, getSummary) {
         if (interaction.isCommand()) {
             console.log(`[DiscordBot] Command Received: /${interaction.commandName}`);
             
-            if (interaction.commandName === 'status' || interaction.commandName === 'scans' || interaction.commandName === 'audit') {
+            // Handle /status and /scans (no options on these commands)
+            if (interaction.commandName === 'status' || interaction.commandName === 'scans') {
                 try {
-                    // Defer reply INSTANTLY to prevent 3s timeout
                     await interaction.deferReply();
-                    console.log(`[DiscordBot] Interaction Deferred: /${interaction.commandName}`);
+                    if (!getSummary) {
+                        return interaction.editReply('❌ Summary engine not connected.');
+                    }
+                    const summary = await getSummary(null, '24h', null);
+                    const embed = new EmbedBuilder()
+                        .setTitle('📊 Scan Engine Protocol Status')
+                        .setColor(0x00D1FF)
+                        .setDescription(interaction.commandName === 'status' ? summary.brief : summary.detailed)
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                    console.log(`[DiscordBot] Command Fulfilled: /${interaction.commandName}`);
+                } catch (err) {
+                    console.error(`[DiscordBot] Command Failed: /${interaction.commandName}`, err);
+                    try { if (interaction.deferred) await interaction.editReply('❌ An error occurred.'); } catch(_) {}
+                }
+                return;
+            }
+
+            // Handle /audit (has options: timeframe, date, node_id)
+            if (interaction.commandName === 'audit') {
+                try {
+                    await interaction.deferReply();
+                    console.log(`[DiscordBot] Interaction Deferred: /audit`);
 
                     if (!getSummary) {
-                        return interaction.editReply('❌ **System Error**: Summary engine not connected.');
+                        return interaction.editReply('❌ Summary engine not connected.');
                     }
 
-                    const nodeId = interaction.options.getString('node_id');
+                    const nodeId = interaction.options.getString('node_id') || null;
                     const timeframe = interaction.options.getString('timeframe') || '24h';
-                    const dateParam = interaction.options.getString('date');
+                    const dateParam = interaction.options.getString('date') || null;
                     
-                    console.log(`[DiscordBot] Processing Audit: ${nodeId || 'GLOBAL'} (${timeframe})`);
+                    console.log(`[DiscordBot] Processing Audit: ${nodeId || 'GLOBAL'} | TF: ${timeframe} | Date: ${dateParam || 'none'}`);
                     const summary = await getSummary(nodeId, timeframe, dateParam);
                     
                     if (nodeId && summary.error) {
                         return interaction.editReply({ content: `❌ **Error**: ${summary.error}` });
                     }
 
+                    const label = dateParam || timeframe.toUpperCase();
                     const embed = new EmbedBuilder()
-                        .setTitle(nodeId ? `🔍 Node Audit: ${nodeId} (${dateParam || timeframe.toUpperCase()})` : `📊 Network Vitality Report (${dateParam || timeframe.toUpperCase()})`)
+                        .setTitle(nodeId ? `🔍 Node Audit: ${nodeId} (${label})` : `📊 Network Vitality Report (${label})`)
                         .setColor(nodeId ? 0x00FF99 : 0x00D1FF)
-                        .setDescription(interaction.commandName === 'status' ? summary.brief : (nodeId ? summary.nodeDetail : summary.detailed))
+                        .setDescription(nodeId ? summary.nodeDetail : summary.detailed)
                         .setTimestamp();
                     
                     if (nodeId && summary.thumbnail) embed.setThumbnail(summary.thumbnail);
 
                     await interaction.editReply({ embeds: [embed] });
-                    console.log(`[DiscordBot] Command Fulfilled: /${interaction.commandName}`);
+                    console.log(`[DiscordBot] Command Fulfilled: /audit`);
                 } catch (err) {
-                    console.error(`[DiscordBot] Command Failed: /${interaction.commandName}`, err);
-                    if (interaction.deferred) {
-                        await interaction.editReply('❌ **Vitality Protocol Failure**: An internal error occurred during forensic audit.');
-                    }
+                    console.error(`[DiscordBot] Command Failed: /audit`, err);
+                    try { if (interaction.deferred) await interaction.editReply('❌ An error occurred during audit.'); } catch(_) {}
                 }
                 return;
             }
