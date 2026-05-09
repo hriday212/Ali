@@ -73,7 +73,11 @@ async function initDiscordBot(token, onApprove, getSummary) {
             },
             {
                 name: 'test_approval',
-                description: 'TEST: Send a mock escalation request to the approval channel'
+                description: 'TEST: Send a mock escalation request'
+            },
+            {
+                name: 'force_sync',
+                description: 'ADMIN: Force an immediate global sync for all accounts'
             }
         ];
 
@@ -234,6 +238,27 @@ async function initDiscordBot(token, onApprove, getSummary) {
                     await interaction.editReply('✅ **Mock Escalation Request Sent** to the approval channel.');
                 } catch (err) {
                     console.error('[DiscordBot] Approval test failed:', err);
+                }
+                return;
+            }
+
+            // Handle /force_sync
+            if (interaction.commandName === 'force_sync') {
+                try {
+                    await interaction.deferReply({ ephemeral: true });
+                    
+                    // Check Admin Role
+                    if (adminRoleId && !interaction.member.roles.cache.has(adminRoleId)) {
+                        return interaction.editReply('❌ **Access Denied**: Admin role required.');
+                    }
+
+                    // We trigger the global sync logic
+                    const { autoStartDefaults } = require('./server');
+                    await autoStartDefaults();
+                    
+                    await interaction.editReply('🚀 **Global Sync Forced**: The engine is now processing all accounts.');
+                } catch (err) {
+                    console.error('[DiscordBot] Force Sync failed:', err);
                 }
                 return;
             }

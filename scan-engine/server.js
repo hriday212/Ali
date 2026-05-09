@@ -965,14 +965,36 @@ function restoreState() {
 // --- Auto-start default accounts if none are running ---
 async function autoStartDefaults() {
   const restored = restoreState();
-  if (restored > 0) return; // No need — already running from disk
-  console.log('[ScanEngine] No saved state found. Auto-starting default LinkMe accounts...');
-  for (const acc of DEFAULT_ACCOUNTS) {
-    const scan = { ...acc, scanCount: 0, lastScanTime: null, nextScanAt: null };
-    startScanInternal(scan);
-    executeScan(acc.accountId, acc.accountLink, acc.platform);
+  
+  // If we have restored state, we want to force-sync those existing nodes too
+  const nodesToSync = restored > 0 
+    ? Array.from(activeScans.values()) 
+    : DEFAULT_ACCOUNTS.map(acc => ({ ...acc, scanCount: 0, lastScanTime: null, nextScanAt: null }));
+
+  console.log(`[ScanEngine] 🚀 Starting Global Sync for ${nodesToSync.length} nodes...`);
+  
+  for (const node of nodesToSync) {
+    if (restored === 0) startScanInternal(node);
+    
+    try {
+      console.log(`[ScanEngine] ⏳ Queueing sync for: ${node.accountId}`);
+      await executeScan(node.accountId, node.accountLink, node.platform, true); // true = isManual/Force
+      // Small 2s delay between queue items to prevent API bursts
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (e) {
+      console.error(`[ScanEngine] Sync failed for ${node.accountId}:`, e.message);
+    }
   }
+  console.log('[ScanEngine] ✅ Global Sync Complete.');
 }
+
+// Export for Discord Bot
+module.exports = { 
+    autoStartDefaults, 
+    activeScans, 
+    readScanData,
+    saveAllState 
+};
 
 // --- API Routes ---
 
