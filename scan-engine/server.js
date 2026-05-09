@@ -1518,10 +1518,6 @@ app.listen(PORT, '0.0.0.0', () => {
   scheduleDailyDigest();
   autoStartDefaults().catch(console.error);
 });
-
-  autoStartDefaults().catch(console.error);
-});
-
 // --- Crash Guards: keep the process alive no matter what ---
 process.on('uncaughtException', (err) => {
   console.error('[CRASH GUARD] Uncaught Exception:', err.message);
