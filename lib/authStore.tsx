@@ -12,6 +12,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   role: Role | null;
+  loading: boolean;
   login: (email: string, password: string) => { success: boolean; error?: string };
   logout: () => void;
   isAdmin: boolean;
@@ -31,15 +32,17 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }): React.ReactElement {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isLoginModalOpen, setLoginModalOpen] = useState(false);
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem('clypso_user');
       if (stored) {
-        setTimeout(() => setUser(JSON.parse(stored)), 0);
+        setUser(JSON.parse(stored));
       }
     } catch {}
+    setLoading(false);
   }, []);
 
   const login = (email: string, password: string): { success: boolean; error?: string } => {
@@ -69,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
     <AuthContext.Provider value={{
       user,
       role: user?.role ?? null,
+      loading,
       login,
       logout,
       isAdmin: user?.role === 'admin',
