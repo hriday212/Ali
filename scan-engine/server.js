@@ -1438,7 +1438,7 @@ app.listen(PORT, '0.0.0.0', () => {
         return '⚪';
     };
 
-    const passedList = [], failedList = [], inventoryList = [];
+    const passedList = [], failedList = [], inventoryList = [], attendanceLog = [];
     sortedScans.forEach(s => {
         const data = readScanData(s.accountId);
         const history = data.history || [];
@@ -1459,8 +1459,19 @@ app.listen(PORT, '0.0.0.0', () => {
             if (dateParam) return pDate >= cutoffDate && pDate < nextDay;
             return pDate >= cutoffDate;
         });
-        const isHealthy = postsInWindow.length >= 2;
+
+        // Collect posts for attendance log
         const icon = getEmoji(s.platform);
+        postsInWindow.forEach(p => {
+            attendanceLog.push({
+                account: s.name || s.accountId,
+                title: p.title,
+                link: p.videoUrl,
+                icon
+            });
+        });
+
+        const isHealthy = postsInWindow.length >= 2;
         const statusIcon = isHealthy ? '✅' : '⚠️';
         const entry = `${icon} \`${(s.name || s.accountId).substring(0,25).padEnd(25)}\` | **+${(gain/1000).toFixed(1)}k**`;
         inventoryList.push(`${statusIcon} ${icon} \`${(s.name || s.accountId).substring(0,30).padEnd(30)}\``);
@@ -1470,14 +1481,15 @@ app.listen(PORT, '0.0.0.0', () => {
     return {
         brief: `📊 **Account Status** (${dateParam || timeframe.toUpperCase()})\n` +
                `> Accounts: \`${totalNodes}\` active\n` +
-               `> Reach: \`+${(periodViewsGain / 1000000).toFixed(2)}M\` views\n` +
+               `> Total Reach: \`+${(periodViewsGain / 1000000).toFixed(2)}M\` views\n` +
                `> Health: \`${healthy} ✅ / ${failing} ⚠️\``,
         inventory: `📋 **All Accounts** (${totalNodes})\n` +
                    `${inventoryList.slice(0, 40).join('\n')}\n` +
                    `${inventoryList.length > 40 ? `*+ ${inventoryList.length - 40} more...*` : ''}`,
         detailed: `✅ **Accounts Passing** (${healthy})\n${passedList.slice(0, 30).join('\n')}${passedList.length > 30 ? `\n*+ ${passedList.length - 30} more...*` : ''}\n\n` +
                   `⚠️ **Accounts Failing** (${failing})\n${failedList.length > 0 ? failedList.slice(0, 30).join('\n') : '*All accounts currently passing.*'}${failedList.length > 30 ? `\n*+ ${failedList.length - 30} more...*` : ''}\n\n` +
-                  `[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`
+                  `[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`,
+        attendanceLog
     };
   };
 
@@ -1508,9 +1520,10 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Scheduler] Daily Summary scheduled in ${Math.round(delay/1000/60)} minutes (12 AM IST).`);
     
     setTimeout(async () => {
-      console.log('[Scheduler] 🕛 Midnight reached. Posting Daily Summary...');
+      console.log('[Scheduler] 🕛 Midnight reached. Posting Daily Reports...');
       const summary = await getSummaryInternal(null, '24h', null);
       await sendDailyDigest(summary);
+      await sendAttendanceLog(summary.attendanceLog);
       scheduleDailyDigest();
     }, delay);
   }

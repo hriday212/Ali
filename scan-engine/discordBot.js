@@ -4,6 +4,7 @@ let client = null;
 let adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
 let approvalChannelId = process.env.DISCORD_APPROVAL_CHANNEL_ID;
 let viralAlertsChannelId = process.env.DISCORD_VIRAL_ALERTS_CHANNEL_ID;
+let postLogChannelId = process.env.DISCORD_POST_LOG_CHANNEL_ID || '1502499064716066826';
 
 /**
  * Initializes the Discord Bot if a token is provided
@@ -34,7 +35,7 @@ async function initDiscordBot(token, onApprove, getSummary) {
             },
             {
                 name: 'audit',
-                description: 'Detailed Vitality audit for the network or a specific node.',
+                description: 'Detailed report for the network or a specific account.',
                 options: [
                     {
                         name: 'timeframe',
@@ -61,6 +62,10 @@ async function initDiscordBot(token, onApprove, getSummary) {
                         required: false
                     }
                 ]
+            },
+            {
+                name: 'test_viral',
+                description: 'TEST: Send a mock viral alert to verify the channel'
             }
         ];
 
@@ -150,6 +155,18 @@ async function initDiscordBot(token, onApprove, getSummary) {
                     await interaction.editReply({ embeds: [embed] });
                 } catch (err) {
                     console.error(`[DiscordBot] Audit failed:`, err);
+                }
+                return;
+            }
+
+            // Handle /test_viral
+            if (interaction.commandName === 'test_viral') {
+                try {
+                    await interaction.deferReply({ ephemeral: true });
+                    await sendViralAlert('TEST_ACCOUNT', 'youtube', { delta: 125000, multiplier: 5.2, zScore: 4.8 });
+                    await interaction.editReply('✅ **Mock Viral Alert Sent** to the alerts channel.');
+                } catch (err) {
+                    console.error('[DiscordBot] Test failed:', err);
                 }
                 return;
             }
@@ -295,4 +312,42 @@ async function sendDailyDigest(summaryData) {
     }
 }
 
-module.exports = { initDiscordBot, sendApprovalRequest, sendViralAlert, sendDailyDigest };
+/**
+ * Sends a daily attendance log of all content synced in the last 24h
+ */
+async function sendAttendanceLog(posts) {
+    if (!client || !postLogChannelId || !posts.length) return;
+
+    try {
+        const channel = await client.channels.fetch(postLogChannelId);
+        if (!channel) return;
+
+        const chunks = [];
+        let currentChunk = '';
+        
+        posts.forEach(p => {
+            const line = `${p.icon} \`${p.account.substring(0,12)}\`: [${p.title.substring(0,30)}...](${p.link})\n`;
+            if ((currentChunk + line).length > 1900) {
+                chunks.push(currentChunk);
+                currentChunk = line;
+            } else {
+                currentChunk += line;
+            }
+        });
+        if (currentChunk) chunks.push(currentChunk);
+
+        for (const [index, chunk] of chunks.entries()) {
+            const embed = new EmbedBuilder()
+                .setTitle(index === 0 ? '📋 Daily Attendance: Content Log' : '📋 Attendance Log (Continued)')
+                .setDescription(chunk)
+                .setColor(0xBBBBBB)
+                .setTimestamp();
+            await channel.send({ embeds: [embed] });
+        }
+        console.log('[DiscordBot] ✅ Attendance Log sent.');
+    } catch (err) {
+        console.error('[DiscordBot] Failed to send attendance:', err.message);
+    }
+}
+
+module.exports = { initDiscordBot, sendApprovalRequest, sendViralAlert, sendDailyDigest, sendAttendanceLog };
