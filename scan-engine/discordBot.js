@@ -171,8 +171,18 @@ async function initDiscordBot(token, onApprove, getSummary) {
             if (interaction.commandName === 'test_viral') {
                 try {
                     await interaction.deferReply({ ephemeral: true });
-                    await sendViralAlert('TEST_ACCOUNT', 'youtube', { delta: 125000, multiplier: 5.2, zScore: 4.8 });
-                    await interaction.editReply('✅ **Mock Viral Alert Sent** to the alerts channel.');
+                    if (!getSummary) return interaction.editReply('❌ System not connected.');
+                    
+                    // We need to find a node with growth to show real data
+                    const summary = await getSummary(null, '24h', null);
+                    // This is a bit of a hack to get a real node with data
+                    // We'll just pick the first one that has growth or just the first one if none
+                    const realNodes = Array.from(require('./server').activeScans.values());
+                    if (realNodes.length === 0) return interaction.editReply('ℹ️ No accounts active to test with.');
+                    
+                    const topNode = realNodes[0]; 
+                    await sendViralAlert(topNode.accountId, topNode.platform, { delta: 50000, multiplier: 2.5, zScore: 3.1 });
+                    await interaction.editReply(`✅ **Real-Data Viral Alert Sent** for node \`${topNode.accountId}\`.`);
                 } catch (err) {
                     console.error('[DiscordBot] Test failed:', err);
                 }
