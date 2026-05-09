@@ -86,43 +86,52 @@ async function initDiscordBot(token, onApprove, getSummary) {
         if (interaction.isCommand()) {
             console.log(`[DiscordBot] Command Received: /${interaction.commandName}`);
             
-            // Handle /status and /scans (no options on these commands)
-            if (interaction.commandName === 'status' || interaction.commandName === 'scans') {
+            // Handle /status (Stats Only)
+            if (interaction.commandName === 'status') {
                 try {
                     await interaction.deferReply();
-                    if (!getSummary) {
-                        return interaction.editReply('❌ Summary engine not connected.');
-                    }
+                    if (!getSummary) return interaction.editReply('❌ System not connected.');
                     const summary = await getSummary(null, '24h', null);
                     const embed = new EmbedBuilder()
-                        .setTitle('📊 Scan Engine Protocol Status')
+                        .setTitle('📊 Account Overview')
                         .setColor(0x00D1FF)
-                        .setDescription(interaction.commandName === 'status' ? summary.brief : summary.detailed)
+                        .setDescription(summary.brief)
                         .setTimestamp();
                     await interaction.editReply({ embeds: [embed] });
-                    console.log(`[DiscordBot] Command Fulfilled: /${interaction.commandName}`);
                 } catch (err) {
-                    console.error(`[DiscordBot] Command Failed: /${interaction.commandName}`, err);
-                    try { if (interaction.deferred) await interaction.editReply('❌ An error occurred.'); } catch(_) {}
+                    console.error(`[DiscordBot] Status failed:`, err);
                 }
                 return;
             }
 
-            // Handle /audit (has options: timeframe, date, node_id)
+            // Handle /scans (Full Inventory List)
+            if (interaction.commandName === 'scans') {
+                try {
+                    await interaction.deferReply();
+                    if (!getSummary) return interaction.editReply('❌ System not connected.');
+                    const summary = await getSummary(null, '24h', null);
+                    const embed = new EmbedBuilder()
+                        .setTitle('📡 All Accounts')
+                        .setColor(0xBBBBBB)
+                        .setDescription(summary.inventory)
+                        .setTimestamp();
+                    await interaction.editReply({ embeds: [embed] });
+                } catch (err) {
+                    console.error(`[DiscordBot] Scans failed:`, err);
+                }
+                return;
+            }
+
+            // Handle /audit (Forensic Report)
             if (interaction.commandName === 'audit') {
                 try {
                     await interaction.deferReply();
-                    console.log(`[DiscordBot] Interaction Deferred: /audit`);
-
-                    if (!getSummary) {
-                        return interaction.editReply('❌ Summary engine not connected.');
-                    }
+                    if (!getSummary) return interaction.editReply('❌ System not connected.');
 
                     const nodeId = interaction.options.getString('node_id') || null;
                     const timeframe = interaction.options.getString('timeframe') || '24h';
                     const dateParam = interaction.options.getString('date') || null;
                     
-                    console.log(`[DiscordBot] Processing Audit: ${nodeId || 'GLOBAL'} | TF: ${timeframe} | Date: ${dateParam || 'none'}`);
                     const summary = await getSummary(nodeId, timeframe, dateParam);
                     
                     if (nodeId && summary.error) {
@@ -131,7 +140,7 @@ async function initDiscordBot(token, onApprove, getSummary) {
 
                     const label = dateParam || timeframe.toUpperCase();
                     const embed = new EmbedBuilder()
-                        .setTitle(nodeId ? `🔍 Node Audit: ${nodeId} (${label})` : `📊 Network Vitality Report (${label})`)
+                        .setTitle(nodeId ? `🔍 Account Audit: ${nodeId}` : `🛡️ Daily Report (${label})`)
                         .setColor(nodeId ? 0x00FF99 : 0x00D1FF)
                         .setDescription(nodeId ? summary.nodeDetail : summary.detailed)
                         .setTimestamp();
@@ -139,10 +148,8 @@ async function initDiscordBot(token, onApprove, getSummary) {
                     if (nodeId && summary.thumbnail) embed.setThumbnail(summary.thumbnail);
 
                     await interaction.editReply({ embeds: [embed] });
-                    console.log(`[DiscordBot] Command Fulfilled: /audit`);
                 } catch (err) {
-                    console.error(`[DiscordBot] Command Failed: /audit`, err);
-                    try { if (interaction.deferred) await interaction.editReply('❌ An error occurred during audit.'); } catch(_) {}
+                    console.error(`[DiscordBot] Audit failed:`, err);
                 }
                 return;
             }
@@ -257,4 +264,36 @@ async function sendViralAlert(accountId, platform, growthData) {
     }
 }
 
-module.exports = { initDiscordBot, sendApprovalRequest, sendViralAlert };
+/**
+ * Sends a daily summary digest to the viral alerts channel
+ */
+async function sendDailyDigest(summaryData) {
+    if (!client || !viralAlertsChannelId) return;
+
+    try {
+        const channel = await client.channels.fetch(viralAlertsChannelId);
+        if (!channel) return;
+
+        const embed = new EmbedBuilder()
+            .setTitle('🌙 Daily Viral Summary (24H)')
+            .setDescription(`Overview of network performance for the last 24 hours.`)
+            .setColor(0x00D1FF)
+            .addFields(
+                { name: 'Total Views', value: summaryData.brief.split('\n')[2].replace('> Period Reach: ', ''), inline: true },
+                { name: 'Total Earned', value: summaryData.brief.split('\n')[3].replace('> Total Yield: ', ''), inline: true },
+                { name: 'Status', value: summaryData.brief.split('\n')[4].replace('> Health: ', ''), inline: true }
+            )
+            .setTimestamp();
+
+        // Add top performers list
+        const detailed = summaryData.detailed.split('\n\n')[0]; 
+        embed.addFields({ name: '🏆 Top Performers', value: detailed.substring(0, 1024) });
+
+        await channel.send({ content: '📊 **Daily Network Report**', embeds: [embed] });
+        console.log('[DiscordBot] ✅ Daily Summary sent.');
+    } catch (err) {
+        console.error('[DiscordBot] Failed to send summary:', err.message);
+    }
+}
+
+module.exports = { initDiscordBot, sendApprovalRequest, sendViralAlert, sendDailyDigest };

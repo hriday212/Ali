@@ -7,7 +7,7 @@ const fetch = require('node-fetch');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
 const { DEFAULT_ACCOUNTS } = require('./defaultAccounts');
-const { initDiscordBot, sendApprovalRequest, sendViralAlert } = require('./discordBot');
+const { initDiscordBot, sendApprovalRequest, sendViralAlert, sendDailyDigest } = require('./discordBot');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -1371,6 +1371,120 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Scan Engine running on http://0.0.0.0:${PORT}`);
   
   // Initialize Discord Bot (Phase 18 Integration)
+  // --- Summary Logic (Reused by Bot and Scheduler) ---
+  const getSummaryInternal = async (nodeId, timeframe, dateParam) => {
+    let cutoffDate = new Date();
+    let days = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : timeframe === 'all' ? 3650 : 1;
+    
+    if (dateParam) {
+        cutoffDate = new Date(dateParam);
+        days = 1;
+    } else {
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+    }
+
+    const nextDay = new Date(cutoffDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    // Handle Single Account Audit
+    if (nodeId) {
+        const scan = activeScans.get(nodeId);
+        if (!scan) return { error: 'Account not found.' };
+        
+        const data = readScanData(nodeId);
+        const history = data.history || [];
+        
+        let startPoint, endPoint;
+        if (dateParam) {
+            startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+            endPoint = history.find(h => new Date(h.timestamp) >= nextDay) || history[history.length - 1];
+        } else {
+            startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+            endPoint = history[history.length - 1];
+        }
+        
+        const viewsGain = (endPoint?.totalViews || 0) - (startPoint?.totalViews || 0);
+        const postsInWindow = (data.posts || []).filter(p => {
+            const pDate = new Date(p.date);
+            if (dateParam) return pDate >= cutoffDate && pDate < nextDay;
+            return pDate >= cutoffDate;
+        });
+
+        const postCount = postsInWindow.length;
+        const health = postCount >= 2 ? '✅ PASSING' : '⚠️ FAILING';
+        const platformEmoji = scan.platform === 'youtube' ? '🔴' : scan.platform === 'tiktok' ? '⚫' : '🟣';
+
+        return {
+            nodeDetail: `📡 **Account Audit** (${dateParam || timeframe.toUpperCase()})\n` +
+                       `> Account: \`${scan.name || nodeId}\`\n` +
+                       `> Platform: ${platformEmoji} **${scan.platform.toUpperCase()}**\n` +
+                       `> Status: ${health}\n` +
+                       `> Reach: \`+${viewsGain.toLocaleString()}\` views\n` +
+                       `> Content: \`${postCount}\` posts synced\n` +
+                       `> Earned: \`$${(scan.totalEarned || 0).toFixed(2)}\` total\n\n` +
+                       `🔗 [View Profile](${scan.accountLink})`,
+            thumbnail: scan.avatarUrl || null
+        };
+    }
+
+    // Global Summary
+    let totalViews = 0, totalNodes = activeScans.size, totalEarned = 0;
+    let healthy = 0, failing = 0, periodViewsGain = 0;
+    const sortedScans = Array.from(activeScans.values()).sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0));
+
+    const getEmoji = (p) => {
+        if (p === 'youtube') return '🔴';
+        if (p === 'instagram') return '🟣';
+        if (p === 'tiktok') return '⚫';
+        return '⚪';
+    };
+
+    const passedList = [], failedList = [], inventoryList = [];
+    sortedScans.forEach(s => {
+        const data = readScanData(s.accountId);
+        const history = data.history || [];
+        let startPoint, endPoint;
+        if (dateParam) {
+            startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+            endPoint = history.find(h => new Date(h.timestamp) >= nextDay) || history[history.length - 1];
+        } else {
+            startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+            endPoint = history[history.length - 1];
+        }
+        const views = endPoint?.totalViews || 0;
+        const gain = views - (startPoint?.totalViews || 0);
+        totalViews += views;
+        periodViewsGain += gain;
+        totalEarned += s.totalEarned || 0;
+        const postsInWindow = (data.posts || []).filter(p => {
+            const pDate = new Date(p.date);
+            if (dateParam) return pDate >= cutoffDate && pDate < nextDay;
+            return pDate >= cutoffDate;
+        });
+        const isHealthy = postsInWindow.length >= 2;
+        const icon = getEmoji(s.platform);
+        const statusIcon = isHealthy ? '✅' : '⚠️';
+        const entry = `${icon} \`${(s.name || s.accountId).substring(0,12).padEnd(12)}\` | **+${(gain/1000).toFixed(1)}k**`;
+        inventoryList.push(`${statusIcon} ${icon} \`${(s.name || s.accountId).substring(0,14).padEnd(14)}\``);
+        if (isHealthy) { healthy++; passedList.push(entry); } else { failing++; failedList.push(entry); }
+    });
+
+    return {
+        brief: `📊 **Account Status** (${dateParam || timeframe.toUpperCase()})\n` +
+               `> Accounts: \`${totalNodes}\` active\n` +
+               `> Reach: \`+${(periodViewsGain / 1000000).toFixed(2)}M\` views\n` +
+               `> Earned: \`$${totalEarned.toFixed(2)}\` total\n` +
+               `> Health: \`${healthy} ✅ / ${failing} ⚠️\``,
+        inventory: `📋 **All Accounts** (${totalNodes})\n` +
+                   `${inventoryList.slice(0, 15).join('\n')}\n` +
+                   `${inventoryList.length > 15 ? `*+ ${inventoryList.length - 15} more...*` : ''}`,
+        detailed: `✅ **Accounts Passing** (${healthy})\n${passedList.slice(0, 10).join('\n')}${passedList.length > 10 ? `\n*+ ${passedList.length - 10} more...*` : ''}\n\n` +
+                  `⚠️ **Accounts Failing** (${failing})\n${failedList.length > 0 ? failedList.slice(0, 10).join('\n') : '*All accounts currently passing.*'}${failedList.length > 10 ? `\n*+ ${failedList.length - 10} more...*` : ''}\n\n` +
+                  `[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`
+    };
+  };
+
+  // Initialize Discord Bot
   initDiscordBot(
     process.env.DISCORD_BOT_TOKEN, 
     async (accountId, targetInterval) => {
@@ -1380,135 +1494,33 @@ app.listen(PORT, '0.0.0.0', () => {
         scan.pendingInterval = null;
         scheduleNextScan(scan, targetInterval);
         saveAllState();
-        console.log(`[DiscordBot] ✅ External approval for ${accountId}: Escalated to ${targetInterval}m.`);
+        console.log(`[DiscordBot] ✅ Approved: Frequency shift for ${accountId} to ${targetInterval}m.`);
     },
-    async (nodeId, timeframe, dateParam) => {
-        let cutoffDate = new Date();
-        let days = timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : timeframe === 'all' ? 3650 : 1;
-        
-        if (dateParam) {
-            cutoffDate = new Date(dateParam);
-            days = 1;
-        } else {
-            cutoffDate.setDate(cutoffDate.getDate() - days);
-        }
-
-        const nextDay = new Date(cutoffDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        // Handle Single Node Audit
-        if (nodeId) {
-            const scan = activeScans.get(nodeId);
-            if (!scan) return { error: 'Account not found in active registry.' };
-            
-            const data = readScanData(nodeId);
-            const history = data.history || [];
-            
-            // Calculate growth in timeframe/date
-            let startPoint, endPoint;
-            if (dateParam) {
-                startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
-                endPoint = history.find(h => new Date(h.timestamp) >= nextDay) || history[history.length - 1];
-            } else {
-                startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
-                endPoint = history[history.length - 1];
-            }
-            
-            const viewsGain = (endPoint?.totalViews || 0) - (startPoint?.totalViews || 0);
-            const postsInWindow = (data.posts || []).filter(p => {
-                const pDate = new Date(p.date);
-                if (dateParam) return pDate >= cutoffDate && pDate < nextDay;
-                return pDate >= cutoffDate;
-            });
-
-            const postCount = postsInWindow.length;
-            const health = postCount >= 2 ? '✅ FULL VITALITY' : '⚠️ DIMINISHED';
-            const platformEmoji = scan.platform === 'youtube' ? '🔴' : scan.platform === 'tiktok' ? '⚫' : '🟣';
-
-            return {
-                nodeDetail: `📡 **Node Vitality Intelligence Audit** (${dateParam || timeframe.toUpperCase()})\n` +
-                           `> Node: \`${scan.name || nodeId}\`\n` +
-                           `> Platform: ${platformEmoji} **${scan.platform.toUpperCase()}**\n` +
-                           `> Status: ${health}\n` +
-                           `> Period Reach: \`+${viewsGain.toLocaleString()}\` views\n` +
-                           `> Period Content: \`${postCount}\` posts synced\n` +
-                           `> Yield: \`$${(scan.totalEarned || 0).toFixed(2)}\` total earned\n` +
-                           `> Cadence: \`Every ${scan.currentInterval || globalDefaultInterval}m\`\n\n` +
-                           `🔗 [View Profile](${scan.accountLink})`,
-                thumbnail: scan.avatarUrl || null
-            };
-        }
-
-        // Summary Generator for Bot Commands (Global)
-        let totalViews = 0, totalNodes = activeScans.size, totalEarned = 0;
-        let healthy = 0, failing = 0;
-        let periodViewsGain = 0;
-        
-        const sortedScans = Array.from(activeScans.values())
-            .sort((a, b) => (b.totalEarned || 0) - (a.totalEarned || 0));
-
-        const getEmoji = (p) => {
-            if (p === 'youtube') return '🔴';
-            if (p === 'instagram') return '🟣';
-            if (p === 'tiktok') return '⚫';
-            return '⚪';
-        };
-
-        const passedList = [], failedList = [];
-        
-        sortedScans.forEach(s => {
-            const data = readScanData(s.accountId);
-            const history = data.history || [];
-            
-            let startPoint, endPoint;
-            if (dateParam) {
-                startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
-                endPoint = history.find(h => new Date(h.timestamp) >= nextDay) || history[history.length - 1];
-            } else {
-                startPoint = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
-                endPoint = history[history.length - 1];
-            }
-            
-            const views = endPoint?.totalViews || 0;
-            const gain = views - (startPoint?.totalViews || 0);
-            
-            totalViews += views;
-            periodViewsGain += gain;
-            totalEarned += s.totalEarned || 0;
-            
-            const postsInWindow = (data.posts || []).filter(p => {
-                const pDate = new Date(p.date);
-                if (dateParam) return pDate >= cutoffDate && pDate < nextDay;
-                return pDate >= cutoffDate;
-            });
-
-            const isHealthy = postsInWindow.length >= 2;
-            const icon = getEmoji(s.platform);
-            const entry = `${icon} \`${(s.name || s.accountId).substring(0,12).padEnd(12)}\` | **+${(gain/1000).toFixed(1)}k**`;
-            
-            if (isHealthy) {
-                healthy++;
-                passedList.push(entry);
-            } else {
-                failing++;
-                failedList.push(entry);
-            }
-        });
-
-        const detailed = `✅ **VITALITY COMPLIANCE** (${healthy})\n${passedList.slice(0, 10).join('\n')}${passedList.length > 10 ? `\n*+ ${passedList.length - 10} more...*` : ''}\n\n` +
-                        `⚠️ **DIMINISHED VITALITY** (${failing})\n${failedList.length > 0 ? failedList.slice(0, 10).join('\n') : '*All nodes currently at full vitality.*'}${failedList.length > 10 ? `\n*+ ${failedList.length - 10} more...*` : ''}\n\n` +
-                        `[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`;
-
-        return {
-            brief: `📡 **Network Vitality Report** (${dateParam || timeframe.toUpperCase()})\n` +
-                   `> Nodes: \`${totalNodes}\` active\n` +
-                   `> Period Reach: \`+${(periodViewsGain / 1000000).toFixed(2)}M\` views\n` +
-                   `> Total Yield: \`$${totalEarned.toFixed(2)}\` earned\n` +
-                   `> Health: \`${healthy} ✅ / ${failing} ⚠️\``,
-            detailed
-        };
-    }
+    getSummaryInternal
   );
+
+  // --- Daily Digest Scheduler (12 AM IST) ---
+  function scheduleDailyDigest() {
+    const now = new Date();
+    const targetUTC = new Date(now);
+    targetUTC.setUTCHours(18, 30, 0, 0); // 12 AM IST = 6:30 PM UTC
+    
+    if (now > targetUTC) targetUTC.setUTCDate(targetUTC.getUTCDate() + 1);
+    
+    const delay = targetUTC.getTime() - now.getTime();
+    console.log(`[Scheduler] Daily Summary scheduled in ${Math.round(delay/1000/60)} minutes (12 AM IST).`);
+    
+    setTimeout(async () => {
+      console.log('[Scheduler] 🕛 Midnight reached. Posting Daily Summary...');
+      const summary = await getSummaryInternal(null, '24h', null);
+      await sendDailyDigest(summary);
+      scheduleDailyDigest();
+    }, delay);
+  }
+
+  scheduleDailyDigest();
+  autoStartDefaults().catch(console.error);
+});
 
   autoStartDefaults().catch(console.error);
 });
