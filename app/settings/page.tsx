@@ -449,12 +449,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* API Pulse — Live Credit Monitor */}
-          <ApiPulse />
         </div>
-
-      </div>
-    </div>
 
       {/* ═══════════ COMPREHENSIVE WARNINGS & TOKEN GUIDE ═══════════ */}
       <div className="glass-card border border-red-500/20 bg-gradient-to-br from-red-900/5 to-transparent overflow-hidden">

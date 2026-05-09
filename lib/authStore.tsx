@@ -20,11 +20,11 @@ interface AuthContextType {
   setLoginModalOpen: (open: boolean) => void;
 }
 
-// Hardcoded demo credentials
-const CREDENTIALS: Record<string, { password: string; role: Role }> = {
-  'admin@clypso.io': { password: 'LinkMe@Admin1', role: 'admin' },
-  'client@clypso.io': { password: 'LinkMe@Client1', role: 'client' },
-};
+// Secure credentials pulled from environment variables for handover
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_USER || 'admin@clypso.io';
+const ADMIN_PASS  = process.env.NEXT_PUBLIC_ADMIN_PASS || 'LinkMe@Admin1';
+const CLIENT_EMAIL = process.env.NEXT_PUBLIC_CLIENT_USER || 'client@clypso.io';
+const CLIENT_PASS  = process.env.NEXT_PUBLIC_CLIENT_PASS || 'LinkMe@Client1';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -42,10 +42,18 @@ export function AuthProvider({ children }: { children: ReactNode }): React.React
   }, []);
 
   const login = (email: string, password: string): { success: boolean; error?: string } => {
-    const match = CREDENTIALS[email.toLowerCase()];
-    if (!match) return { success: false, error: 'Email not recognized.' };
-    if (match.password !== password) return { success: false, error: 'Incorrect password.' };
-    const u: User = { email, role: match.role };
+    const inputEmail = email.toLowerCase();
+    let role: Role | null = null;
+
+    if (inputEmail === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASS) {
+      role = 'admin';
+    } else if (inputEmail === CLIENT_EMAIL.toLowerCase() && password === CLIENT_PASS) {
+      role = 'client';
+    }
+
+    if (!role) return { success: false, error: 'Invalid email or password.' };
+    
+    const u: User = { email: inputEmail, role };
     setUser(u);
     localStorage.setItem('clypso_user', JSON.stringify(u));
     return { success: true };
