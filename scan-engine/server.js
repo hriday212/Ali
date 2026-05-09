@@ -1462,8 +1462,8 @@ app.listen(PORT, '0.0.0.0', () => {
         const isHealthy = postsInWindow.length >= 2;
         const icon = getEmoji(s.platform);
         const statusIcon = isHealthy ? '✅' : '⚠️';
-        const entry = `${icon} \`${(s.name || s.accountId).substring(0,12).padEnd(12)}\` | **+${(gain/1000).toFixed(1)}k**`;
-        inventoryList.push(`${statusIcon} ${icon} \`${(s.name || s.accountId).substring(0,14).padEnd(14)}\``);
+        const entry = `${icon} \`${(s.name || s.accountId).substring(0,25).padEnd(25)}\` | **+${(gain/1000).toFixed(1)}k**`;
+        inventoryList.push(`${statusIcon} ${icon} \`${(s.name || s.accountId).substring(0,30).padEnd(30)}\``);
         if (isHealthy) { healthy++; passedList.push(entry); } else { failing++; failedList.push(entry); }
     });
 
@@ -1473,10 +1473,10 @@ app.listen(PORT, '0.0.0.0', () => {
                `> Reach: \`+${(periodViewsGain / 1000000).toFixed(2)}M\` views\n` +
                `> Health: \`${healthy} ✅ / ${failing} ⚠️\``,
         inventory: `📋 **All Accounts** (${totalNodes})\n` +
-                   `${inventoryList.slice(0, 15).join('\n')}\n` +
-                   `${inventoryList.length > 15 ? `*+ ${inventoryList.length - 15} more...*` : ''}`,
-        detailed: `✅ **Accounts Passing** (${healthy})\n${passedList.slice(0, 10).join('\n')}${passedList.length > 10 ? `\n*+ ${passedList.length - 10} more...*` : ''}\n\n` +
-                  `⚠️ **Accounts Failing** (${failing})\n${failedList.length > 0 ? failedList.slice(0, 10).join('\n') : '*All accounts currently passing.*'}${failedList.length > 10 ? `\n*+ ${failedList.length - 10} more...*` : ''}\n\n` +
+                   `${inventoryList.slice(0, 40).join('\n')}\n` +
+                   `${inventoryList.length > 40 ? `*+ ${inventoryList.length - 40} more...*` : ''}`,
+        detailed: `✅ **Accounts Passing** (${healthy})\n${passedList.slice(0, 30).join('\n')}${passedList.length > 30 ? `\n*+ ${passedList.length - 30} more...*` : ''}\n\n` +
+                  `⚠️ **Accounts Failing** (${failing})\n${failedList.length > 0 ? failedList.slice(0, 30).join('\n') : '*All accounts currently passing.*'}${failedList.length > 30 ? `\n*+ ${failedList.length - 30} more...*` : ''}\n\n` +
                   `[OPEN COMMAND CENTER](${process.env.NEXT_PUBLIC_APP_URL || 'https://clypso.vercel.app'})`
     };
   };
