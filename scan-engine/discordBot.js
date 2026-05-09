@@ -69,7 +69,11 @@ async function initDiscordBot(token, onApprove, getSummary) {
             },
             {
                 name: 'test_attendance',
-                description: 'TEST: Send a mock attendance log to the post-log channel'
+                description: 'TEST: Send a mock attendance log'
+            },
+            {
+                name: 'test_approval',
+                description: 'TEST: Send a mock escalation request to the approval channel'
             }
         ];
 
@@ -187,6 +191,18 @@ async function initDiscordBot(token, onApprove, getSummary) {
                     await interaction.editReply('✅ **Mock Attendance Log Sent** to the post-log channel.');
                 } catch (err) {
                     console.error('[DiscordBot] Attendance test failed:', err);
+                }
+                return;
+            }
+
+            // Handle /test_approval
+            if (interaction.commandName === 'test_approval') {
+                try {
+                    await interaction.deferReply({ ephemeral: true });
+                    await sendApprovalRequest('TEST_ACCOUNT', 60, 15);
+                    await interaction.editReply('✅ **Mock Escalation Request Sent** to the approval channel.');
+                } catch (err) {
+                    console.error('[DiscordBot] Approval test failed:', err);
                 }
                 return;
             }
