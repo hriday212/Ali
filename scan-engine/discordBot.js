@@ -183,12 +183,15 @@ async function initDiscordBot(token, onApprove, getSummary) {
             if (interaction.commandName === 'test_attendance') {
                 try {
                     await interaction.deferReply({ ephemeral: true });
-                    const mockPosts = [
-                        { account: 'TestAccount1', title: 'Viral Moment #1', link: 'https://youtube.com', icon: '🔴' },
-                        { account: 'TestAccount2', title: 'Content Success #2', link: 'https://tiktok.com', icon: '⚫' }
-                    ];
-                    await sendAttendanceLog(mockPosts);
-                    await interaction.editReply('✅ **Mock Attendance Log Sent** to the post-log channel.');
+                    if (!getSummary) return interaction.editReply('❌ System not connected.');
+                    
+                    const summary = await getSummary(null, '24h', null);
+                    if (!summary.attendanceLog || summary.attendanceLog.length === 0) {
+                        return interaction.editReply('ℹ️ **No posts synced** in the last 24 hours.');
+                    }
+                    
+                    await sendAttendanceLog(summary.attendanceLog);
+                    await interaction.editReply('✅ **Real Attendance Log Sent** to the post-log channel.');
                 } catch (err) {
                     console.error('[DiscordBot] Attendance test failed:', err);
                 }
