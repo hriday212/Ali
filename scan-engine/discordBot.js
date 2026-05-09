@@ -65,7 +65,11 @@ async function initDiscordBot(token, onApprove, getSummary) {
             },
             {
                 name: 'test_viral',
-                description: 'TEST: Send a mock viral alert to verify the channel'
+                description: 'TEST: Send a mock viral alert'
+            },
+            {
+                name: 'test_attendance',
+                description: 'TEST: Send a mock attendance log to the post-log channel'
             }
         ];
 
@@ -167,6 +171,22 @@ async function initDiscordBot(token, onApprove, getSummary) {
                     await interaction.editReply('✅ **Mock Viral Alert Sent** to the alerts channel.');
                 } catch (err) {
                     console.error('[DiscordBot] Test failed:', err);
+                }
+                return;
+            }
+
+            // Handle /test_attendance
+            if (interaction.commandName === 'test_attendance') {
+                try {
+                    await interaction.deferReply({ ephemeral: true });
+                    const mockPosts = [
+                        { account: 'TestAccount1', title: 'Viral Moment #1', link: 'https://youtube.com', icon: '🔴' },
+                        { account: 'TestAccount2', title: 'Content Success #2', link: 'https://tiktok.com', icon: '⚫' }
+                    ];
+                    await sendAttendanceLog(mockPosts);
+                    await interaction.editReply('✅ **Mock Attendance Log Sent** to the post-log channel.');
+                } catch (err) {
+                    console.error('[DiscordBot] Attendance test failed:', err);
                 }
                 return;
             }
