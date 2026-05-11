@@ -1567,18 +1567,6 @@ export default function AccountForensicPage() {
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-                ) : (
-                  <div className="space-y-6 max-w-2xl mx-auto py-10">
-                    {engagementData.map((item, i) => (
-                      <div key={i} className="p-10 bg-white/[0.03] border border-white/5 rounded-[2.5rem]">
-                        <p className="text-[11px] font-black uppercase tracking-widest mb-6 italic opacity-50">{item.name}</p>
-                        <p className="text-6xl font-black italic leading-none">{item.value}%</p>
-                        <div className="w-full h-2 bg-white/5 mt-8 rounded-full overflow-hidden">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${item.value}%` }} className="h-full bg-white/20 shadow-[0_0_20px_rgba(255,255,255,0.2)]" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 )}
               </div>
 

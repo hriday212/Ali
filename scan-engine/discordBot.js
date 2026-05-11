@@ -258,8 +258,8 @@ async function sendDailyDigest(summaryData) {
 }
 
 async function sendAttendanceLog(posts) {
-    if (!client || !viralAlertsChannelId) return;
-    const channel = await client.channels.fetch(viralAlertsChannelId);
+    if (!client || !reportsChannelId) return;
+    const channel = await client.channels.fetch(reportsChannelId);
     if (!channel) return;
     if (!posts?.length) return await channel.send({ embeds: [new EmbedBuilder().setTitle('📋 Daily Attendance').setDescription('⚠️ No new content detected.').setColor(0xFFAA00)] });
     const lines = posts.map(p => `${p.icon} **${p.account.substring(0,20)}**: [${p.title?.substring(0,40) || 'Video'}](${p.link})`);
