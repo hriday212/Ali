@@ -295,7 +295,7 @@ export default function Home() {
              value={liveStats.totalFollowers} 
              growth={0} 
              icon={Users} 
-             variant="blue"
+             variant="silver"
            />
            {isAdmin && (
              <StatsCard 

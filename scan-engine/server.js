@@ -1626,15 +1626,15 @@ app.listen(PORT, '0.0.0.0', () => {
   function scheduleDailyDigest() {
     const now = new Date();
     const targetUTC = new Date(now);
-    targetUTC.setUTCHours(15, 50, 0, 0); // 9:20 PM IST = 3:50 PM UTC
+    targetUTC.setUTCHours(15, 52, 0, 0); // 9:22 PM IST = 3:52 PM UTC
     
     if (now > targetUTC) targetUTC.setUTCDate(targetUTC.getUTCDate() + 1);
     
     const delay = targetUTC.getTime() - now.getTime();
-    console.log(`[Scheduler] Daily Summary scheduled in ${Math.round(delay/1000/60)} minutes (Test Time: 9:20 PM IST).`);
+    console.log(`[Scheduler] Daily Summary scheduled in ${Math.round(delay/1000/60)} minutes (Test Time: 9:22 PM IST).`);
     
     setTimeout(async () => {
-      console.log('[Scheduler] 🕛 Test Time reached (9:20 PM IST). Posting Daily Reports...');
+      console.log('[Scheduler] 🕛 Test Time reached (9:22 PM IST). Posting Daily Reports...');
       const summary = await getSummaryInternal(null, '24h', null);
       await sendDailyDigest(summary);
       
