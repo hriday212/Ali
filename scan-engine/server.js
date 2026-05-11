@@ -7,7 +7,7 @@ const fetch = require('node-fetch');
 require('dotenv').config({ path: path.join(__dirname, '../.env.local') });
 
 const { DEFAULT_ACCOUNTS } = require('./defaultAccounts');
-const { initDiscordBot, sendApprovalRequest, sendViralAlert, sendDailyDigest } = require('./discordBot');
+const { initDiscordBot, sendApprovalRequest, sendViralAlert, sendDailyDigest, sendAttendanceLog } = require('./discordBot');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -786,7 +786,8 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
 
               // 2. Bot Channel Alert (Phase 18: Primary)
               if (process.env.DISCORD_BOT_TOKEN) {
-                  sendViralAlert(accountId, platform, { delta, multiplier, zScore });
+                  const topPosts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3);
+                  sendViralAlert(accountId, platform, { delta, multiplier, zScore }, { name: scan.name, link: accountLink, topPosts });
               }
           }
 
@@ -838,7 +839,8 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
                 // Priority: Discord Bot (Buttons) -> Webhook (Link)
                 if (process.env.DISCORD_BOT_TOKEN) {
                    sendApprovalRequest(accountId, nextInterval, targetInterval);
-                   sendViralAlert(accountId, platform, { zScore, multiplier, delta });
+                   const topPosts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3);
+                   sendViralAlert(accountId, platform, { zScore, multiplier, delta }, { name: scan.name, link: accountLink, topPosts });
                 } else {
                    fetch(discordWebhookUrl, {
                        method: 'POST',
@@ -1398,9 +1400,12 @@ app.listen(PORT, '0.0.0.0', () => {
     
     if (dateParam) {
         cutoffDate = new Date(dateParam);
+        cutoffDate.setHours(0, 0, 0, 0); // Start of target day
         days = 1;
     } else {
-        cutoffDate.setDate(cutoffDate.getDate() - days);
+        // For 24h report, look back slightly more than 24h (26h) to account for scan jitter
+        const lookbackMs = timeframe === '24h' || !timeframe ? (26 * 60 * 60 * 1000) : (days * 24 * 60 * 60 * 1000);
+        cutoffDate = new Date(Date.now() - lookbackMs);
     }
 
     const nextDay = new Date(cutoffDate);
@@ -1498,7 +1503,38 @@ app.listen(PORT, '0.0.0.0', () => {
         if (isHealthy) { healthy++; passedList.push(entry); } else { failing++; failedList.push(entry); }
     });
 
+    // Platform breakdown
+    const ytCount = sortedScans.filter(s => s.platform === 'youtube').length;
+    const ttCount = sortedScans.filter(s => s.platform === 'tiktok').length;
+    const igCount = sortedScans.filter(s => s.platform === 'instagram').length;
+
+    // Find top performer
+    let topPerformer = null;
+    let topGain = 0;
+    sortedScans.forEach(s => {
+        const data = readScanData(s.accountId);
+        const history = data.history || [];
+        const sp = history.find(h => new Date(h.timestamp) >= cutoffDate) || history[0];
+        const ep = history[history.length - 1];
+        const g = (ep?.totalViews || 0) - (sp?.totalViews || 0);
+        if (g > topGain) { topGain = g; topPerformer = s; }
+    });
+
     return {
+        // Structured data for rich embeds
+        totalNodes,
+        totalViews,
+        periodViewsGain,
+        healthy,
+        failing,
+        ytCount,
+        ttCount,
+        igCount,
+        topPerformer: topPerformer ? { name: topPerformer.name || topPerformer.accountId, platform: topPerformer.platform, gain: topGain, link: topPerformer.accountLink } : null,
+        lastScanTime: new Date().toISOString(),
+        passedList,
+        failedList,
+        // Pre-formatted strings (kept for backward compat with /status and /scans)
         brief: `📊 **Account Status** (${dateParam || timeframe.toUpperCase()})\n` +
                `> Accounts: \`${totalNodes}\` active\n` +
                `> Total Reach: \`+${(periodViewsGain / 1000000).toFixed(2)}M\` views\n` +

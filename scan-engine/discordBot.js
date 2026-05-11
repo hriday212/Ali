@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } = require('discord.js');
 
 let client = null;
 let adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
@@ -301,7 +301,7 @@ async function initDiscordBot(token, onApprove, getSummary) {
             if (!hasRole && !isOwner) {
                 return interaction.reply({ 
                     content: '❌ **Access Denied**: You do not have the required role to approve frequency shifts.', 
-                    ephemeral: true 
+                    flags: MessageFlags.Ephemeral 
                 });
             }
 
@@ -321,7 +321,7 @@ async function initDiscordBot(token, onApprove, getSummary) {
                 });
             } catch (err) {
                 console.error('[DiscordBot] Approval error:', err);
-                interaction.reply({ content: '❌ Failed to apply shift. Server error.', ephemeral: true });
+                interaction.reply({ content: '❌ Failed to apply shift. Server error.', flags: MessageFlags.Ephemeral });
             }
         }
     });
@@ -373,16 +373,19 @@ async function sendApprovalRequest(accountId, current, target) {
 /**
  * Sends a viral notification to the public alerts channel
  */
-async function sendViralAlert(accountId, platform, growthData) {
+async function sendViralAlert(accountId, platform, growthData, accountMeta = {}) {
     if (!client || !viralAlertsChannelId) return;
 
     try {
         const channel = await client.channels.fetch(viralAlertsChannelId);
         if (!channel) return;
 
+        const displayName = accountMeta.name || accountId;
+        const profileLink = accountMeta.link ? `[${displayName}](${accountMeta.link})` : `**${displayName}**`;
+
         const embed = new EmbedBuilder()
             .setTitle('🔥 VIRAL SIGNAL DETECTED')
-            .setDescription(`Significant momentum spike detected for node **${accountId}** on ${platform.toUpperCase()}.`)
+            .setDescription(`Significant momentum spike detected for node ${profileLink} on ${platform.toUpperCase()}.`)
             .setColor(0xFF4500)
             .addFields(
                 { name: 'Velocity Spike', value: `+${growthData.delta.toLocaleString()} views`, inline: true },
@@ -392,15 +395,27 @@ async function sendViralAlert(accountId, platform, growthData) {
             .setThumbnail('https://cdn-icons-png.flaticon.com/512/1680/1680951.png')
             .setTimestamp();
 
+        if (accountMeta.topPosts && accountMeta.topPosts.length > 0) {
+            let postsText = '';
+            accountMeta.topPosts.forEach((p, idx) => {
+                const title = p.title ? (p.title.length > 40 ? p.title.substring(0, 40) + '...' : p.title) : 'Untitled';
+                const link = p.videoUrl || p.link;
+                const viewsStr = p.views ? `(${p.views.toLocaleString()} views)` : '';
+                if (link) {
+                    postsText += `${idx + 1}. [${title}](${link}) ${viewsStr}\n`;
+                } else {
+                    postsText += `${idx + 1}. ${title} ${viewsStr}\n`;
+                }
+            });
+            embed.addFields({ name: '🚀 Trending Content', value: postsText });
+        }
+
         await channel.send({ embeds: [embed] });
     } catch (err) {
         console.error('[DiscordBot] Failed to send viral alert:', err.message);
     }
 }
 
-/**
- * Sends a daily summary digest to the viral alerts channel
- */
 async function sendDailyDigest(summaryData) {
     if (!client || !viralAlertsChannelId) return;
 
@@ -408,21 +423,54 @@ async function sendDailyDigest(summaryData) {
         const channel = await client.channels.fetch(viralAlertsChannelId);
         if (!channel) return;
 
+        const { totalNodes, totalViews, periodViewsGain, healthy, failing, ytCount, ttCount, igCount, topPerformer, passedList, failedList } = summaryData;
+
+        // Format numbers
+        const fmtViews = totalViews >= 1000000 ? `${(totalViews / 1000000).toFixed(2)}M` : `${(totalViews / 1000).toFixed(1)}K`;
+        const fmtGain = periodViewsGain >= 1000000 ? `+${(periodViewsGain / 1000000).toFixed(2)}M` : `+${(periodViewsGain / 1000).toFixed(1)}K`;
+        const healthPct = totalNodes > 0 ? Math.round((healthy / totalNodes) * 100) : 0;
+
+        // Health color: green if >80%, yellow if >50%, red otherwise
+        const embedColor = healthPct >= 80 ? 0x00FF99 : healthPct >= 50 ? 0xFFAA00 : 0xFF4444;
+
         const embed = new EmbedBuilder()
-            .setTitle('🌙 Daily Viral Summary (24H)')
-            .setDescription(`Overview of network performance for the last 24 hours.`)
-            .setColor(0x00D1FF)
+            .setTitle('📊 Daily Network Report')
+            .setColor(embedColor)
+            .setDescription(`24-hour performance snapshot for **${totalNodes} accounts** across the Clypso network.`)
             .addFields(
-                { name: 'Total Views', value: summaryData.brief.split('\n')[2].replace('> Total Reach: ', ''), inline: true },
-                { name: 'Status', value: summaryData.brief.split('\n')[3].replace('> Health: ', ''), inline: true }
+                { name: '📈 Total Reach', value: `\`${fmtViews}\` lifetime\n\`${fmtGain}\` today`, inline: true },
+                { name: '💚 Network Health', value: `\`${healthy}\` passing / \`${failing}\` failing\n**${healthPct}%** uptime`, inline: true },
+                { name: '🌐 Platform Split', value: `🔴 YouTube: \`${ytCount}\`\n⚫ TikTok: \`${ttCount}\`\n🟣 Instagram: \`${igCount}\``, inline: true }
             )
             .setTimestamp();
 
-        // Add top performers list
-        const detailed = summaryData.detailed.split('\n\n')[0]; 
-        embed.addFields({ name: '🏆 Top Performers', value: detailed.substring(0, 1024) });
+        // Top performer callout
+        if (topPerformer) {
+            const topEmoji = topPerformer.platform === 'youtube' ? '🔴' : topPerformer.platform === 'tiktok' ? '⚫' : '🟣';
+            const topGainFmt = topPerformer.gain >= 1000000 ? `${(topPerformer.gain / 1000000).toFixed(2)}M` : `${(topPerformer.gain / 1000).toFixed(1)}K`;
+            embed.addFields({ name: '🏆 Top Performer', value: `${topEmoji} [${topPerformer.name}](${topPerformer.link}) — **+${topGainFmt} views**` });
+        }
 
-        await channel.send({ content: '📊 **Daily Network Report**', embeds: [embed] });
+        // Passing accounts (compact list, max 10)
+        if (passedList && passedList.length > 0) {
+            const list = passedList.slice(0, 10).join('\n');
+            const extra = passedList.length > 10 ? `\n*+ ${passedList.length - 10} more...*` : '';
+            embed.addFields({ name: `✅ Accounts Passing (${healthy})`, value: list + extra });
+        }
+
+        // Failing accounts (always show if any)
+        if (failedList && failedList.length > 0) {
+            const list = failedList.slice(0, 10).join('\n');
+            const extra = failedList.length > 10 ? `\n*+ ${failedList.length - 10} more...*` : '';
+            embed.addFields({ name: `⚠️ Accounts Failing (${failing})`, value: list + extra });
+        } else {
+            embed.addFields({ name: '✅ All Accounts Passing', value: '*Every account met their posting quota today.*' });
+        }
+
+        // Footer with dashboard link
+        embed.setFooter({ text: 'Clypso Sentinel • Automated Report' });
+
+        await channel.send({ embeds: [embed] });
         console.log('[DiscordBot] ✅ Daily Summary sent.');
     } catch (err) {
         console.error('[DiscordBot] Failed to send summary:', err.message);
@@ -433,7 +481,26 @@ async function sendDailyDigest(summaryData) {
  * Sends a daily attendance log of all content synced in the last 24h
  */
 async function sendAttendanceLog(posts) {
-    if (!client || !postLogChannelId || !posts.length) return;
+    if (!client || !postLogChannelId) return;
+
+    if (!posts || posts.length === 0) {
+        try {
+            const channel = await client.channels.fetch(postLogChannelId);
+            if (!channel) return;
+            const embed = new EmbedBuilder()
+                .setTitle('📋 Daily Attendance: Content Log')
+                .setDescription('⚠️ **No new content detected** in the last 24 hours.\n\n*Possible causes: Accounts haven\'t posted, or API tokens are depleted. Check the Clypso dashboard for details.*')
+                .setColor(0xFFAA00)
+                .setFooter({ text: 'Clypso Sentinel • Attendance Report' })
+                .setTimestamp();
+            await channel.send({ embeds: [embed] });
+            console.log('[DiscordBot] ✅ Empty Attendance Log sent.');
+            return;
+        } catch (e) {
+            console.error('[DiscordBot] Failed to send empty log:', e);
+            return;
+        }
+    }
 
     try {
         const channel = await client.channels.fetch(postLogChannelId);
@@ -443,7 +510,10 @@ async function sendAttendanceLog(posts) {
         let currentChunk = '';
         
         posts.forEach(p => {
-            const line = `${p.icon} \`${p.account.substring(0,12)}\`: [${p.title.substring(0,30)}...](${p.link})\n`;
+            const acctName = p.account.substring(0, 20);
+            const titleText = p.title ? p.title.substring(0, 50) : 'Untitled';
+            const linkText = p.link ? `[${titleText}](${p.link})` : titleText;
+            const line = `${p.icon} **${acctName}**: ${linkText}\n`;
             if ((currentChunk + line).length > 1900) {
                 chunks.push(currentChunk);
                 currentChunk = line;
@@ -455,13 +525,14 @@ async function sendAttendanceLog(posts) {
 
         for (const [index, chunk] of chunks.entries()) {
             const embed = new EmbedBuilder()
-                .setTitle(index === 0 ? '📋 Daily Attendance: Content Log' : '📋 Attendance Log (Continued)')
+                .setTitle(index === 0 ? `📋 Daily Attendance: ${posts.length} Posts Synced` : '📋 Attendance Log (Continued)')
                 .setDescription(chunk)
-                .setColor(0xBBBBBB)
+                .setColor(0x00D1FF)
+                .setFooter({ text: `Clypso Sentinel • Page ${index + 1}/${chunks.length}` })
                 .setTimestamp();
             await channel.send({ embeds: [embed] });
         }
-        console.log('[DiscordBot] ✅ Attendance Log sent.');
+        console.log(`[DiscordBot] ✅ Attendance Log sent (${posts.length} posts).`);
     } catch (err) {
         console.error('[DiscordBot] Failed to send attendance:', err.message);
     }
