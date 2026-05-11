@@ -1533,7 +1533,7 @@ app.listen(PORT, '0.0.0.0', () => {
             attendanceLog.push({
                 account: nameLabel,
                 title: p.title,
-                link: p.videoUrl || p.link,
+                link: p.videoUrl || p.link || s.accountLink || '#',
                 icon
             });
         });

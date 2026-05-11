@@ -248,11 +248,14 @@ async function sendDailyDigest(summaryData) {
         }
     };
 
-    if (topPerformer) embed.addFields({ name: '🏆 Top Performer', value: `[${topPerformer.name}](${topPerformer.link}) — **+${fmtCount(topPerformer.gain)} views**` });
-    embed.setFooter({ text: 'Clypso Sentinel • Automated Report' }).setTimestamp();
-    await channel.send({ embeds: [embed] });
+    const alertChannel = await client.channels.fetch(viralAlertsChannelId);
+    if (alertChannel) {
+        if (topPerformer) embed.addFields({ name: '🏆 Top Performer', value: `[${topPerformer.name}](${topPerformer.link}) — **+${fmtCount(topPerformer.gain)} views**` });
+        embed.setFooter({ text: 'Clypso Sentinel • Automated Report' }).setTimestamp();
+        await alertChannel.send({ embeds: [embed] });
+    }
 
-    // Send split lists as follow-up embeds to prevent character limit crashes
+    // Send detailed lists strictly to the Log channel
     await sendSplitEmbeds(`✅ Passing Accounts (${healthy})`, passedList, 0x00FF99);
     await sendSplitEmbeds(`⚠️ Failing Accounts (${failing})`, failedList, 0xFFAA00);
 }
