@@ -186,7 +186,13 @@ async function sendViralAlert(accountId, platform, growthData, accountMeta = {})
         { name: 'Velocity Spike', value: `+${fmtCount(growthData.delta)} views`, inline: true }, 
         { name: 'Growth Multiplier', value: `${growthData.multiplier.toFixed(1)}x`, inline: true }, 
         { name: 'Z-Score Momentum', value: growthData.zScore.toFixed(2), inline: true }
-    ).setThumbnail('https://cdn-icons-png.flaticon.com/512/1680/1680951.png').setTimestamp();
+    );
+
+    if (growthData.followerDelta > 0) {
+        embed.addFields({ name: '👤 Follower Surge', value: `+${fmtCount(growthData.followerDelta)} fans`, inline: true });
+    }
+
+    embed.setThumbnail('https://cdn-icons-png.flaticon.com/512/1680/1680951.png').setTimestamp();
     if (accountMeta.topPosts?.length > 0) {
         let text = '';
         accountMeta.topPosts.forEach((p, idx) => {

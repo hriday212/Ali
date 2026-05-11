@@ -756,6 +756,11 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       const multiplier = currentHourlyGain / avgHourlyGain;
       const zScore = calculateZScore(delta, data.history);
 
+      const followerLatest = data.history[data.history.length - 1].totalFollowers || 0;
+      const followerPrev = data.history[data.history.length - 2].totalFollowers || 0;
+      const followerDelta = Math.max(0, followerLatest - followerPrev);
+      const followerMultiplier = followerPrev > 0 ? (followerLatest / followerPrev) : 1;
+
       // --- 3. Enhanced Viral & Anomaly Discord Alerts ---
       if (discordWebhookUrl) {
           // A. Milestone Detection
@@ -775,9 +780,15 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
           const isAggressive = viralDetectionMode === 'aggressive';
           const zThreshold = isAggressive ? 2.5 : 4.0;
           
-          if (zScore > zThreshold || (multiplier > 8 && delta > 25000)) {
+          // Trigger if View Spike OR Follower Spike (Conversion Viral)
+          const isViewViral = zScore > zThreshold || (multiplier > 8 && delta > 25000);
+          const isFollowerViral = followerDelta > (isAggressive ? 500 : 2000) && followerMultiplier > 1.05;
+
+          if (isViewViral || isFollowerViral) {
+              const typeLabel = isFollowerViral && !isViewViral ? '🔥 CONVERSION SPIKE' : '⚡ SUPERNOVA DETECTED';
+              
               // 0. Log to Ledger (Phase 18: Audit Trail)
-              updateLedger(accountId, 0, delta, 'Viral Candidate', { zScore, multiplier });
+              updateLedger(accountId, 0, delta, 'Viral Candidate', { zScore, multiplier, followerDelta });
 
               // 1. Webhook Fallback
               if (discordWebhookUrl) {
@@ -785,7 +796,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
-                          content: `⚡ **SUPERNOVA DETECTED** ⚡\nNode: **${accountId}**\nZ-Score: **${zScore.toFixed(2)}** (Threshold: ${zThreshold})\nGrowth is **${multiplier.toFixed(1)}x** above baseline!\nDelta: +${delta.toLocaleString()} views\nLink: ${accountLink}`
+                          content: `${typeLabel}\nNode: **${accountId}**\nZ-Score: **${zScore.toFixed(2)}**\nViews: **+${delta.toLocaleString()}**\nFollowers: **+${followerDelta.toLocaleString()}**\nLink: ${accountLink}`
                       })
                   }).catch(e => console.error('[Discord] Anomaly alert failed:', e.message));
               }
@@ -799,7 +810,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
                       likes: p.likes || p.diggCount || 0,
                       comments: p.comments || p.commentCount || 0
                   }));
-                  sendViralAlert(accountId, platform, { delta, multiplier, zScore }, { name: scan.name, link: accountLink, topPosts });
+                  sendViralAlert(accountId, platform, { delta, multiplier, zScore, followerDelta }, { name: scan.name, link: accountLink, topPosts });
               }
           }
 
