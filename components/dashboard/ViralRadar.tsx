@@ -17,6 +17,8 @@ interface Candidate {
   platform: string;
   viewDelta: number;
   currentViews: number;
+  likes: number;
+  comments: number;
   time: string;
   validation?: { status: string; reason: string };
   lifecycle?: string;
@@ -60,6 +62,8 @@ export function ViralRadar() {
                     platform: scan.platform || 'youtube',
                     viewDelta,
                     currentViews: latest.views,
+                    likes: post?.likes || post?.diggCount || 0,
+                    comments: post?.comments || post?.commentCount || 0,
                     time: latest.time,
                     validation: post ? post.validation : undefined,
                     lifecycle: post ? post.lifecycle : undefined
@@ -88,6 +92,8 @@ export function ViralRadar() {
                 platform: scan.platform || 'youtube',
                 viewDelta,
                 currentViews: latest.totalViews,
+                likes: topPost?.likes || topPost?.diggCount || 0,
+                comments: topPost?.comments || topPost?.commentCount || 0,
                 time: latest.time
               });
             }
@@ -114,6 +120,8 @@ export function ViralRadar() {
       </div>
     );
   }
+
+  const formatNum = (num: number) => num >= 1000 ? `${(num / 1000).toFixed(1)}k` : num;
 
   return (
     <div className="glass-card p-6 border border-emerald-500/20 relative overflow-hidden bg-gradient-to-br from-emerald-500/5 to-transparent">
@@ -167,9 +175,11 @@ export function ViralRadar() {
                        NODE: {candidate.accountName || candidate.accountId}
                      </p>
                    </div>
-                   <div className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
-                     <TrendingUp className="w-3 h-3" />
-                     <span className="text-[10px] font-black italic tracking-tighter">+{candidate.viewDelta.toLocaleString()}</span>
+                   <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
+                        <TrendingUp className="w-3 h-3" />
+                        <span className="text-[10px] font-black italic tracking-tighter">+{candidate.viewDelta.toLocaleString()}</span>
+                      </div>
                    </div>
                  </div>
 
@@ -180,13 +190,23 @@ export function ViralRadar() {
                    </div>
                  )}
                  
-                 <div className="flex items-center justify-between z-10">
-                   <div>
-                     <p className="text-[7px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Current Reach</p>
-                     <p className="text-sm font-black text-white italic tracking-tighter">{candidate.currentViews.toLocaleString()}</p>
+                 <div className="flex items-center justify-between z-10 bg-white/5 rounded-xl p-2 px-3">
+                   <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-1.5">
+                       <Eye className="w-3 h-3 text-slate-400" />
+                       <span className="text-[10px] font-black text-white italic">{formatNum(candidate.currentViews)}</span>
+                     </div>
+                     <div className="flex items-center gap-1.5">
+                       <Heart className="w-3 h-3 text-rose-500" />
+                       <span className="text-[10px] font-black text-white italic">{formatNum(candidate.likes)}</span>
+                     </div>
+                     <div className="flex items-center gap-1.5">
+                       <MessageCircle className="w-3 h-3 text-blue-500" />
+                       <span className="text-[10px] font-black text-white italic">{formatNum(candidate.comments)}</span>
+                     </div>
                    </div>
-                   <a href={candidate.link} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1 hover:bg-emerald-500/30 transition-all border border-emerald-500/30">
-                     Watch Source <ArrowUpRight className="w-3 h-3" />
+                   <a href={candidate.link} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-all border border-white/10">
+                     <ArrowUpRight className="w-3.5 h-3.5 text-white" />
                    </a>
                  </div>
                </motion.div>

@@ -786,7 +786,13 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
 
               // 2. Bot Channel Alert (Phase 18: Primary)
               if (process.env.DISCORD_BOT_TOKEN) {
-                  const topPosts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3);
+                  const topPosts = posts.sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 3).map(p => ({
+                      title: p.title,
+                      link: p.videoUrl || p.link,
+                      views: p.views,
+                      likes: p.likes || p.diggCount || 0,
+                      comments: p.comments || p.commentCount || 0
+                  }));
                   sendViralAlert(accountId, platform, { delta, multiplier, zScore }, { name: scan.name, link: accountLink, topPosts });
               }
           }
