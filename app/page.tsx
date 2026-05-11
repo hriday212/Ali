@@ -23,7 +23,7 @@ export default function Home() {
   const { scrollY } = useScroll();
 
   // ── Live stats from scan engine ──
-  const [liveStats, setLiveStats] = useState({ totalViews: 0, totalLikes: 0, totalComments: 0, totalShares: 0, totalEarned: 0 });
+  const [liveStats, setLiveStats] = useState({ totalViews: 0, totalLikes: 0, totalComments: 0, totalShares: 0, totalEarned: 0, totalFollowers: 0 });
   const [growthStats, setGrowthStats] = useState({ viewsGrowth: 0, likesGrowth: 0, commentsGrowth: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
   const [platformDist, setPlatformDist] = useState<any[]>([]);
@@ -36,7 +36,7 @@ export default function Home() {
       if (!data?.scans) return;
 
       // Aggregate totals across all nodes
-      let totalViews = 0, totalLikes = 0, totalComments = 0, totalShares = 0, totalEarned = 0;
+      let totalViews = 0, totalLikes = 0, totalComments = 0, totalShares = 0, totalEarned = 0, totalFollowers = 0;
       const platformViews: Record<string, number> = {};
       const allHistory: { time: string; totalViews: number }[] = [];
 
@@ -46,6 +46,7 @@ export default function Home() {
         totalComments += scan.lastComments || 0;
         totalShares += scan.lastShares || 0;
         totalEarned += scan.totalEarned || 0;
+        totalFollowers += scan.followers || 0;
 
         const plat = (scan.platform || 'unknown').toLowerCase();
         platformViews[plat] = (platformViews[plat] || 0) + (scan.lastViews || 0);
@@ -58,7 +59,7 @@ export default function Home() {
         }
       }
 
-      setLiveStats({ totalViews, totalLikes, totalComments, totalShares, totalEarned });
+      setLiveStats({ totalViews, totalLikes, totalComments, totalShares, totalEarned, totalFollowers });
 
       // Compute growth from last 2 history entries per node
       let prevViews = 0, currViews = 0, prevLikes = 0, currLikes = 0, prevComments = 0, currComments = 0;
@@ -290,12 +291,21 @@ export default function Home() {
              variant="silver"
            />
            <StatsCard 
-             title={isAdmin ? "Total Disbursed" : "Total Shares"} 
-             value={isAdmin ? liveStats.totalEarned : liveStats.totalShares} 
+             title="Network Influence" 
+             value={liveStats.totalFollowers} 
              growth={0} 
-             icon={isAdmin ? DollarSign : TrendingUp} 
-             variant={isAdmin ? "emerald" : "silver"}
+             icon={Users} 
+             variant="blue"
            />
+           {isAdmin && (
+             <StatsCard 
+               title="Total Disbursed" 
+               value={liveStats.totalEarned} 
+               growth={0} 
+               icon={DollarSign} 
+               variant="emerald"
+             />
+           )}
         </div>
       </section>
 

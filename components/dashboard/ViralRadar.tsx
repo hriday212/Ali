@@ -40,62 +40,68 @@ export function ViralRadar() {
           const statusResult = await safeFetchJson(`${API_ROUTES.STATUS}?accountId=${scan.accountId}`);
           const scanData = (statusResult || {}).data;
           
-          if (scanData && scanData.videoHistory && scanData.posts) {
-            // NEW: Per-video viral detection
-            for (const [videoId, history] of Object.entries(scanData.videoHistory)) {
-              if ((history as any).length > 1) {
-                const histArr = history as any[];
-                const latest = histArr[histArr.length - 1];
-                const previous = histArr[histArr.length - 2];
-                const viewDelta = latest.views - previous.views;
-                
-                if (viewDelta > 50) {
-                  const post = scanData.posts.find((p: any) => p.id === videoId);
+          if (scanData && scanData.history && scanData.history.length > 1) {
+            const h = scanData.history;
+            const last = h[h.length - 1];
+            const prev = h[h.length - 2];
+            const followerDelta = (last.totalFollowers || 0) - (prev.totalFollowers || 0);
+            const totalFollowers = last.totalFollowers || 0;
+
+            if (scanData.videoHistory && scanData.posts) {
+              // NEW: Per-video viral detection
+              for (const [videoId, history] of Object.entries(scanData.videoHistory)) {
+                if ((history as any).length > 1) {
+                  const histArr = history as any[];
+                  const latest = histArr[histArr.length - 1];
+                  const previous = histArr[histArr.length - 2];
+                  const viewDelta = latest.views - previous.views;
                   
-                  flagged.push({
-                    id: videoId,
-                    accountId: scan.accountId,
-                    accountName: scan.name || scan.accountId,
-                    title: post ? post.title : videoId,
-                    thumbnail: post ? post.thumbnail : null,
-                    link: post ? post.link : `/accounts/${scan.accountId}`,
-                    platform: scan.platform || 'youtube',
-                    viewDelta,
-                    currentViews: latest.views,
-                    likes: post?.likes || post?.diggCount || 0,
-                    comments: post?.comments || post?.commentCount || 0,
-                    time: latest.time,
-                    validation: post ? post.validation : undefined,
-                    lifecycle: post ? post.lifecycle : undefined
-                  });
+                  if (viewDelta > 50) {
+                    const post = scanData.posts.find((p: any) => p.id === videoId);
+                    
+                    flagged.push({
+                      id: videoId,
+                      accountId: scan.accountId,
+                      accountName: scan.name || scan.accountId,
+                      title: post ? post.title : videoId,
+                      thumbnail: post ? post.thumbnail : null,
+                      link: post ? post.link : `/accounts/${scan.accountId}`,
+                      platform: scan.platform || 'youtube',
+                      viewDelta,
+                      currentViews: latest.views,
+                      likes: post?.likes || post?.diggCount || 0,
+                      comments: post?.comments || post?.commentCount || 0,
+                      time: latest.time,
+                      followerDelta,
+                      totalFollowers,
+                      validation: post ? post.validation : undefined,
+                      lifecycle: post ? post.lifecycle : undefined
+                    });
+                  }
                 }
               }
-            }
-          } else if (scanData && scanData.history && scanData.history.length > 1) {
-            // FALLBACK: Account-level detection for older data without videoHistory
-            const history = scanData.history;
-            const latest = history[history.length - 1];
-            const previous = history[history.length - 2];
-            const viewDelta = latest.totalViews - previous.totalViews;
-            
-            if (viewDelta > 50) {
-              // Try to find the top post by views from the posts array
-              const topPost = scanData.posts?.sort((a: any, b: any) => (b.views || 0) - (a.views || 0))[0];
-              
-              flagged.push({
-                id: scan.accountId,
-                accountId: scan.accountId,
-                accountName: scan.name || scan.accountId,
-                title: topPost ? topPost.title : scan.accountId,
-                thumbnail: topPost ? topPost.thumbnail : null,
-                link: topPost ? topPost.link : `/accounts/${scan.accountId}`,
-                platform: scan.platform || 'youtube',
-                viewDelta,
-                currentViews: latest.totalViews,
-                likes: topPost?.likes || topPost?.diggCount || 0,
-                comments: topPost?.comments || topPost?.commentCount || 0,
-                time: latest.time
-              });
+            } else {
+              // FALLBACK: Account-level detection
+              const viewDelta = last.totalViews - prev.totalViews;
+              if (viewDelta > 50) {
+                const topPost = scanData.posts?.sort((a: any, b: any) => (b.views || 0) - (a.views || 0))[0];
+                flagged.push({
+                  id: scan.accountId,
+                  accountId: scan.accountId,
+                  accountName: scan.name || scan.accountId,
+                  title: topPost ? topPost.title : scan.accountId,
+                  thumbnail: topPost ? topPost.thumbnail : null,
+                  link: topPost ? topPost.link : `/accounts/${scan.accountId}`,
+                  platform: scan.platform || 'youtube',
+                  viewDelta,
+                  currentViews: last.totalViews,
+                  likes: topPost?.likes || topPost?.diggCount || 0,
+                  comments: topPost?.comments || topPost?.commentCount || 0,
+                  time: last.time,
+                  followerDelta,
+                  totalFollowers
+                });
+              }
             }
           }
         }));
@@ -187,6 +193,12 @@ export function ViralRadar() {
                         <TrendingUp className="w-3 h-3" />
                         <span className="text-[10px] font-black italic tracking-tighter">+{candidate.viewDelta.toLocaleString()}</span>
                       </div>
+                      {candidate.followerDelta !== undefined && candidate.followerDelta > 0 && (
+                        <div className="flex items-center gap-1 text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/10">
+                          <Users className="w-2.5 h-2.5" />
+                          <span className="text-[8px] font-black italic tracking-tighter">+{candidate.followerDelta.toLocaleString()}</span>
+                        </div>
+                      )}
                    </div>
                  </div>
 
@@ -198,18 +210,18 @@ export function ViralRadar() {
                  )}
                  
                  <div className="flex items-center justify-between z-10 bg-white/5 rounded-xl p-2 px-3">
-                   <div className="flex items-center gap-4">
-                     <div className="flex items-center gap-1.5">
+                   <div className="flex items-center gap-3">
+                     <div className="flex items-center gap-1">
                        <Eye className="w-3 h-3 text-slate-400" />
-                       <span className="text-[10px] font-black text-white italic">{formatNum(candidate.currentViews)}</span>
+                       <span className="text-[9px] font-black text-white italic">{formatNum(candidate.currentViews)}</span>
                      </div>
-                     <div className="flex items-center gap-1.5">
+                     <div className="flex items-center gap-1">
+                       <Users className="w-3 h-3 text-blue-400" />
+                       <span className="text-[9px] font-black text-white italic">{formatNum(candidate.totalFollowers || 0)}</span>
+                     </div>
+                     <div className="flex items-center gap-1">
                        <Heart className="w-3 h-3 text-rose-500" />
-                       <span className="text-[10px] font-black text-white italic">{formatNum(candidate.likes)}</span>
-                     </div>
-                     <div className="flex items-center gap-1.5">
-                       <MessageCircle className="w-3 h-3 text-blue-500" />
-                       <span className="text-[10px] font-black text-white italic">{formatNum(candidate.comments)}</span>
+                       <span className="text-[9px] font-black text-white italic">{formatNum(candidate.likes)}</span>
                      </div>
                    </div>
                    <a href={candidate.link} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-all border border-white/10">

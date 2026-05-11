@@ -224,24 +224,36 @@ async function sendDailyDigest(summaryData) {
             { name: '💚 Health', value: `\`${healthy}\` pass / \`${failing}\` fail\n**${healthPct}%** uptime`, inline: true }, 
             { name: '🌐 Platforms', value: `🔴 YT: \`${ytCount}\` ⚫ TT: \`${ttCount}\` 🟣 IG: \`${igCount}\``, inline: true }
         );
-    const truncateList = (list) => {
-        if (!list || list.length === 0) return '';
-        let result = '';
-        for (let i = 0; i < list.length; i++) {
-            const nextLine = list[i] + '\n';
-            if ((result + nextLine).length > 950) { // Safety margin
-                return result + `*+ ${list.length - i} more... (Use /scans)*`;
+    const sendSplitEmbeds = async (title, list, color) => {
+        if (!list || list.length === 0) return;
+        let chunks = [];
+        let current = '';
+        for (const line of list) {
+            if ((current + line).length > 950) {
+                chunks.push(current);
+                current = '';
             }
-            result += nextLine;
+            current += line + '\n';
         }
-        return result;
+        if (current) chunks.push(current);
+
+        for (let i = 0; i < chunks.length; i++) {
+            const pageSuffix = chunks.length > 1 ? ` (Part ${i + 1}/${chunks.length})` : '';
+            const e = new EmbedBuilder()
+                .setTitle(`${title}${pageSuffix}`)
+                .setColor(color)
+                .setDescription(chunks[i]);
+            await channel.send({ embeds: [e] });
+        }
     };
 
     if (topPerformer) embed.addFields({ name: '🏆 Top Performer', value: `[${topPerformer.name}](${topPerformer.link}) — **+${fmtCount(topPerformer.gain)} views**` });
-    if (passedList?.length > 0) embed.addFields({ name: `✅ Passing (${healthy})`, value: truncateList(passedList) });
-    if (failedList?.length > 0) embed.addFields({ name: `⚠️ Failing (${failing})`, value: truncateList(failedList) });
     embed.setFooter({ text: 'Clypso Sentinel • Automated Report' }).setTimestamp();
     await channel.send({ embeds: [embed] });
+
+    // Send split lists as follow-up embeds to prevent character limit crashes
+    await sendSplitEmbeds(`✅ Passing Accounts (${healthy})`, passedList, 0x00FF99);
+    await sendSplitEmbeds(`⚠️ Failing Accounts (${failing})`, failedList, 0xFFAA00);
 }
 
 async function sendAttendanceLog(posts) {
