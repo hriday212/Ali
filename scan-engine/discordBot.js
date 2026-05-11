@@ -4,6 +4,7 @@ let client = null;
 let adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
 let approvalChannelId = process.env.DISCORD_APPROVAL_CHANNEL_ID;
 let viralAlertsChannelId = process.env.DISCORD_VIRAL_ALERTS_CHANNEL_ID;
+let reportsChannelId = process.env.DISCORD_REPORTS_CHANNEL_ID || process.env.DISCORD_VIRAL_ALERTS_CHANNEL_ID;
 
 /**
  * Initializes the Discord Bot if a token is provided
