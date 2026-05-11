@@ -20,6 +20,8 @@ interface Candidate {
   likes: number;
   comments: number;
   time: string;
+  followerDelta?: number;
+  totalFollowers?: number;
   validation?: { status: string; reason: string };
   lifecycle?: string;
 }
