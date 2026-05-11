@@ -1620,6 +1620,10 @@ app.listen(PORT, '0.0.0.0', () => {
       console.log('[Scheduler] 🕛 Test Time reached (9:05 PM IST). Posting Daily Reports...');
       const summary = await getSummaryInternal(null, '24h', null);
       await sendDailyDigest(summary);
+      
+      // 3-second delay to prevent clashing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
       await sendAttendanceLog(summary.attendanceLog);
       scheduleDailyDigest();
     }, delay);

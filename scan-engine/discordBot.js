@@ -4,7 +4,6 @@ let client = null;
 let adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID;
 let approvalChannelId = process.env.DISCORD_APPROVAL_CHANNEL_ID;
 let viralAlertsChannelId = process.env.DISCORD_VIRAL_ALERTS_CHANNEL_ID;
-let postLogChannelId = process.env.DISCORD_POST_LOG_CHANNEL_ID || '1502499064716066826';
 
 /**
  * Initializes the Discord Bot if a token is provided
@@ -208,8 +207,8 @@ const fmtCount = (num) => {
 };
 
 async function sendDailyDigest(summaryData) {
-    if (!client || !viralAlertsChannelId) return;
-    const channel = await client.channels.fetch(viralAlertsChannelId);
+    if (!client || !reportsChannelId) return;
+    const channel = await client.channels.fetch(reportsChannelId);
     if (!channel) return;
     const { totalNodes, totalViews, periodViewsGain, healthy, failing, ytCount, ttCount, igCount, topPerformer, passedList, failedList } = summaryData;
     const healthPct = Math.round((healthy / totalNodes) * 100);
@@ -227,8 +226,8 @@ async function sendDailyDigest(summaryData) {
 }
 
 async function sendAttendanceLog(posts) {
-    if (!client || !postLogChannelId) return;
-    const channel = await client.channels.fetch(postLogChannelId);
+    if (!client || !viralAlertsChannelId) return;
+    const channel = await client.channels.fetch(viralAlertsChannelId);
     if (!channel) return;
     if (!posts?.length) return await channel.send({ embeds: [new EmbedBuilder().setTitle('📋 Daily Attendance').setDescription('⚠️ No new content detected.').setColor(0xFFAA00)] });
     const lines = posts.map(p => `${p.icon} **${p.account.substring(0,20)}**: [${p.title?.substring(0,40) || 'Video'}](${p.link})`);
