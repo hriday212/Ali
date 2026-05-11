@@ -232,13 +232,14 @@ async function getChannelIdFromUrl(url) {
 
 async function getChannelVideos(channelId, maxResults = 50) {
     trackYoutubeQuota(1);
-    const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&id=${channelId}&key=${getYouTubeKey()}`);
+    const channelRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails,statistics&id=${channelId}&key=${getYouTubeKey()}`);
     const channelData = await channelRes.json();
     if (!channelData.items?.[0]) return { videos: [], profile: null };
     
     const profile = {
         name: channelData.items[0].snippet.title,
-        avatarUrl: channelData.items[0].snippet.thumbnails?.high?.url || channelData.items[0].snippet.thumbnails?.default?.url
+        avatarUrl: channelData.items[0].snippet.thumbnails?.high?.url || channelData.items[0].snippet.thumbnails?.default?.url,
+        followers: parseInt(channelData.items[0].statistics?.subscriberCount || '0')
     };
 
     const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
@@ -314,7 +315,8 @@ async function scanTikTok(accountId, accountLink, limit = 200) {
   const first = items?.[0];
   const profileMetadata = first ? {
     name: first.authorMeta?.nickname || first.authorMeta?.name || profile,
-    avatarUrl: first.authorMeta?.avatar ? `https://wsrv.nl/?url=${encodeURIComponent(first.authorMeta?.avatar)}&w=300&h=300&fit=cover&output=webp` : ''
+    avatarUrl: first.authorMeta?.avatar ? `https://wsrv.nl/?url=${encodeURIComponent(first.authorMeta?.avatar)}&w=300&h=300&fit=cover&output=webp` : '',
+    followers: first.authorMeta?.fans || first.authorMeta?.followerCount || 0
   } : null;
 
   const posts = (items || []).map((item, idx) => {
@@ -350,7 +352,8 @@ async function scanInstagram(accountId, accountLink, limit = 200) {
   const first = items?.[0];
   const profileMetadata = first ? {
     name: first.ownerUsername || first.ownerFullName || accountLink.split('/').filter(Boolean).pop(),
-    avatarUrl: first.ownerProfilePicUrl ? `https://wsrv.nl/?url=${encodeURIComponent(first.ownerProfilePicUrl)}&w=300&h=300&fit=cover&output=webp` : ''
+    avatarUrl: first.ownerProfilePicUrl ? `https://wsrv.nl/?url=${encodeURIComponent(first.ownerProfilePicUrl)}&w=300&h=300&fit=cover&output=webp` : '',
+    followers: first.ownerFollowersCount || 0
   } : null;
 
   const posts = (items || []).map(item => {
@@ -581,6 +584,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     if (profile) {
       if (profile.name) scan.name = profile.name;
       if (profile.avatarUrl) scan.avatarUrl = profile.avatarUrl;
+      if (profile.followers !== undefined) scan.followers = profile.followers;
     }
     scan.lastError = null;
     scan.lastErrorTime = null;
@@ -588,6 +592,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
     const data = readScanData(accountId);
     data.posts = posts;
     data.platform = platform;
+    data.followers = scan.followers; // Store current for display
 
     const { peakTotalViews, peakTotalLikes, peakTotalComments, peakTotalShares } = applyAdvancedHighWaterMark(data, posts);
 
@@ -597,6 +602,7 @@ async function executeScan(accountId, accountLink, platform, isManual = false) {
       totalLikes: peakTotalLikes,
       totalComments: peakTotalComments,
       totalShares: peakTotalShares,
+      totalFollowers: scan.followers || 0
     }].slice(-50);
 
     // 4. SLA Tracking (Phase 18: Posting Frequency & Retainer Fulfillment)

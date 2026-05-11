@@ -218,9 +218,22 @@ async function sendDailyDigest(summaryData) {
             { name: '💚 Health', value: `\`${healthy}\` pass / \`${failing}\` fail\n**${healthPct}%** uptime`, inline: true }, 
             { name: '🌐 Platforms', value: `🔴 YT: \`${ytCount}\` ⚫ TT: \`${ttCount}\` 🟣 IG: \`${igCount}\``, inline: true }
         );
+    const truncateList = (list) => {
+        if (!list || list.length === 0) return '';
+        let result = '';
+        for (let i = 0; i < list.length; i++) {
+            const nextLine = list[i] + '\n';
+            if ((result + nextLine).length > 950) { // Safety margin
+                return result + `*+ ${list.length - i} more... (Use /scans)*`;
+            }
+            result += nextLine;
+        }
+        return result;
+    };
+
     if (topPerformer) embed.addFields({ name: '🏆 Top Performer', value: `[${topPerformer.name}](${topPerformer.link}) — **+${fmtCount(topPerformer.gain)} views**` });
-    if (passedList?.length > 0) embed.addFields({ name: `✅ Passing (${healthy})`, value: passedList.slice(0, 20).join('\n') + (passedList.length > 20 ? `\n*+ ${passedList.length - 20} more... (Use /scans)*` : '') });
-    if (failedList?.length > 0) embed.addFields({ name: `⚠️ Failing (${failing})`, value: failedList.slice(0, 20).join('\n') + (failedList.length > 20 ? `\n*+ ${failedList.length - 20} more... (Use /scans)*` : '') });
+    if (passedList?.length > 0) embed.addFields({ name: `✅ Passing (${healthy})`, value: truncateList(passedList) });
+    if (failedList?.length > 0) embed.addFields({ name: `⚠️ Failing (${failing})`, value: truncateList(failedList) });
     embed.setFooter({ text: 'Clypso Sentinel • Automated Report' }).setTimestamp();
     await channel.send({ embeds: [embed] });
 }
