@@ -1536,7 +1536,23 @@ app.listen(PORT, '0.0.0.0', () => {
         ytCount,
         ttCount,
         igCount,
-        topPerformer: topPerformer ? { name: topPerformer.name || topPerformer.accountId, platform: topPerformer.platform, gain: topGain, link: topPerformer.accountLink } : null,
+        topPerformer: topPerformer ? { 
+            accountId: topPerformer.accountId,
+            name: topPerformer.name || topPerformer.accountId, 
+            platform: topPerformer.platform, 
+            gain: topGain, 
+            link: topPerformer.accountLink,
+            topPosts: (readScanData(topPerformer.accountId).posts || [])
+                .sort((a, b) => (b.views || 0) - (a.views || 0))
+                .slice(0, 3)
+                .map(p => ({
+                    title: p.title,
+                    link: p.videoUrl || p.link,
+                    views: p.views,
+                    likes: p.likes || p.diggCount || 0,
+                    comments: p.comments || p.commentCount || 0
+                }))
+        } : null,
         lastScanTime: new Date().toISOString(),
         passedList,
         failedList,
