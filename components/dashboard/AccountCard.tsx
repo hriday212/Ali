@@ -24,6 +24,7 @@ interface AccountCardProps {
     name: string;
     platform: string;
     followers: string;
+    totalViews?: string;
     status: string;
     hasNew?: boolean;
     link: string;
@@ -172,7 +173,10 @@ export default function AccountCard({ account, onDelete, onUpdate }: AccountCard
           {displayName}
         </h3>
         <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] group-hover:text-slate-300 transition-colors">
-          {account.followers} <span className="text-[10px] text-slate-600 italic">Network Reach</span>
+          {account.followers} <span className="text-[10px] text-slate-600 italic">Fans</span>
+        </p>
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+          {account.totalViews || '0'} <span className="text-[8px] opacity-60 italic">Reach</span>
         </p>
         
         {/* Vitality Status Badge */}

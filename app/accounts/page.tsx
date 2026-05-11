@@ -60,7 +60,8 @@ export default function AccountsPage() {
             name: s.name || s.accountId, 
             platform: s.platform,
             link: s.accountLink,
-            followers: formatNumber(s.lastViews || 0),
+            followers: formatNumber(s.followers || 0),
+            totalViews: formatNumber(s.lastViews || 0),
             status: 'connected',
             hasNew: false,
             avatarUrl: s.avatarUrl || '',
@@ -101,6 +102,7 @@ export default function AccountsPage() {
               return { 
                 ...acc, 
                 followers: fresh.followers, 
+                totalViews: fresh.totalViews,
                 platform: fresh.platform,
                 name: fresh.name,
                 avatarUrl: fresh.avatarUrl,
