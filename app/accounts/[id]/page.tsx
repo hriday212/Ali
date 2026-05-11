@@ -300,15 +300,7 @@ export default function AccountForensicPage() {
   const totalLikes = allPosts.reduce((sum, p) => sum + (typeof p.likes === 'number' ? p.likes : parseInt(String(p.likes)) || 0), 0);
   const totalComments = allPosts.reduce((sum, p) => sum + (typeof p.comments === 'number' ? p.comments : parseInt(String(p.comments)) || 0), 0);
 
-  const engagementData = totalViews > 0 ? [
-    { name: 'Views', value: Math.round((totalViews / (totalViews + totalLikes + totalComments)) * 100), color: '#ffffff' },
-    { name: 'Likes', value: Math.round((totalLikes / (totalViews + totalLikes + totalComments)) * 100), color: '#94a3b8' },
-    { name: 'Comments', value: Math.round((totalComments / (totalViews + totalLikes + totalComments)) * 100), color: '#475569' },
-  ] : [
-    { name: 'Views', value: 55, color: '#ffffff' },
-    { name: 'Likes', value: 30, color: '#94a3b8' },
-    { name: 'Comments', value: 15, color: '#475569' },
-  ];
+
 
   // Chart data: real scan history with origin point, or placeholder
   const chartData = React.useMemo(() => {
@@ -801,18 +793,7 @@ export default function AccountForensicPage() {
               </div>
 
               <div className="flex flex-col md:flex-row lg:flex-col gap-6">
-                <div onClick={() => setActiveSubHUD('engagement')} className="flex-1 glass-card p-6 md:p-8 h-[240px] cursor-pointer group border-white/10 hover:border-white/20 transition-all flex flex-col">
-                  <div className="flex items-center gap-4 mb-4">
-                    <PieChartIcon className="w-5 h-5 opacity-40 group-hover:opacity-100 transition-opacity" />
-                    <h2 className="text-[10px] font-black tracking-[0.2em] uppercase italic">Efficiency</h2>
-                  </div>
-                  <div className="flex-1 relative flex items-center justify-center pointer-events-none">
-                    <ResponsiveContainer width="100%" height={120}>
-                      <PieChart><Pie data={engagementData} innerRadius={40} outerRadius={55} paddingAngle={10} dataKey="value" stroke="none">{engagementData.map((e, i) => (<Cell key={i} fill={e.color} />))}</Pie></PieChart>
-                    </ResponsiveContainer>
-                    <span className="absolute text-xl font-black italic tracking-tighter">{hasScanned ? `${engagementData[0]?.value || 0}%` : '72%'}</span>
-                  </div>
-                </div>
+
                 {/* Quick Stats Card */}
                 <div className="glass-card flex-1 p-6 border-white/15 min-h-[114px] flex flex-col justify-center">
                   {hasScanned ? (
