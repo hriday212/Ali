@@ -1487,87 +1487,85 @@ export default function AccountForensicPage() {
               </div>
 
               <div className="flex-1 min-h-0 bg-black/60 border border-white/5 rounded-[1.5rem] p-6 relative overflow-hidden group">
-                {activeSubHUD === 'performance' ? (
-                  <div className="w-full h-full">
-                    <ResponsiveContainer width="99%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 20, right: 80, left: 20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="audG" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#ffffff" stopOpacity={0.15} />
-                            <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        {/* HIGH-DENSITY GRID */}
-                        <CartesianGrid strokeDasharray="1 1" stroke="#ffffff05" vertical={true} />
-                        <XAxis
-                          dataKey="time"
-                          axisLine={{ stroke: '#ffffff10' }}
-                          tickLine={false}
-                          tick={{ fill: '#ffffff30', fontSize: 9, fontWeight: 900 }}
-                          dy={10}
-                        />
-                        <YAxis
-                          orientation="right"
-                          domain={['auto', 'auto']}
-                          axisLine={{ stroke: '#ffffff10' }}
-                          tickLine={false}
-                          tick={{ fill: '#ffffff60', fontSize: 10, fontWeight: 900 }}
-                          tickFormatter={(v) => v.toLocaleString()}
-                        />
+                <div className="w-full h-full">
+                  <ResponsiveContainer width="99%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 20, right: 80, left: 20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="audG" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ffffff" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      {/* HIGH-DENSITY GRID */}
+                      <CartesianGrid strokeDasharray="1 1" stroke="#ffffff05" vertical={true} />
+                      <XAxis
+                        dataKey="time"
+                        axisLine={{ stroke: '#ffffff10' }}
+                        tickLine={false}
+                        tick={{ fill: '#ffffff30', fontSize: 9, fontWeight: 900 }}
+                        dy={10}
+                      />
+                      <YAxis
+                        orientation="right"
+                        domain={['auto', 'auto']}
+                        axisLine={{ stroke: '#ffffff10' }}
+                        tickLine={false}
+                        tick={{ fill: '#ffffff60', fontSize: 10, fontWeight: 900 }}
+                        tickFormatter={(v) => v.toLocaleString()}
+                      />
 
-                        {/* TRADING TERMINAL TOOLTIP / CROSSHAIRS */}
-                        <Tooltip
-                          cursor={{ stroke: '#ffffff20', strokeWidth: 1, strokeDasharray: '3 3' }}
-                          content={({ active, payload, label }: any) => {
-                            if (active && payload && payload.length) {
-                              return (
-                                <div className="bg-white text-black p-3 rounded-lg shadow-2xl font-black italic scale-110">
-                                  <p className="text-[8px] uppercase tracking-widest mb-1 opacity-50 underline">{label}</p>
-                                  <p className="text-xl leading-none">IDX: {payload[0].value?.toLocaleString()}</p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
+                      {/* TRADING TERMINAL TOOLTIP / CROSSHAIRS */}
+                      <Tooltip
+                        cursor={{ stroke: '#ffffff20', strokeWidth: 1, strokeDasharray: '3 3' }}
+                        content={({ active, payload, label }: any) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white text-black p-3 rounded-lg shadow-2xl font-black italic scale-110">
+                                <p className="text-[8px] uppercase tracking-widest mb-1 opacity-50 underline">{label}</p>
+                                <p className="text-xl leading-none">IDX: {payload[0].value?.toLocaleString()}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
 
-                        <Area
-                          type="monotone"
-                          dataKey="views"
-                          stroke="#ffffff"
-                          strokeWidth={2}
-                          fill="url(#audG)"
-                          animationDuration={600}
-                          activeDot={{ r: 4, fill: '#fff', stroke: '#000', strokeWidth: 2 }}
-                        />
+                      <Area
+                        type="monotone"
+                        dataKey="views"
+                        stroke="#ffffff"
+                        strokeWidth={2}
+                        fill="url(#audG)"
+                        animationDuration={600}
+                        activeDot={{ r: 4, fill: '#fff', stroke: '#000', strokeWidth: 2 }}
+                      />
 
-                        {/* THE ZOOM BRUSH */}
-                        <Brush
-                          dataKey="time"
-                          height={40}
-                          stroke="#ffffff10"
-                          fill="transparent"
-                          travellerWidth={15}
-                          gap={5}
-                        />
+                      {/* THE ZOOM BRUSH */}
+                      <Brush
+                        dataKey="time"
+                        height={40}
+                        stroke="#ffffff10"
+                        fill="transparent"
+                        travellerWidth={15}
+                        gap={5}
+                      />
 
-                        {/* INDICATORS */}
-                        {payouts.map((p, idx) => {
-                          const pLabel = new Date(p.paidAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                          return (
-                            <ReferenceLine
-                              key={idx}
-                              x={pLabel}
-                              stroke="#10b981"
-                              strokeDasharray="4 4"
-                              label={{ value: 'PAYOUT_EVENT', position: 'insideTopLeft', fill: '#10b981', fontSize: 7, fontWeight: 900 }}
-                            />
-                          );
-                        })}
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+                      {/* INDICATORS */}
+                      {payouts.map((p, idx) => {
+                        const pLabel = new Date(p.paidAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        return (
+                          <ReferenceLine
+                            key={idx}
+                            x={pLabel}
+                            stroke="#10b981"
+                            strokeDasharray="4 4"
+                            label={{ value: 'PAYOUT_EVENT', position: 'insideTopLeft', fill: '#10b981', fontSize: 7, fontWeight: 900 }}
+                          />
+                        );
+                      })}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
               <div className="mt-8 flex gap-6 justify-center flex-shrink-0">
