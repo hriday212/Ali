@@ -724,8 +724,7 @@ export default function AccountForensicPage() {
 
           {/* Primary Analytics (Scrollable Left) */}
           <div className="xl:col-span-3 flex flex-col gap-6 xl:min-h-0 xl:overflow-y-auto custom-scrollbar xl:pr-2">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-shrink-0">
-              <div onClick={() => setActiveSubHUD('performance')} className="lg:col-span-2 glass-card p-6 md:p-8 h-[380px] cursor-pointer group border-white/10 hover:border-white/20 transition-all relative overflow-hidden flex flex-col">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-shrin              <div onClick={() => setActiveSubHUD('performance')} className="lg:col-span-3 glass-card p-6 md:p-8 h-[420px] cursor-pointer group border-white/10 hover:border-white/20 transition-all relative overflow-hidden flex flex-col">
                 <div className="flex items-start md:items-center justify-between mb-8 flex-col sm:flex-row gap-4">
                   <div className="flex items-center gap-4">
                     <TrendingUp className="w-5 h-5 flex-shrink-0" />
@@ -745,15 +744,8 @@ export default function AccountForensicPage() {
                     </div>
                   </div>
                 </div>
-                
-                <div className="flex items-center justify-between mt-auto mb-4 px-2">
-                   {hasScanned && <span className="text-[8px] font-black text-white/30 uppercase tracking-widest hidden md:inline">{scanHistory.length} Scans | {allPosts.length} Assets</span>}
-                   <div className={`px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest italic ${isScraping ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse shadow-[0_0_15px_rgba(99,102,241,0.5)]' : autoScanActive ? 'animate-pulse' : 'opacity-50'}`}>
-                      {isScraping ? 'Engine Scraping...' : autoScanActive ? 'Auto-Scanning' : hasScanned ? 'Scan Data' : 'Awaiting Scan'}
-                   </div>
-                </div>
 
-                <div className="flex-1 w-full overflow-x-auto hide-scrollbar touch-pan-x pointer-events-auto mt-4">
+                <div className="flex-1 w-full overflow-x-auto hide-scrollbar touch-pan-x pointer-events-auto">
                   <div className="min-w-[600px] h-[220px] pointer-events-none px-4 pb-2">
                     <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData}>
@@ -769,7 +761,6 @@ export default function AccountForensicPage() {
                       <Area yAxisId="right" type="monotone" dataKey="shares" stroke="#f59e0b" strokeWidth={2} fill="url(#sG)" />
                       
                       {isAdmin && account?.settlements?.map((s, idx) => {
-                         // Find closest point in chartData to place the dot
                          const dotTime = new Date(s.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                          return (
                            <ReferenceDot 
@@ -790,61 +781,50 @@ export default function AccountForensicPage() {
                   </ResponsiveContainer>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex flex-col md:flex-row lg:flex-col gap-6">
-
-                {/* Quick Stats Card */}
-                <div className="glass-card flex-1 p-6 border-white/15 min-h-[114px] flex flex-col justify-center">
-                  {hasScanned ? (
-                    <>
-                      <span className="text-[8px] font-black uppercase tracking-[0.3em] opacity-30 mb-3 italic">Scan Summary</span>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div><p className="text-lg font-black italic tracking-tighter leading-none">{formatNumber(totalViews)}</p><p className="text-[7px] font-black opacity-20 uppercase mt-0.5">Views</p></div>
-                        <div><p className="text-lg font-black italic tracking-tighter leading-none">{formatNumber(totalLikes)}</p><p className="text-[7px] font-black opacity-20 uppercase mt-0.5">Likes</p></div>
-                        <div><p className="text-lg font-black italic tracking-tighter leading-none">{formatNumber(totalComments)}</p><p className="text-[7px] font-black opacity-20 uppercase mt-0.5">Comments</p></div>
+                {/* Integrated Stats Bar */}
+                <div className="mt-6 pt-6 border-t border-white/5 flex flex-wrap items-center justify-between gap-8">
+                   <div className="flex items-center gap-10">
+                      <div>
+                        <p className="text-[11px] font-black italic tracking-tighter leading-none text-white">{formatNumber(totalViews)}</p>
+                        <p className="text-[7px] font-black opacity-20 uppercase mt-0.5 tracking-widest">Global Views</p>
                       </div>
-                      {account.campaignConfig?.type === 'CPM' && (
-                        <div className="mt-4 pt-4 border-t border-white/5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 italic">Potential Yield</span>
-                            <span className="text-lg font-black italic tracking-tighter text-emerald-400">
-                              ${((Math.min(Math.max(totalViews - (account.campaignConfig.threshold || 0), 0), (account.campaignConfig.cap || Infinity)) / 1000) * (account.campaignConfig.cpmRate || 0)).toFixed(2)}
-                            </span>
-                          </div>
-                          <p className="text-[6px] font-black uppercase tracking-widest text-slate-700 mt-1 italic">
-                            @{account.campaignConfig.cpmRate}/1k Views | Threshold {formatNumber(account.campaignConfig.threshold || 0)}
-                          </p>
+                      <div>
+                        <p className="text-[11px] font-black italic tracking-tighter leading-none text-white">{formatNumber(totalLikes)}</p>
+                        <p className="text-[7px] font-black opacity-20 uppercase mt-0.5 tracking-widest">Likes</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black italic tracking-tighter leading-none text-white">{formatNumber(totalComments)}</p>
+                        <p className="text-[7px] font-black opacity-20 uppercase mt-0.5 tracking-widest">Comments</p>
+                      </div>
+                   </div>
+
+                   <div className="flex items-center gap-6">
+                      {hasScanned && <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em] italic hidden md:inline">{scanHistory.length} Scans Collected</span>}
+                      <div className={`px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[8px] font-black uppercase tracking-widest italic ${isScraping ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse' : autoScanActive ? 'text-white/60' : 'opacity-50'}`}>
+                        {isScraping ? 'Engine Scraping...' : autoScanActive ? 'Auto-Scan Active' : 'Scan Standby'}
+                      </div>
+                   </div>
+
+                   {account.campaignConfig?.type === 'CPM' && (
+                     <div className="ml-auto bg-emerald-500/5 border border-emerald-500/10 px-4 py-2 rounded-xl">
+                        <span className="text-[7px] font-black uppercase text-emerald-500/50 block mb-0.5">Potential Yield</span>
+                        <span className="text-sm font-black italic text-emerald-400">
+                          ${((Math.min(Math.max(totalViews - (account.campaignConfig.threshold || 0), 0), (account.campaignConfig.cap || Infinity)) / 1000) * (account.campaignConfig.cpmRate || 0)).toFixed(2)}
+                        </span>
+                     </div>
+                   )}
+                   {account.campaignConfig?.type === 'Retainer' && (
+                     <div className="ml-auto bg-indigo-500/5 border border-indigo-500/10 px-4 py-2 rounded-xl flex items-center gap-4">
+                        <div>
+                          <span className="text-[7px] font-black uppercase text-indigo-400/50 block mb-0.5">Daily Quota</span>
+                          <span className="text-sm font-black italic text-indigo-400">{account.dailyPostCount || 0}/{account.campaignConfig.postsQuota || 2}</span>
                         </div>
-                      )}
-                      {account.campaignConfig?.type === 'Retainer' && (
-                        <div className="mt-4 pt-4 border-t border-white/5">
-                           <div className="flex items-center justify-between mb-2">
-                             <span className="text-[8px] font-black uppercase tracking-widest text-indigo-400 italic">Retainer Model</span>
-                             <div className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest ${account.slaStatus === 'HEALTHY' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                                {account.slaStatus === 'HEALTHY' ? 'FULFILLED' : 'PENDING'}
-                             </div>
-                           </div>
-                           <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                 <span className="text-[7px] font-black text-slate-500 uppercase">Posts (24h)</span>
-                                 <span className="text-[10px] font-black italic">{account.dailyPostCount || 0} / {account.campaignConfig.postsQuota || 2}</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                 <span className="text-[7px] font-black text-slate-500 uppercase">Min Views</span>
-                                 <span className="text-[10px] font-black italic">{formatNumber(totalViews)} / {formatNumber(account.campaignConfig.minViews || 5000)}</span>
-                              </div>
-                           </div>
-                           <p className="text-[10px] font-black italic tracking-tighter text-indigo-400 text-right mt-2">${(account.campaignConfig.retainerAmount || 0).toFixed(2)} / Period</p>
+                        <div className={`px-2 py-1 rounded text-[7px] font-black uppercase ${account.slaStatus === 'HEALTHY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                           {account.slaStatus === 'HEALTHY' ? 'SLA PASS' : 'SLA FAIL'}
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-[8px] font-black uppercase tracking-[0.3em] opacity-30 mb-2 italic">Awaiting Scan</span>
-                      <p className="text-[11px] font-black uppercase italic tracking-tighter leading-tight opacity-40">Click "Initialize Scan" to load real data</p>
-                    </>
-                  )}
+                     </div>
+                   )}
                 </div>
               </div>
             </div>
