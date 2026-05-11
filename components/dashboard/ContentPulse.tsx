@@ -23,6 +23,14 @@ interface Post {
   lifecycle?: string;
 }
 
+const formatCount = (num: number) => {
+  if (!num) return '0';
+  if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+  if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  return num.toString();
+};
+
 export function ContentPulse({ filterNodeId }: { filterNodeId?: string }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +94,7 @@ function ContentCard({ post, index }: { post: Post, index: number }) {
             src={post.thumbnail || ''} 
             alt={post.title}
             className="w-full h-full"
+            platform={post.platform}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
           
@@ -140,15 +149,15 @@ function ContentCard({ post, index }: { post: Post, index: number }) {
           <div className="grid grid-cols-3 gap-2 mt-6">
             <div className="bg-white/[0.03] border border-white/5 rounded-xl p-2 text-center">
               <Eye className="w-3 h-3 text-blue-400 mx-auto mb-1" />
-              <span className="text-[10px] font-black italic text-white">{(post.views / 1000).toFixed(1)}k</span>
+              <span className="text-[10px] font-black italic text-white">{formatCount(post.views)}</span>
             </div>
             <div className="bg-white/[0.03] border border-white/5 rounded-xl p-2 text-center">
               <Heart className="w-3 h-3 text-pink-500 mx-auto mb-1" />
-              <span className="text-[10px] font-black italic text-white">{(post.likes / 1000).toFixed(1)}k</span>
+              <span className="text-[10px] font-black italic text-white">{formatCount(post.likes)}</span>
             </div>
             <div className="bg-white/[0.03] border border-white/5 rounded-xl p-2 text-center">
               <MessageCircle className="w-3 h-3 text-emerald-400 mx-auto mb-1" />
-              <span className="text-[10px] font-black italic text-white">{post.comments}</span>
+              <span className="text-[10px] font-black italic text-white">{formatCount(post.comments)}</span>
             </div>
           </div>
         </div>

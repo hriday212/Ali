@@ -160,8 +160,7 @@ export default function PaymentsPage() {
         body: JSON.stringify(newPayout)
       });
       
-      // Update local state
-      setNodes(prev => prev.map(n => n.id === node.id ? { ...n, lastPaidViews: actualMark } : n));
+      await fetchData(); // Refresh data from backend
       
       // Clear overrides
       const cRates = {...customRates}; delete cRates[node.id]; setCustomRates(cRates);
@@ -171,6 +170,32 @@ export default function PaymentsPage() {
 
     } catch (e) {
       console.error('Settlement Failed:', e);
+    }
+  };
+
+  const handleUndoPayout = async (nodeId: string) => {
+    // Find the latest payout for this account
+    const lastPayout = payoutsDb.find(p => p.accountId === nodeId);
+    if (!lastPayout) return;
+
+    if (!confirm(`Are you sure you want to UNDO the last payout for ${nodeId}? This will restore the previous unpaid view balance.`)) return;
+
+    try {
+      await safeFetchJson(`${API_ROUTES.PAYOUTS}/${lastPayout.id}`, { method: 'DELETE' });
+      await fetchData();
+    } catch (e) {
+      console.error('Undo Failed:', e);
+    }
+  };
+
+  const handleGlobalReset = async () => {
+    if (!confirm('🚨 WARNING: You are about to RESET the entire ledger. This will clear ALL payment history and restore all view balances to UNPAID. This cannot be undone. Proceed?')) return;
+
+    try {
+      await safeFetchJson(API_ROUTES.PAYOUTS, { method: 'DELETE' });
+      await fetchData();
+    } catch (e) {
+      console.error('Global Reset Failed:', e);
     }
   };
 
@@ -214,10 +239,18 @@ export default function PaymentsPage() {
           <p className="text-slate-400 text-lg leading-relaxed max-w-2xl">Automated view-debt tracking and payment clearance command center. Calculates pending liability based on real-time scan telemetry.</p>
         </div>
 
-        <div className="flex gap-4 w-full md:w-auto">
+        <div className="flex flex-wrap gap-4 w-full md:w-auto">
+          {isAdmin && (
+            <button 
+              onClick={handleGlobalReset}
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95"
+            >
+               <RefreshCw className="w-4 h-4" /> Reset Ledger
+            </button>
+          )}
           <button 
             onClick={handleExportCSV}
-            className="flex items-center justify-center gap-2 px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black uppercase tracking-widest rounded-2xl flex-1 md:flex-none transition-all active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95"
           >
              <FileText className="w-4 h-4" /> Export CSV
           </button>
@@ -400,9 +433,13 @@ export default function PaymentsPage() {
                                {isAdmin ? 'Settle' : 'Locked'} <ArrowRight className="w-3 h-3" />
                             </button>
                           ) : (
-                            <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-emerald-500/50 text-[9px] font-black uppercase tracking-widest">
-                               <CheckCircle2 className="w-3 h-3" /> Settled
-                            </div>
+                            <button 
+                              onClick={() => handleUndoPayout(node.id)}
+                              disabled={!isAdmin}
+                              className={`inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 rounded-lg text-emerald-500/50 hover:text-emerald-500 text-[9px] font-black uppercase tracking-widest transition-all ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                               <CheckCircle2 className="w-3 h-3" /> {isAdmin ? 'Undo' : 'Settled'}
+                            </button>
                           )}
                         </div>
                       </td>

@@ -183,17 +183,29 @@ async function sendViralAlert(accountId, platform, growthData, accountMeta = {})
     if (!client || !viralAlertsChannelId) return;
     const channel = await client.channels.fetch(viralAlertsChannelId);
     if (!channel) return;
-    const embed = new EmbedBuilder().setTitle('🔥 VIRAL SIGNAL DETECTED').setDescription(`Significant momentum spike detected for node [${accountMeta.name || accountId}](${accountMeta.link || '#'}) on ${platform.toUpperCase()}.`).setColor(0xFF4500).addFields({ name: 'Velocity Spike', value: `+${growthData.delta.toLocaleString()} views`, inline: true }, { name: 'Growth Multiplier', value: `${growthData.multiplier.toFixed(1)}x`, inline: true }, { name: 'Z-Score Momentum', value: growthData.zScore.toFixed(2), inline: true }).setThumbnail('https://cdn-icons-png.flaticon.com/512/1680/1680951.png').setTimestamp();
+    const embed = new EmbedBuilder().setTitle('🔥 VIRAL SIGNAL DETECTED').setDescription(`Significant momentum spike detected for node [${accountMeta.name || accountId}](${accountMeta.link || '#'}) on ${platform.toUpperCase()}.`).setColor(0xFF4500).addFields(
+        { name: 'Velocity Spike', value: `+${fmtCount(growthData.delta)} views`, inline: true }, 
+        { name: 'Growth Multiplier', value: `${growthData.multiplier.toFixed(1)}x`, inline: true }, 
+        { name: 'Z-Score Momentum', value: growthData.zScore.toFixed(2), inline: true }
+    ).setThumbnail('https://cdn-icons-png.flaticon.com/512/1680/1680951.png').setTimestamp();
     if (accountMeta.topPosts?.length > 0) {
         let text = '';
         accountMeta.topPosts.forEach((p, idx) => {
-            const stats = `📈 ${p.views >= 1000 ? (p.views/1000).toFixed(1)+'k' : p.views} | ❤️ ${p.likes >= 1000 ? (p.likes/1000).toFixed(1)+'k' : p.likes} | 💬 ${p.comments >= 1000 ? (p.comments/1000).toFixed(1)+'k' : p.comments}`;
+            const stats = `📈 ${fmtCount(p.views)} | ❤️ ${fmtCount(p.likes)} | 💬 ${fmtCount(p.comments)}`;
             text += `${idx + 1}. [${p.title?.substring(0,35) || 'Untitled'}](${p.link})\n└ ${stats}\n`;
         });
         embed.addFields({ name: '🚀 Trending Content', value: text });
     }
     await channel.send({ embeds: [embed] });
 }
+
+const fmtCount = (num) => {
+    if (!num || isNaN(num)) return '0';
+    if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+    if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+};
 
 async function sendDailyDigest(summaryData) {
     if (!client || !viralAlertsChannelId) return;
@@ -202,10 +214,14 @@ async function sendDailyDigest(summaryData) {
     const { totalNodes, totalViews, periodViewsGain, healthy, failing, ytCount, ttCount, igCount, topPerformer, passedList, failedList } = summaryData;
     const healthPct = Math.round((healthy / totalNodes) * 100);
     const embed = new EmbedBuilder().setTitle('📊 Daily Network Report').setColor(healthPct >= 80 ? 0x00FF99 : 0xFFAA00).setDescription(`24-hour snapshot for **${totalNodes} accounts**.`)
-        .addFields({ name: '📈 Reach', value: `\`${(totalViews/1e6).toFixed(2)}M\` total\n\`+${(periodViewsGain/1e3).toFixed(1)}K\` today`, inline: true }, { name: '💚 Health', value: `\`${healthy}\` pass / \`${failing}\` fail\n**${healthPct}%** uptime`, inline: true }, { name: '🌐 Platforms', value: `🔴 YT: \`${ytCount}\` ⚫ TT: \`${ttCount}\` 🟣 IG: \`${igCount}\``, inline: true });
-    if (topPerformer) embed.addFields({ name: '🏆 Top Performer', value: `[${topPerformer.name}](${topPerformer.link}) — **+${(topPerformer.gain/1e3).toFixed(1)}K views**` });
-    if (passedList?.length > 0) embed.addFields({ name: `✅ Passing (${healthy})`, value: passedList.slice(0, 10).join('\n') + (passedList.length > 10 ? '\n*...*' : '') });
-    if (failedList?.length > 0) embed.addFields({ name: `⚠️ Failing (${failing})`, value: failedList.slice(0, 10).join('\n') + (failedList.length > 10 ? '\n*...*' : '') });
+        .addFields(
+            { name: '📈 Reach', value: `\`${fmtCount(totalViews)}\` total\n\`+${fmtCount(periodViewsGain)}\` today`, inline: true }, 
+            { name: '💚 Health', value: `\`${healthy}\` pass / \`${failing}\` fail\n**${healthPct}%** uptime`, inline: true }, 
+            { name: '🌐 Platforms', value: `🔴 YT: \`${ytCount}\` ⚫ TT: \`${ttCount}\` 🟣 IG: \`${igCount}\``, inline: true }
+        );
+    if (topPerformer) embed.addFields({ name: '🏆 Top Performer', value: `[${topPerformer.name}](${topPerformer.link}) — **+${fmtCount(topPerformer.gain)} views**` });
+    if (passedList?.length > 0) embed.addFields({ name: `✅ Passing (${healthy})`, value: passedList.slice(0, 20).join('\n') + (passedList.length > 20 ? `\n*+ ${passedList.length - 20} more... (Use /scans)*` : '') });
+    if (failedList?.length > 0) embed.addFields({ name: `⚠️ Failing (${failing})`, value: failedList.slice(0, 20).join('\n') + (failedList.length > 20 ? `\n*+ ${failedList.length - 20} more... (Use /scans)*` : '') });
     embed.setFooter({ text: 'Clypso Sentinel • Automated Report' }).setTimestamp();
     await channel.send({ embeds: [embed] });
 }

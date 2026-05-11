@@ -106,22 +106,65 @@ export default function GlobalVideosPage() {
     loadLatest();
   }, []);
 
-  const handleTogglePaid = async (e: React.MouseEvent, post: PostData) => {
+  const [selectedSettlePost, setSelectedSettlePost] = useState<PostData | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleTogglePaid = (e: React.MouseEvent, post: PostData) => {
     e.stopPropagation();
     if (!isAdmin) return;
-    const newState = !post.paid;
-    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, paid: newState } : p));
+    if (post.paid) {
+       // Just undo if already paid (simple case)
+       confirmUndo(post);
+    } else {
+       setSelectedSettlePost(post);
+    }
+  };
+
+  const confirmUndo = async (post: PostData) => {
+    if (!confirm('Are you sure you want to revert this payment status to UNPAID?')) return;
+    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, paid: false } : p));
+    try {
+      const url = typeof API_ROUTES.TOGGLE_VIDEO_PAYMENT === 'function' ? (API_ROUTES as any).TOGGLE_VIDEO_PAYMENT(post.nodeId || '', post.id) : '';
+      await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paid: false }) });
+    } catch (err) { console.error(err); }
+  };
+
+  const handleProcessSettlement = async (type: 'all' | 'range' | 'fixed', data?: any) => {
+    if (!selectedSettlePost || !isAdmin) return;
+    setIsProcessing(true);
     
     try {
-      // @ts-ignore
-      const url = typeof API_ROUTES.TOGGLE_VIDEO_PAYMENT === 'function' ? API_ROUTES.TOGGLE_VIDEO_PAYMENT(post.nodeId || '', post.id) : '';
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paid: newState })
-      });
+      // 1. Mark the individual post as paid first
+      setPosts(prev => prev.map(p => p.id === selectedSettlePost.id ? { ...p, paid: true } : p));
+      const toggleUrl = typeof API_ROUTES.TOGGLE_VIDEO_PAYMENT === 'function' ? (API_ROUTES as any).TOGGLE_VIDEO_PAYMENT(selectedSettlePost.nodeId || '', selectedSettlePost.id) : '';
+      await fetch(toggleUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paid: true }) });
+
+      // 2. Process the ledger entry based on selection
+      if (type !== 'range') { // Range is handled manually in payments page, but we can log a quick entry here
+          const amount = type === 'all' ? 0 : parseFloat(data?.amount || 0); // 0 amount for 'all' as it's a mark-only operation
+          const payout = {
+            id: crypto.randomUUID(),
+            accountId: selectedSettlePost.nodeId,
+            platform: selectedSettlePost.platform,
+            amount,
+            paidAt: new Date().toISOString(),
+            viewsAtPayment: typeof selectedSettlePost.views === 'string' ? parseInt(selectedSettlePost.views) : selectedSettlePost.views,
+            nodeId: selectedSettlePost.nodeId,
+            type: type === 'fixed' ? 'Retainer' : 'Full-Clear'
+          };
+          
+          await fetch(API_ROUTES.PAYOUTS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payout)
+          });
+      }
+      
+      setSelectedSettlePost(null);
     } catch (err) {
-      console.error('Failed to toggle payout status', err);
+      console.error('Settlement Failed', err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -379,7 +422,98 @@ export default function GlobalVideosPage() {
           )}
         </>
       )}
+      {/* Settlement Choice Modal */}
+      <AnimatePresence>
+        {selectedSettlePost && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-black/80"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-xl glass-card p-10 border-white/20 shadow-2xl relative bg-slate-950"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white">Settlement Protocol</h3>
+                  <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mt-1">Node: {selectedSettlePost.nodeId}</p>
+                </div>
+                <button onClick={() => setSelectedSettlePost(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-500 hover:text-white">✕</button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Option 1: Full Clear */}
+                <button 
+                  onClick={() => handleProcessSettlement('all')}
+                  className="w-full group p-6 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black uppercase text-white group-hover:text-emerald-400 transition-colors">Clear Full Account Balance</h4>
+                      <p className="text-[10px] text-slate-500 uppercase font-bold mt-1">Marks all pending debt for this node as settled up to today.</p>
+                    </div>
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
+
+                {/* Option 2: Range */}
+                <button 
+                  onClick={() => window.location.href = '/payments'}
+                  className="w-full group p-6 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black uppercase text-white group-hover:text-blue-400 transition-colors">Specify Custom View Range</h4>
+                      <p className="text-[10px] text-slate-500 uppercase font-bold mt-1">Redirects to Payout Matrix for precise "From → To" view settling.</p>
+                    </div>
+                    <ArrowUpRight className="w-5 h-5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
+
+                {/* Option 3: Fixed Amt */}
+                <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/10">
+                   <h4 className="text-sm font-black uppercase text-white mb-4">Apply Fixed Retainer ($)</h4>
+                   <div className="flex gap-3">
+                      <input 
+                        id="fixed-amt-input"
+                        type="number" 
+                        placeholder="Enter amount..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-indigo-500/50 transition-colors text-white"
+                      />
+                      <button 
+                        onClick={() => {
+                          const val = (document.getElementById('fixed-amt-input') as HTMLInputElement).value;
+                          handleProcessSettlement('fixed', { amount: val });
+                        }}
+                        className="px-6 bg-indigo-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-400 transition-colors"
+                      >
+                         Apply
+                      </button>
+                   </div>
+                   <p className="text-[9px] text-slate-600 uppercase font-bold mt-3">Used for flat-fee payments regardless of view count.</p>
+                </div>
+              </div>
+
+              {isProcessing && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center rounded-[2.5rem] z-50">
+                   <div className="flex flex-col items-center gap-4">
+                      <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+                      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white">Processing Ledger Entry...</p>
+                   </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// Helper icons for the modal
+function CheckCircle2(props: any) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
   );
 }
 

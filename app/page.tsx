@@ -81,13 +81,23 @@ export default function Home() {
         commentsGrowth: pctGrowth(currComments, prevComments),
       });
 
-      // Build platform distribution
+      // Build platform distribution (Sum-Normalized to 100%)
       const total = Object.values(platformViews).reduce((a, b) => a + b, 0) || 1;
-      setPlatformDist(Object.entries(platformViews).map(([name, value]) => ({
+      let rawEntries = Object.entries(platformViews).map(([name, value]) => ({
         name: name.charAt(0).toUpperCase() + name.slice(1),
-        value: +((value / total) * 100).toFixed(0),
+        value: (value / total) * 100,
         color: name === 'youtube' ? '#FF0000' : name === 'tiktok' ? '#ffffff' : '#E1306C',
-      })));
+      }));
+
+      // Round them and fix the sum
+      let roundedEntries = rawEntries.map(e => ({ ...e, value: Math.round(e.value) }));
+      const sum = roundedEntries.reduce((a, b) => a + b.value, 0);
+      if (sum !== 100 && roundedEntries.length > 0) {
+        // Adjust the largest slice to make it exactly 100
+        const largest = roundedEntries.reduce((prev, current) => (prev.value > current.value) ? prev : current);
+        largest.value += (100 - sum);
+      }
+      setPlatformDist(roundedEntries);
 
       // --- ADVANCED AGGREGATION: CONTINUOUS NETWORK STATE (Fill-Forward) ---
       // 1. Collect all unique time buckets (minutes) across the entire network

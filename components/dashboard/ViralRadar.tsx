@@ -121,7 +121,13 @@ export function ViralRadar() {
     );
   }
 
-  const formatNum = (num: number) => num >= 1000 ? `${(num / 1000).toFixed(1)}k` : num;
+  const formatNum = (num: number) => {
+    if (!num) return '0';
+    if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+    if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toLocaleString();
+  };
 
   return (
     <div className="glass-card p-6 border border-emerald-500/20 relative overflow-hidden bg-gradient-to-br from-emerald-500/5 to-transparent">
@@ -165,6 +171,7 @@ export function ViralRadar() {
                       src={candidate.thumbnail || ''} 
                       alt="" 
                       className="w-12 h-12 rounded-lg border border-white/10" 
+                      platform={candidate.platform}
                     />
                    <div className="min-w-0 flex-1">
                      <p className="text-[10px] font-black uppercase text-white truncate italic tracking-tight mb-1">{candidate.title}</p>

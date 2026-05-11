@@ -1341,6 +1341,25 @@ app.post('/api/payouts', (req, res) => {
   res.json({ success: true, payouts: ledger });
 });
 
+// Global Reset
+app.delete('/api/payouts', (req, res) => {
+  writeLedger([]);
+  console.log('[ScanEngine] 🧨 Ledger Total Reset performed.');
+  res.json({ success: true });
+});
+
+// Individual Undo
+app.delete('/api/payouts/:id', (req, res) => {
+  const { id } = req.params;
+  let ledger = readLedger();
+  const initialLength = ledger.length;
+  ledger = ledger.filter(p => p.id !== id);
+  if (ledger.length === initialLength) return res.status(404).json({ error: 'Payout not found' });
+  writeLedger(ledger);
+  console.log(`[ScanEngine] ↩️ Undo: Payout ${id} removed.`);
+  res.json({ success: true });
+});
+
 // New: Hashtag Intelligence
 app.get('/api/hashtags/scan', async (req, res) => {
   const { tag, platform } = req.query;
@@ -1492,18 +1511,18 @@ app.listen(PORT, '0.0.0.0', () => {
 
         // Collect posts for attendance log
         const icon = getEmoji(s.platform);
+        const nameLabel = s.name || s.accountId;
         postsInWindow.forEach(p => {
             attendanceLog.push({
-                account: s.name || s.accountId,
+                account: nameLabel,
                 title: p.title,
-                link: p.videoUrl,
+                link: p.videoUrl || p.link,
                 icon
             });
         });
 
         const isHealthy = postsInWindow.length >= 2;
         const statusIcon = isHealthy ? '✅' : '⚠️';
-        const nameLabel = s.name || s.accountId;
         const entry = `${icon} [${nameLabel}](${s.accountLink}) | **+${(gain/1000).toFixed(1)}k**`;
         inventoryList.push(`${statusIcon} ${icon} [${nameLabel}](${s.accountLink})`);
         if (isHealthy) { healthy++; passedList.push(entry); } else { failing++; failedList.push(entry); }
