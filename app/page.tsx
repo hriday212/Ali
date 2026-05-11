@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Eye, Heart, MessageCircle, DollarSign, TrendingUp, Filter, Calendar, Zap, Terminal } from 'lucide-react';
+import { Eye, Heart, MessageCircle, DollarSign, TrendingUp, Filter, Calendar, Zap, Terminal, Users } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { API_ROUTES } from '@/lib/apiConfig';

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Rocket, TrendingUp, AlertCircle, Youtube, Instagram, Music2, ArrowUpRight, Eye, Heart, MessageCircle } from 'lucide-react';
+import { Rocket, TrendingUp, AlertCircle, Youtube, Instagram, Music2, ArrowUpRight, Eye, Heart, MessageCircle, Users } from 'lucide-react';
 import { API_ROUTES } from '@/lib/apiConfig';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { safeFetchJson } from '@/lib/fetchUtils';
